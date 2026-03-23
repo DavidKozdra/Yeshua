@@ -26,6 +26,17 @@ export default function Layout() {
         ...BASE_NAV_ITEMS.slice(2),
       ]
     : BASE_NAV_ITEMS;
+  const readItem = navItems.find((item) => item.to === '/read') || null;
+  const mobileNavItems = (() => {
+    if (!readItem) return navItems;
+    const itemsWithoutRead = navItems.filter((item) => item.to !== '/read');
+    const insertIndex = Math.floor(itemsWithoutRead.length / 2);
+    return [
+      ...itemsWithoutRead.slice(0, insertIndex),
+      readItem,
+      ...itemsWithoutRead.slice(insertIndex),
+    ];
+  })();
 
   useEffect(() => subscribeToSettings(setSettings), []);
 
@@ -92,7 +103,7 @@ export default function Layout() {
       <ToastHost />
 
       <nav className="bottom-nav" aria-label="Main navigation">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {mobileNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
