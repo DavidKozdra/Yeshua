@@ -13,6 +13,7 @@ import { getTranslationById } from './bibleData';
 const SETTINGS_KEY = 'yeshua-settings';
 const LAST_READ_KEY = 'yeshua-last-read';
 const PROFILE_KEY = 'yeshua-profile';
+const SETTINGS_EVENT = 'yeshua-settings-changed';
 
 const defaults = {
   fontSize: 18,
@@ -21,6 +22,7 @@ const defaults = {
   defaultTranslation: DEFAULT_TRANSLATION_ID,
   showVerseNumbers: true,
   oneVersePerLine: false,
+  showGlobalSearchBar: true,
   customTheme: CUSTOM_THEME_DEFAULT,
   customThemes: [],
 };
@@ -73,20 +75,44 @@ export function getSettings() {
 export function saveSettings(settings) {
   const customThemes = normalizeCustomThemes(settings.customThemes);
   const activeCustomTheme = getCustomThemeById(customThemes, settings.theme);
+  const storedSettings = {
+    ...settings,
+    theme:
+      typeof settings.theme === 'string' &&
+      (isBuiltInTheme(settings.theme) || activeCustomTheme)
+        ? settings.theme
+        : defaults.theme,
+    customTheme: activeCustomTheme?.colors || normalizeCustomTheme(settings.customTheme),
+    customThemes,
+  };
 
   localStorage.setItem(
     SETTINGS_KEY,
-    JSON.stringify({
-      ...settings,
-      theme:
-        typeof settings.theme === 'string' &&
-        (isBuiltInTheme(settings.theme) || activeCustomTheme)
-          ? settings.theme
-          : defaults.theme,
-      customTheme: activeCustomTheme?.colors || normalizeCustomTheme(settings.customTheme),
-      customThemes,
-    })
+    JSON.stringify(storedSettings)
   );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent(SETTINGS_EVENT, {
+        detail: {
+          settings: normalizeSettings(storedSettings),
+        },
+      })
+    );
+  }
+}
+
+export function subscribeToSettings(listener) {
+  if (typeof window === 'undefined') return () => {};
+
+  function handleSettingsChange(event) {
+    listener(event.detail?.settings || getSettings());
+  }
+
+  window.addEventListener(SETTINGS_EVENT, handleSettingsChange);
+  return () => {
+    window.removeEventListener(SETTINGS_EVENT, handleSettingsChange);
+  };
 }
 
 export function getLastRead() {

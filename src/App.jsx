@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Read from './pages/Read';
+import Search from './pages/Search';
 import Translations from './pages/Translations';
 import Notes from './pages/Notes';
 import Settings from './pages/Settings';
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/read" element={<Read />} />
         <Route path="/read/:translationId/:bookId/:chapter" element={<Read />} />
+        <Route path="/search" element={<Search />} />
         <Route path="/translations" element={<Translations />} />
         <Route path="/notes" element={<Notes />} />
         <Route path="/settings" element={<Settings />} />

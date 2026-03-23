@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sun, BookOpen, Type, Eye, Palette } from 'lucide-react';
+import { Sun, BookOpen, Type, Eye, Palette, Search } from 'lucide-react';
 import { getSettings, saveSettings } from '../utils/storage';
 import {
   AVAILABLE_TRANSLATIONS,
@@ -10,6 +10,7 @@ import {
 import { getAllDownloadedTranslations } from '../utils/db';
 import { fetchChapter, subscribeToTranslationInstallEvents } from '../utils/api';
 import { getTranslationSelectLabel, getTranslationStatus } from '../utils/translationStatus';
+import { parseReferenceInput } from '../utils/reference';
 import {
   applyTheme,
   BUILT_IN_THEMES,
@@ -25,16 +26,6 @@ const PREVIEW_DEFAULT = {
   bookId: 'JHN',
   chapter: 3,
   verse: 16,
-};
-
-const BOOK_ALIASES = {
-  genisis: 'GEN',
-  genesis: 'GEN',
-  psalm: 'PSA',
-  psalms: 'PSA',
-  songofsongs: 'SNG',
-  songofsolomon: 'SNG',
-  songsolomon: 'SNG',
 };
 
 const CUSTOM_THEME_FIELDS = [
@@ -56,33 +47,6 @@ const BUILT_IN_THEME_LABELS = {
 
 function formatPreviewReference(bookId, chapter, verse) {
   return `${getBookById(bookId)?.name || bookId} ${chapter}:${verse}`;
-}
-
-function normalizeBookToken(value) {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function parseReferenceInput(input) {
-  const match = input.trim().match(/^(.+?)\s+(\d+)(?::(\d+))?$/i);
-  if (!match) return null;
-
-  const [, rawBook, rawChapter, rawVerse] = match;
-  const normalizedBook = BOOK_ALIASES[normalizeBookToken(rawBook)] || normalizeBookToken(rawBook);
-  const book = BIBLE_BOOKS.find((item) => {
-    const normalizedName = normalizeBookToken(item.name);
-    const normalizedId = normalizeBookToken(item.id);
-    return normalizedBook === normalizedName || normalizedBook === normalizedId;
-  });
-
-  if (!book) return null;
-
-  const chapter = Number.parseInt(rawChapter, 10);
-  const verse = rawVerse ? Number.parseInt(rawVerse, 10) : 1;
-
-  if (Number.isNaN(chapter) || chapter < 1 || chapter > book.chapters) return null;
-  if (Number.isNaN(verse) || verse < 1) return null;
-
-  return { bookId: book.id, chapter, verse };
 }
 
 export default function Settings() {
@@ -318,7 +282,7 @@ export default function Settings() {
                   </button>
                 ))}
               </div>
-              <div className="theme-actions">
+            <div className="theme-actions">
                 <button
                   className="btn btn-outline btn-sm"
                   onClick={() => openThemeModal(activeCustomTheme)}
@@ -336,6 +300,23 @@ export default function Settings() {
                   </button>
                 )}
               </div>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Search size={18} />
+                <span>Show Global Search Bar</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.showGlobalSearchBar}
+                  onChange={(e) => update('showGlobalSearchBar', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
             </div>
           </div>
         </section>

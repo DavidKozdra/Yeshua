@@ -116,6 +116,33 @@ export async function deleteTranslationMeta(translationId) {
   await db.delete('translations', translationId);
 }
 
+export async function getTranslationChapterEntries(translationId) {
+  const db = await getDB();
+  const tx = db.transaction('chapters');
+  const store = tx.objectStore('chapters');
+  const entries = [];
+  let cursor = await store.openCursor();
+
+  while (cursor) {
+    if (typeof cursor.key === 'string' && cursor.key.startsWith(`${translationId}:`)) {
+      const [, bookId, rawChapter] = cursor.key.split(':');
+      const chapter = Number.parseInt(rawChapter, 10);
+      if (bookId && !Number.isNaN(chapter)) {
+        entries.push({
+          bookId,
+          chapter,
+          verses: normalizeChapterVerses(cursor.value),
+        });
+      }
+    }
+
+    cursor = await cursor.continue();
+  }
+
+  await tx.done;
+  return entries;
+}
+
 // --- Notes ---
 
 export async function saveNote(note) {

@@ -121,6 +121,61 @@
 .main-content {
   flex: 1;
   min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.global-search-shell {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  padding: 0.9rem 1rem 0.75rem;
+  background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.global-search-form {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: min(920px, 100%);
+  margin: 0 auto;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow);
+}
+
+.global-search-form svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.global-search-form input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.global-search-form input:focus {
+  border: none;
+}
+
+.global-search-error {
+  width: min(920px, 100%);
+  margin: 0.45rem auto 0;
+  font-size: 0.8rem;
+  color: var(--danger);
 }
 
 .toast-stack {
@@ -236,6 +291,14 @@
 }
 
 @media (max-width: 767px) {
+  .global-search-shell {
+    padding: 0.85rem 1rem 0.65rem;
+  }
+
+  .global-search-form {
+    padding: 0.6rem 0.7rem;
+  }
+
   .toast-stack {
     left: 1rem;
     right: 1rem;

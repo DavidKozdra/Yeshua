@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,6 +9,7 @@ import {
   ExternalLink,
   X,
   Plus,
+  Search,
 } from 'lucide-react';
 import { BIBLE_BOOKS, getBookById, getTranslationById } from '../utils/bibleData';
 import { fetchChapter, resolveInstallableTranslationId } from '../utils/api';
@@ -27,6 +28,7 @@ import '../styles/read.css';
 export default function Read() {
   const params = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const settings = getSettings();
   const lastRead = getLastRead();
   const resolvedBook = getBookById(params.bookId || lastRead?.bookId || 'JHN') || getBookById('JHN');
@@ -48,10 +50,12 @@ export default function Read() {
   const [showBookSelector, setShowBookSelector] = useState(false);
   const [showChapterSelector, setShowChapterSelector] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showReaderActions, setShowReaderActions] = useState(false);
   const [selectedVerse, setSelectedVerse] = useState(null);
   const [noteText, setNoteText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [availableTranslations, setAvailableTranslations] = useState([]);
+  const [highlightedVerse, setHighlightedVerse] = useState(null);
   const [offlineState, setOfflineState] = useState({
     ready: false,
     message: 'Preparing your offline Bible library...',
@@ -182,6 +186,33 @@ export default function Read() {
     contentRef.current?.scrollTo(0, 0);
   }, [bookId, chapter]);
 
+  useEffect(() => {
+    const verseMatch = location.hash.match(/^#v(\d+)$/i);
+    if (!verseMatch || loading || error || !offlineState.ready || !verses.length) {
+      if (!verseMatch) {
+        setHighlightedVerse(null);
+      }
+      return;
+    }
+
+    const targetVerse = Number.parseInt(verseMatch[1], 10);
+    if (Number.isNaN(targetVerse)) return;
+
+    const targetElement = contentRef.current?.querySelector(`[data-verse="${targetVerse}"]`);
+    if (!targetElement) return;
+
+    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedVerse(targetVerse);
+
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedVerse((current) => (current === targetVerse ? null : current));
+    }, 2200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [location.hash, verses, loading, error, offlineState.ready]);
+
   function goTo(newBook, newChapter, newTranslation = translationId) {
     navigate(`/read/${newTranslation}/${newBook}/${newChapter}`, { replace: true });
   }
@@ -216,6 +247,7 @@ export default function Read() {
   }
 
   function openNoteForVerse(verse) {
+    setShowReaderActions(false);
     const existing = chapterNotes.find((n) => n.verse === verse);
     if (existing) {
       setNoteText(existing.text);
@@ -226,6 +258,22 @@ export default function Read() {
     }
     setSelectedVerse(verse);
     setShowNoteModal(true);
+  }
+
+  function openQuickNoteModal() {
+    setSelectedVerse(1);
+    setNoteText('');
+    setEditingNoteId(null);
+    setShowReaderActions(false);
+    setShowNoteModal(true);
+  }
+
+  function handleSearchBarToggle() {
+    saveSettings({
+      ...settings,
+      showGlobalSearchBar: !settings.showGlobalSearchBar,
+    });
+    setShowReaderActions(false);
   }
 
   async function handleSaveNote() {
@@ -443,7 +491,10 @@ export default function Read() {
             {verses.map((v) => (
               <span
                 key={v.verse}
-                className={`verse ${noteVerses.has(v.verse) ? 'has-note' : ''}`}
+                className={`verse ${noteVerses.has(v.verse) ? 'has-note' : ''} ${
+                  highlightedVerse === v.verse ? 'verse-targeted' : ''
+                }`}
+                data-verse={v.verse}
                 onClick={() => openNoteForVerse(v.verse)}
               >
                 {settings.showVerseNumbers && (
@@ -505,18 +556,27 @@ export default function Read() {
       )}
 
       {/* Floating add note button */}
-      <button
-        className="fab"
-        onClick={() => {
-          setSelectedVerse(1);
-          setNoteText('');
-          setEditingNoteId(null);
-          setShowNoteModal(true);
-        }}
-        title="Add note"
-      >
-        <Plus size={22} />
-      </button>
+      <div className="fab-menu">
+        {showReaderActions && (
+          <div className="fab-menu-actions">
+            <button className="fab-action" onClick={openQuickNoteModal}>
+              <StickyNote size={16} />
+              <span>Add note</span>
+            </button>
+            <button className="fab-action" onClick={handleSearchBarToggle}>
+              <Search size={16} />
+              <span>{settings.showGlobalSearchBar ? 'Hide search bar' : 'Show search bar'}</span>
+            </button>
+          </div>
+        )}
+        <button
+          className={`fab ${showReaderActions ? 'fab-open' : ''}`}
+          onClick={() => setShowReaderActions((current) => !current)}
+          title="Reader tools"
+        >
+          <Plus size={22} />
+        </button>
+      </div>
     </div>
   );
 }
