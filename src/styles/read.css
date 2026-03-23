@@ -3,6 +3,9 @@
   flex-direction: column;
   height: 100%;
   position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 /* Top bar */
@@ -15,6 +18,8 @@
   gap: 0.75rem;
   flex-shrink: 0;
   flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
 }
 
 .read-selectors {
@@ -23,6 +28,12 @@
   gap: 0.5rem;
   flex-wrap: wrap;
   flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.read-selectors > * {
+  max-width: 100%;
 }
 
 .selector-btn {
@@ -37,6 +48,14 @@
   font-weight: 500;
   color: var(--text-primary);
   transition: all 0.2s;
+  min-width: 0;
+}
+
+.selector-btn span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .selector-btn:hover {
@@ -52,6 +71,7 @@
   border: 1px solid var(--border);
   color: var(--text-primary);
   cursor: pointer;
+  max-width: min(100%, 280px);
 }
 
 .research-link {
@@ -167,6 +187,9 @@
 .read-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  min-width: 0;
   padding: 1.5rem;
   padding-bottom: calc(var(--nav-height) + 6rem);
 }
@@ -175,6 +198,7 @@
   .read-content {
     padding: 2rem 3rem;
     padding-bottom: 4rem;
+    width: min(100%, 780px);
     max-width: 780px;
     margin: 0 auto;
   }
@@ -257,6 +281,9 @@
 .verses {
   font-family: var(--font-reading);
   color: var(--text-primary);
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .verse {
@@ -312,6 +339,9 @@
   margin-top: 2.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border);
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
 }
 
 /* FAB */
@@ -386,8 +416,48 @@
 }
 
 @media (max-width: 640px) {
+  .read-topbar {
+    padding: 0.6rem 0.75rem;
+    gap: 0.6rem;
+  }
+
+  .read-selectors {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+
+  .translation-select {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .selector-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .research-link {
+    align-self: flex-end;
+  }
+
+  .read-content {
+    padding: 1rem;
+    padding-bottom: calc(var(--nav-height) + 5.5rem);
+  }
+
   .read-tts-banner {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .chapter-nav {
+    flex-direction: column;
+  }
+
+  .chapter-nav .btn {
+    width: 100%;
   }
 }
