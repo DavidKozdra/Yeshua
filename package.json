@@ -2,20 +2,26 @@
   "name": "yeshua",
   "version": "1.0.0",
   "description": "Offline-friendly Bible PWA with multiple translations",
+  "packageManager": "npm@10.9.4",
+  "engines": {
+    "node": "22.x",
+    "npm": "10.9.4"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "start": "node server.js",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "6.0.1",
     "idb": "^8.0.3",
     "lucide-react": "^1.0.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.13.1",
-    "vite": "^8.0.2",
-    "vite-plugin-pwa": "^1.2.0"
+    "react-router-dom": "7.13.2",
+    "vite": "8.0.2",
+    "vite-plugin-pwa": "1.2.0"
   }
 }
