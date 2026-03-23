@@ -757,9 +757,61 @@ export default function Settings() {
               </label>
             </div>
 
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Eye size={18} />
+                <span>High Contrast Text</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.highContrastText}
+                  onChange={(e) => update('highContrastText', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Type size={18} />
+                <span>Extra Letter Spacing</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.increasedLetterSpacing}
+                  onChange={(e) => update('increasedLetterSpacing', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Type size={18} />
+                <span>Extra Word Spacing</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.increasedWordSpacing}
+                  onChange={(e) => update('increasedWordSpacing', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
             <p className="settings-help">
               Adds stronger keyboard focus outlines, optional link underlines, and roomier buttons
-              and controls for easier tapping.
+              and controls for easier tapping. You can also increase text contrast and add spacing
+              between letters and words for easier scanning.
             </p>
           </div>
         </section>

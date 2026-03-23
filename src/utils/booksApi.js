@@ -14,6 +14,7 @@ import {
 } from './booksData';
 
 const DOWNLOAD_PROGRESS_SAVE_EVERY = 8;
+const REMOTE_FETCH_MAX_ATTEMPTS = 3;
 const collectionWorksCache = new Map();
 const activeDownloads = new Map();
 const installEventTarget = new EventTarget();
@@ -68,12 +69,58 @@ function createCollectionMeta(collection, works, currentMeta = {}, overrides = {
   };
 }
 
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(resolve, ms);
+
+    if (!signal) return;
+
+    function handleAbort() {
+      window.clearTimeout(timeoutId);
+      reject(new DOMException('The operation was aborted.', 'AbortError'));
+    }
+
+    if (signal.aborted) {
+      handleAbort();
+      return;
+    }
+
+    signal.addEventListener('abort', handleAbort, { once: true });
+  });
+}
+
 async function fetchJson(url, signal) {
-  const response = await fetch(url, { signal });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch (${response.status})`);
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= REMOTE_FETCH_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(url, { signal });
+      if (!response.ok) {
+        const isRetryableStatus = response.status === 429 || response.status >= 500;
+        if (attempt < REMOTE_FETCH_MAX_ATTEMPTS && isRetryableStatus) {
+          await sleep(250 * attempt, signal);
+          continue;
+        }
+        throw new Error(`Failed to fetch (${response.status})`);
+      }
+      return response.json();
+    } catch (error) {
+      if (signal?.aborted || error?.name === 'AbortError') {
+        throw error;
+      }
+
+      lastError = error;
+      const isNetworkFailure = error instanceof TypeError;
+      if (attempt < REMOTE_FETCH_MAX_ATTEMPTS && isNetworkFailure) {
+        await sleep(250 * attempt, signal);
+        continue;
+      }
+
+      throw error;
+    }
   }
-  return response.json();
+
+  throw lastError || new Error('Failed to fetch');
 }
 
 async function fetchQuranCatalog(signal) {

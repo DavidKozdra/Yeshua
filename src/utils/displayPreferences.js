@@ -6,4 +6,8 @@ export function applyDisplayPreferences(settings = {}) {
   root.dataset.accessibilityFocus = settings.enhancedFocusIndicators === false ? 'off' : 'on';
   root.dataset.accessibilityLinks = settings.underlineLinks === true ? 'on' : 'off';
   root.dataset.accessibilityTargets = settings.largeTouchTargets === true ? 'on' : 'off';
+  root.dataset.accessibilityContrast = settings.highContrastText === true ? 'on' : 'off';
+  root.dataset.accessibilityLetterSpacing =
+    settings.increasedLetterSpacing === true ? 'on' : 'off';
+  root.dataset.accessibilityWordSpacing = settings.increasedWordSpacing === true ? 'on' : 'off';
 }

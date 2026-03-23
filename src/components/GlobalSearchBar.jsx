@@ -8,7 +8,7 @@ import { getLastRead, getSettings, subscribeToSettings } from '../utils/storage'
 export default function GlobalSearchBar({
   translationId,
   variant = 'default',
-  placeholder = 'Jump to John 3:16 or search begat',
+  placeholder = 'Jump to John 3:16 or search any word or phrase',
 }) {
   const navigate = useNavigate();
   const location = useLocation();
