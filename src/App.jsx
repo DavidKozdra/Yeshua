@@ -13,6 +13,8 @@ import { getTranslationById } from './utils/bibleData';
 import { getAllDownloadedTranslations, getTranslationMeta } from './utils/db';
 import { queueTranslationInstall, resolveInstallableTranslationId } from './utils/api';
 import { DEFAULT_TRANSLATION_ID } from './utils/translationConfig';
+import { useAppSettings } from './hooks/useAppSettings';
+import { applyDisplayPreferences } from './utils/displayPreferences';
 
 let startupDownloadPromise = null;
 
@@ -49,10 +51,16 @@ function ensureOfflineLibrary() {
 }
 
 export default function App() {
+  const settings = useAppSettings();
+
   // Auto-install the preferred startup translation on first launch.
   useEffect(() => {
     ensureOfflineLibrary();
   }, []);
+
+  useEffect(() => {
+    applyDisplayPreferences(settings);
+  }, [settings]);
 
   return (
     <Routes>

@@ -1,4 +1,5 @@
 import { canInstallTranslation, getTranslationInstallSource } from './api';
+import { formatInstallIssue } from './installErrors';
 
 function getQueuedDetailLabel(queueJob, isBundled) {
   if (queueJob?.queuePosition > 1) {
@@ -70,10 +71,10 @@ export function getTranslationStatus(translationId, meta, queueJob = null) {
     statusLabel = 'Partially saved';
     detailLabel =
       typeof meta?.completedChapters === 'number' && typeof meta?.totalChapters === 'number'
-        ? `${meta.completedChapters} / ${meta.totalChapters} chapters are saved. Finish the install to cache the full translation.`
+        ? `${meta.completedChapters} / ${meta.totalChapters} chapters are saved. Resume to retry skipped chapters and finish caching the full translation.`
         : 'Some chapters are saved, but this translation is not fully available offline yet.';
     if (meta?.sampleError) {
-      detailLabel = `${detailLabel} Last issue: ${meta.sampleError}`;
+      detailLabel = `${detailLabel} Latest skipped chapter: ${formatInstallIssue(meta.sampleError)}`;
     }
     actionLabel = 'Resume';
     tone = 'progress';

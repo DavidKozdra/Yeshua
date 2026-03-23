@@ -281,3 +281,138 @@ export async function deleteNote(id) {
   const db = await getDB();
   await db.delete('notes', id);
 }
+
+export async function getAllLibraryChapterEntries() {
+  const db = await getDB();
+  const tx = db.transaction('libraryChapters');
+  const store = tx.objectStore('libraryChapters');
+  const entries = [];
+  let cursor = await store.openCursor();
+
+  while (cursor) {
+    if (typeof cursor.key === 'string') {
+      const [collectionId, workId, rawChapter] = cursor.key.split(':');
+      const chapter = Number.parseInt(rawChapter, 10);
+      if (collectionId && workId && !Number.isNaN(chapter)) {
+        entries.push({
+          collectionId,
+          workId,
+          chapter,
+          verses: normalizeChapterVerses(cursor.value),
+        });
+      }
+    }
+
+    cursor = await cursor.continue();
+  }
+
+  await tx.done;
+  return entries;
+}
+
+export async function getAllLibraryCollectionMetaEntries() {
+  const db = await getDB();
+  const keys = await db.getAllKeys('libraryCollections');
+  const results = [];
+
+  for (const key of keys) {
+    const meta = await db.get('libraryCollections', key);
+    if (meta) {
+      results.push({ id: key, meta });
+    }
+  }
+
+  return results;
+}
+
+export async function getAllTranslationMetaEntries() {
+  const db = await getDB();
+  const keys = await db.getAllKeys('translations');
+  const results = [];
+
+  for (const key of keys) {
+    const meta = await db.get('translations', key);
+    if (meta) {
+      results.push({ id: key, meta });
+    }
+  }
+
+  return results;
+}
+
+export async function clearAllAppDbData() {
+  const db = await getDB();
+
+  await Promise.all([
+    db.clear('chapters'),
+    db.clear('translations'),
+    db.clear('notes'),
+    db.clear('libraryChapters'),
+    db.clear('libraryCollections'),
+  ]);
+}
+
+export async function exportAppDbData() {
+  const [translationMetas, translationChapters, libraryMetas, libraryChapters, notes] =
+    await Promise.all([
+      getAllTranslationMetaEntries(),
+      (async () => {
+        const metaEntries = await getAllTranslationMetaEntries();
+        const chapterGroups = await Promise.all(
+          metaEntries.map(async ({ id }) => ({
+            id,
+            chapters: await getTranslationChapterEntries(id),
+          }))
+        );
+        return chapterGroups.filter((entry) => entry.chapters.length > 0);
+      })(),
+      getAllLibraryCollectionMetaEntries(),
+      getAllLibraryChapterEntries(),
+      getAllNotes(),
+    ]);
+
+  return {
+    translationMetas,
+    translationChapters,
+    libraryMetas,
+    libraryChapters,
+    notes,
+  };
+}
+
+export async function importAppDbData(snapshot = {}) {
+  await clearAllAppDbData();
+
+  for (const entry of snapshot.translationMetas || []) {
+    if (entry?.id && entry?.meta) {
+      await saveTranslationMeta(entry.id, entry.meta);
+    }
+  }
+
+  for (const group of snapshot.translationChapters || []) {
+    if (!group?.id || !Array.isArray(group.chapters)) continue;
+    for (const chapterEntry of group.chapters) {
+      if (chapterEntry?.bookId && Number.isInteger(chapterEntry?.chapter)) {
+        await saveChapter(group.id, chapterEntry.bookId, chapterEntry.chapter, chapterEntry.verses || []);
+      }
+    }
+  }
+
+  for (const entry of snapshot.libraryMetas || []) {
+    if (entry?.id && entry?.meta) {
+      await saveLibraryCollectionMeta(entry.id, entry.meta);
+    }
+  }
+
+  for (const entry of snapshot.libraryChapters || []) {
+    if (entry?.collectionId && entry?.workId && Number.isInteger(entry?.chapter)) {
+      await saveLibraryChapter(entry.collectionId, entry.workId, entry.chapter, entry.verses || []);
+    }
+  }
+
+  for (const note of snapshot.notes || []) {
+    if (note && typeof note === 'object') {
+      await saveNote(note);
+    }
+  }
+}

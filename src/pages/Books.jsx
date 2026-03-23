@@ -114,9 +114,9 @@ export default function Books() {
             <BookOpen size={12} />
             Canon library
           </span>
-          <h1 className="page-title books-title">Books</h1>
+          <h1 className="page-title books-title">Library</h1>
           <p className="books-intro">
-            The Books tab now behaves like its own library. Reader collections can stream online,
+            The Library tab now behaves like its own library. Reader collections can stream online,
             download their full canon for offline use, and keep separate install state from Bible
             translations.
           </p>
@@ -126,7 +126,7 @@ export default function Books() {
       {!settings.showBooksTab && (
         <div className="card books-note-card">
           <p>
-            The Books tab is hidden from navigation right now. Turn on <strong>Show Books Tab</strong>{' '}
+            The Library tab is hidden from navigation right now. Turn on <strong>Show Library Tab</strong>{' '}
             in Settings to keep it visible.
           </p>
         </div>

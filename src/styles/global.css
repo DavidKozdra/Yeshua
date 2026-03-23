@@ -101,6 +101,12 @@ a {
   text-decoration: none;
 }
 
+[data-accessibility-links='on'] a {
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+  text-decoration-thickness: 0.08em;
+}
+
 a:hover {
   color: var(--accent-hover);
 }
@@ -112,6 +118,17 @@ button {
   background: none;
   color: inherit;
   font-size: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, white 22%);
+  outline-offset: 2px;
+}
+
+[data-accessibility-focus='on'] :focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 86%, white 14%);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 input,
@@ -176,6 +193,10 @@ textarea {
   color: var(--text-primary);
 }
 
+[data-animations='on'] .page-title {
+  animation: page-title-enter 420ms ease-out both;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -218,6 +239,33 @@ textarea {
   font-size: 0.82rem;
 }
 
+[data-accessibility-targets='on'] .btn,
+[data-accessibility-targets='on'] input,
+[data-accessibility-targets='on'] select,
+[data-accessibility-targets='on'] textarea,
+[data-accessibility-targets='on'] .nav-link,
+[data-accessibility-targets='on'] .bottom-nav-link,
+[data-accessibility-targets='on'] .toggle-slider {
+  min-height: 44px;
+}
+
+[data-accessibility-targets='on'] .btn {
+  padding: 0.75rem 1.2rem;
+}
+
+[data-accessibility-targets='on'] .btn-sm {
+  padding: 0.55rem 0.9rem;
+}
+
+[data-animations='off'] *,
+[data-animations='off'] *::before,
+[data-animations='off'] *::after {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -237,6 +285,7 @@ textarea {
 .card-clickable:hover {
   border-color: var(--accent);
   box-shadow: var(--shadow);
+  transform: translateY(-2px);
 }
 
 .empty-state {
@@ -293,6 +342,32 @@ textarea {
   border-radius: 999px;
   font-size: 0.78rem;
   font-weight: 500;
+}
+
+[data-animations='on'] .card {
+  animation: surface-enter 380ms ease-out both;
+}
+
+@keyframes page-title-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes surface-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Modal overlay */

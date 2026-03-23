@@ -30,6 +30,10 @@ const defaults = {
   lineHeight: 1.8,
   theme: 'dark',
   defaultTranslation: DEFAULT_TRANSLATION_ID,
+  enableAnimations: true,
+  enhancedFocusIndicators: true,
+  underlineLinks: false,
+  largeTouchTargets: false,
   showBooksTab: true,
   showVerseNumbers: true,
   showWordsOfChristInRed: false,
@@ -128,6 +132,22 @@ function normalizeSettings(parsedSettings = {}) {
     ...parsedSettings,
     theme,
     defaultTranslation,
+    enableAnimations:
+      typeof parsedSettings.enableAnimations === 'boolean'
+        ? parsedSettings.enableAnimations
+        : defaults.enableAnimations,
+    enhancedFocusIndicators:
+      typeof parsedSettings.enhancedFocusIndicators === 'boolean'
+        ? parsedSettings.enhancedFocusIndicators
+        : defaults.enhancedFocusIndicators,
+    underlineLinks:
+      typeof parsedSettings.underlineLinks === 'boolean'
+        ? parsedSettings.underlineLinks
+        : defaults.underlineLinks,
+    largeTouchTargets:
+      typeof parsedSettings.largeTouchTargets === 'boolean'
+        ? parsedSettings.largeTouchTargets
+        : defaults.largeTouchTargets,
     showBooksTab:
       typeof parsedSettings.showBooksTab === 'boolean'
         ? parsedSettings.showBooksTab
@@ -181,6 +201,22 @@ export function saveSettings(settings) {
       (isBuiltInTheme(settings.theme) || activeCustomTheme)
         ? settings.theme
         : defaults.theme,
+    enableAnimations:
+      typeof settings.enableAnimations === 'boolean'
+        ? settings.enableAnimations
+        : defaults.enableAnimations,
+    enhancedFocusIndicators:
+      typeof settings.enhancedFocusIndicators === 'boolean'
+        ? settings.enhancedFocusIndicators
+        : defaults.enhancedFocusIndicators,
+    underlineLinks:
+      typeof settings.underlineLinks === 'boolean'
+        ? settings.underlineLinks
+        : defaults.underlineLinks,
+    largeTouchTargets:
+      typeof settings.largeTouchTargets === 'boolean'
+        ? settings.largeTouchTargets
+        : defaults.largeTouchTargets,
     showBooksTab:
       typeof settings.showBooksTab === 'boolean'
         ? settings.showBooksTab
@@ -275,6 +311,48 @@ export function getProfile() {
 
 export function saveProfile(profile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+}
+
+export function exportAppStorageData() {
+  return {
+    settings: getSettings(),
+    lastRead: getLastRead(),
+    lastBooksRead: getLastBooksRead(),
+    profile: getProfile(),
+    holyDayReminders: getHolyDayReminderStore(),
+  };
+}
+
+export function importAppStorageData(snapshot = {}) {
+  saveSettings(snapshot.settings || getSettings());
+
+  if (snapshot.lastRead) {
+    localStorage.setItem(LAST_READ_KEY, JSON.stringify(snapshot.lastRead));
+  } else {
+    localStorage.removeItem(LAST_READ_KEY);
+  }
+
+  if (snapshot.lastBooksRead) {
+    localStorage.setItem(LAST_BOOKS_READ_KEY, JSON.stringify(snapshot.lastBooksRead));
+  } else {
+    localStorage.removeItem(LAST_BOOKS_READ_KEY);
+  }
+
+  saveProfile(snapshot.profile || { name: '' });
+
+  if (snapshot.holyDayReminders && typeof snapshot.holyDayReminders === 'object') {
+    localStorage.setItem(HOLY_DAY_REMINDER_KEY, JSON.stringify(snapshot.holyDayReminders));
+  } else {
+    localStorage.removeItem(HOLY_DAY_REMINDER_KEY);
+  }
+}
+
+export function clearAppStorageData() {
+  localStorage.removeItem(SETTINGS_KEY);
+  localStorage.removeItem(LAST_READ_KEY);
+  localStorage.removeItem(LAST_BOOKS_READ_KEY);
+  localStorage.removeItem(PROFILE_KEY);
+  localStorage.removeItem(HOLY_DAY_REMINDER_KEY);
 }
 
 function getHolyDayReminderStore() {

@@ -1,16 +1,79 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StickyNote, Trash2, Edit3, BookOpen, Search } from 'lucide-react';
+import { StickyNote, Trash2, Edit3, BookOpen, Search, NotebookPen, Filter } from 'lucide-react';
 import { getAllNotes, deleteNote, saveNote } from '../utils/db';
-import { getBookById } from '../utils/bibleData';
+import { getBookById, getTranslationById } from '../utils/bibleData';
 import { getSettings } from '../utils/storage';
 import '../styles/notes.css';
+
+function formatNoteDate(value) {
+  if (!value) return 'No date';
+
+  return new Date(value).toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function renderTextBlock(block, keyPrefix = 'block') {
+  const trimmedBlock = block.trim();
+  if (!trimmedBlock) return null;
+
+  const lines = trimmedBlock.split('\n').map((line) => line.trimEnd());
+  const bulletLines = lines.every((line) => /^[-*]\s+/.test(line));
+  const numberedLines = lines.every((line) => /^\d+\.\s+/.test(line));
+
+  if (bulletLines) {
+    return (
+      <ul key={keyPrefix} className="note-text-list">
+        {lines.map((line, index) => (
+          <li key={`${keyPrefix}-${index}`}>{line.replace(/^[-*]\s+/, '')}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (numberedLines) {
+    return (
+      <ol key={keyPrefix} className="note-text-list note-text-list-numbered">
+        {lines.map((line, index) => (
+          <li key={`${keyPrefix}-${index}`}>{line.replace(/^\d+\.\s+/, '')}</li>
+        ))}
+      </ol>
+    );
+  }
+
+  return (
+    <p key={keyPrefix} className="note-text-paragraph">
+      {lines.map((line, index) => (
+        <span key={`${keyPrefix}-${index}`}>
+          {line}
+          {index < lines.length - 1 && <br />}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function renderNoteText(text) {
+  const blocks = (text || '')
+    .split(/\n\s*\n/g)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (!blocks.length) return null;
+  return blocks.map((block, index) => renderTextBlock(block, `note-block-${index}`));
+}
 
 export default function Notes() {
   const navigate = useNavigate();
   const settings = getSettings();
   const [notes, setNotes] = useState([]);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
   const [editingNote, setEditingNote] = useState(null);
   const [editDraft, setEditDraft] = useState({ title: '', text: '' });
   const [newNote, setNewNote] = useState({ title: '', text: '' });
@@ -73,11 +136,25 @@ export default function Notes() {
     return `${book?.name || note.bookId} ${note.chapter}${note.verse ? `:${note.verse}` : ''}`;
   }
 
+  const noteStats = useMemo(() => {
+    const linkedCount = notes.filter((note) => note.bookId && note.chapter).length;
+    return {
+      total: notes.length,
+      linked: linkedCount,
+      general: notes.length - linkedCount,
+    };
+  }, [notes]);
+
   const filtered = notes.filter((n) => {
+    const isLinked = Boolean(n.bookId && n.chapter);
+    if (filter === 'linked' && !isLinked) return false;
+    if (filter === 'general' && isLinked) return false;
+
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const bookName = getBookById(n.bookId)?.name?.toLowerCase() || '';
     const title = n.title?.toLowerCase() || '';
+    const translationName = getTranslationById(n.translationId)?.name?.toLowerCase() || '';
     const reference = n.bookId && n.chapter
       ? `${bookName} ${n.chapter}${n.verse ? `:${n.verse}` : ''}`
       : '';
@@ -85,13 +162,41 @@ export default function Notes() {
       title.includes(q) ||
       (n.text || '').toLowerCase().includes(q) ||
       bookName.includes(q) ||
-      reference.includes(q)
+      reference.includes(q) ||
+      translationName.includes(q)
     );
   });
 
   return (
-    <div className="page">
+    <div className="page notes-page">
       <h1 className="page-title">Notes</h1>
+
+      <div className="notes-overview card">
+        <div className="notes-overview-copy">
+          <div className="notes-overview-topline">
+            <NotebookPen size={18} />
+            <span>Your study notes</span>
+          </div>
+          <p>
+            Keep general reflections here and review verse-linked notes from the reader in one
+            place.
+          </p>
+        </div>
+        <div className="notes-stats" aria-label="Notes summary">
+          <div className="notes-stat">
+            <strong>{noteStats.total}</strong>
+            <span>Total</span>
+          </div>
+          <div className="notes-stat">
+            <strong>{noteStats.linked}</strong>
+            <span>Scripture-linked</span>
+          </div>
+          <div className="notes-stat">
+            <strong>{noteStats.general}</strong>
+            <span>General</span>
+          </div>
+        </div>
+      </div>
 
       <div className="card note-compose">
         <div className="note-compose-header">
@@ -122,14 +227,43 @@ export default function Notes() {
       </div>
 
       {notes.length > 0 && (
-        <div className="notes-search">
-          <Search size={16} />
-          <input
-            type="text"
-            placeholder="Search notes..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="notes-toolbar">
+          <div className="notes-search">
+            <Search size={16} />
+            <input
+              type="text"
+              placeholder="Search notes, references, or translations..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="notes-filters" aria-label="Filter notes">
+            <span className="notes-filter-label">
+              <Filter size={14} />
+              View
+            </span>
+            <button
+              type="button"
+              className={`notes-filter-chip ${filter === 'all' ? 'active' : ''}`}
+              onClick={() => setFilter('all')}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              className={`notes-filter-chip ${filter === 'linked' ? 'active' : ''}`}
+              onClick={() => setFilter('linked')}
+            >
+              Scripture-linked
+            </button>
+            <button
+              type="button"
+              className={`notes-filter-chip ${filter === 'general' ? 'active' : ''}`}
+              onClick={() => setFilter('general')}
+            >
+              General
+            </button>
+          </div>
         </div>
       )}
 
@@ -187,20 +321,33 @@ export default function Notes() {
                     <div className="note-header">
                       <div className="note-meta">
                         <strong className="note-title">{note.title || ref || 'Untitled note'}</strong>
-                        {ref ? (
-                          <button className="note-ref" onClick={() => goToVerse(note)}>
-                            <BookOpen size={14} />
-                            <span>{ref}</span>
-                          </button>
-                        ) : (
-                          <span className="chip note-chip">General note</span>
+                        <div className="note-meta-row">
+                          {ref ? (
+                            <button className="note-ref" onClick={() => goToVerse(note)}>
+                              <BookOpen size={14} />
+                              <span>{ref}</span>
+                            </button>
+                          ) : (
+                            <span className="chip note-chip">General note</span>
+                          )}
+                          {note.translationId && (
+                            <span className="chip note-chip note-chip-secondary">
+                              {getTranslationById(note.translationId)?.abbreviation ||
+                                note.translationId.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="note-date-group">
+                        <span className="note-date">Updated {formatNoteDate(note.updatedAt)}</span>
+                        {note.createdAt && note.createdAt !== note.updatedAt && (
+                          <span className="note-date note-date-secondary">
+                            Created {formatNoteDate(note.createdAt)}
+                          </span>
                         )}
                       </div>
-                      <span className="note-date">
-                        {new Date(note.updatedAt).toLocaleDateString()}
-                      </span>
                     </div>
-                    {note.text && <p className="note-text">{note.text}</p>}
+                    {note.text && <div className="note-text">{renderNoteText(note.text)}</div>}
                     <div className="note-actions">
                       <button
                         className="note-action-btn"
