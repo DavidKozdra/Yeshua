@@ -1,5 +1,6 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { Home, BookOpen, Languages, StickyNote, SettingsIcon } from 'lucide-react';
+import ToastHost from './ToastHost';
 import '../styles/layout.css';
 
 const NAV_ITEMS = [
@@ -33,6 +34,8 @@ export default function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
+
+      <ToastHost />
 
       <nav className="bottom-nav" aria-label="Main navigation">
         {NAV_ITEMS.map(({ to, icon: Icon, label }) => (

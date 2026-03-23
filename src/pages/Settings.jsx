@@ -8,7 +8,7 @@ import {
   getTranslationById,
 } from '../utils/bibleData';
 import { getAllDownloadedTranslations } from '../utils/db';
-import { fetchChapter } from '../utils/api';
+import { fetchChapter, subscribeToTranslationInstallEvents } from '../utils/api';
 import { getTranslationSelectLabel, getTranslationStatus } from '../utils/translationStatus';
 import {
   applyTheme,
@@ -128,11 +128,15 @@ export default function Settings() {
     }
 
     loadDownloadedTranslations();
-    const intervalId = window.setInterval(loadDownloadedTranslations, 2000);
+    const unsubscribe = subscribeToTranslationInstallEvents((event) => {
+      if (event.type !== 'progress' && event.type !== 'queued') {
+        loadDownloadedTranslations();
+      }
+    });
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      unsubscribe();
     };
   }, []);
 

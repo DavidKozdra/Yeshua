@@ -8,7 +8,7 @@ import Notes from './pages/Notes';
 import Settings from './pages/Settings';
 import { getTranslationById } from './utils/bibleData';
 import { getAllDownloadedTranslations, getTranslationMeta } from './utils/db';
-import { downloadTranslation, resolveInstallableTranslationId } from './utils/api';
+import { queueTranslationInstall, resolveInstallableTranslationId } from './utils/api';
 import { DEFAULT_TRANSLATION_ID } from './utils/translationConfig';
 
 let startupDownloadPromise = null;
@@ -30,7 +30,7 @@ function ensureOfflineLibrary() {
 
     console.log(`[Yeshua] Installing ${translation?.abbreviation || translationId.toUpperCase()} for offline use...`);
     try {
-      const result = await downloadTranslation(translationId);
+      const result = await queueTranslationInstall(translationId, { reason: 'startup' });
       console.log(
         `[Yeshua] ${(translation?.abbreviation || translationId.toUpperCase())} install complete (${result.completedChapters}/${result.totalChapters} chapters)`
       );

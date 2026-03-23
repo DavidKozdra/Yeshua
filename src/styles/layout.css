@@ -123,6 +123,103 @@
   min-height: 100dvh;
 }
 
+.toast-stack {
+  position: fixed;
+  right: 1rem;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 1200;
+  pointer-events: none;
+}
+
+.toast {
+  width: min(360px, calc(100vw - 2rem));
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.toast-success {
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+}
+
+.toast-warning {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.toast-danger {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.toast-info {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+}
+
+.toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.toast-icon-success {
+  background: rgba(46, 204, 113, 0.14);
+  color: var(--success);
+}
+
+.toast-icon-warning,
+.toast-icon-info {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.toast-icon-danger {
+  background: rgba(231, 76, 60, 0.14);
+  color: var(--danger);
+}
+
+.toast-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.toast-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.toast-message {
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.toast-close {
+  color: var(--text-muted);
+  padding: 0.1rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.toast-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 /* Desktop layout */
 @media (min-width: 768px) {
   .sidebar {
@@ -135,5 +232,18 @@
 
   .main-content {
     margin-left: var(--sidebar-width);
+  }
+}
+
+@media (max-width: 767px) {
+  .toast-stack {
+    left: 1rem;
+    right: 1rem;
+    top: auto;
+    bottom: calc(var(--nav-height) + 1rem);
+  }
+
+  .toast {
+    width: 100%;
   }
 }

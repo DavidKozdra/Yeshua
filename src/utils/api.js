@@ -8,6 +8,11 @@ const bundleLoaders = import.meta.glob('../data/*-bundle.json');
 const bundleCache = new Map();
 const activeDownloads = new Map();
 const resolvedBookPathCache = new Map();
+const installEventTarget = new EventTarget();
+const queuedInstalls = [];
+const queuedInstallRecords = new Map();
+let activeInstallId = null;
+let queueProcessorPromise = null;
 
 function hasChapterContent(chapterData) {
   return Array.isArray(chapterData) && chapterData.length > 0;
@@ -99,6 +104,56 @@ function notifyProgress(record, done, total) {
   for (const listener of record.listeners) {
     listener(done, total);
   }
+}
+
+function getQueuedInstallPosition(translationId) {
+  const index = queuedInstalls.findIndex((record) => record.translationId === translationId);
+  return index >= 0 ? index + 1 : null;
+}
+
+function getInstallRecordSnapshot(record) {
+  return {
+    phase: record.phase,
+    progress: { ...record.progress },
+    queuePosition: record.phase === 'queued' ? getQueuedInstallPosition(record.translationId) : null,
+    reason: record.reason,
+  };
+}
+
+export function getTranslationInstallQueueSnapshot() {
+  return {
+    activeTranslationId: activeInstallId,
+    queuedIds: queuedInstalls.map((record) => record.translationId),
+    jobs: Object.fromEntries(
+      Array.from(queuedInstallRecords.entries()).map(([translationId, record]) => [
+        translationId,
+        getInstallRecordSnapshot(record),
+      ])
+    ),
+  };
+}
+
+function emitInstallEvent(type, detail = {}) {
+  installEventTarget.dispatchEvent(
+    new CustomEvent('translation-install', {
+      detail: {
+        type,
+        snapshot: getTranslationInstallQueueSnapshot(),
+        ...detail,
+      },
+    })
+  );
+}
+
+export function subscribeToTranslationInstallEvents(listener) {
+  function handleEvent(event) {
+    listener(event.detail);
+  }
+
+  installEventTarget.addEventListener('translation-install', handleEvent);
+  return () => {
+    installEventTarget.removeEventListener('translation-install', handleEvent);
+  };
 }
 
 export function hasBundledTranslation(translationId) {
@@ -202,7 +257,7 @@ export async function fetchChapter(translationId, bookId, chapter, options = {})
  * Download an entire translation for offline use
  * Calls onProgress(downloaded, total) during download
  */
-export async function downloadTranslation(translationId, onProgress, signal) {
+async function downloadTranslationNow(translationId, onProgress, signal) {
   const activeDownload = activeDownloads.get(translationId);
   if (activeDownload) {
     const unsubscribe = addProgressListener(activeDownload, onProgress, signal);
@@ -332,10 +387,167 @@ export async function downloadTranslation(translationId, onProgress, signal) {
   return downloadRecord.promise;
 }
 
+function finalizeInstallRecord(record) {
+  if (activeInstallId === record.translationId) {
+    activeInstallId = null;
+  }
+  queuedInstallRecords.delete(record.translationId);
+}
+
+async function processInstallQueue() {
+  if (queueProcessorPromise) return queueProcessorPromise;
+
+  queueProcessorPromise = (async () => {
+    while (queuedInstalls.length > 0) {
+      const record = queuedInstalls.shift();
+      activeInstallId = record.translationId;
+      record.phase = 'active';
+      record.controller = new AbortController();
+
+      emitInstallEvent('started', {
+        translationId: record.translationId,
+        reason: record.reason,
+      });
+
+      try {
+        const result = await downloadTranslationNow(
+          record.translationId,
+          (done, total) => {
+            notifyProgress(record, done, total);
+            emitInstallEvent('progress', {
+              translationId: record.translationId,
+              done,
+              total,
+              reason: record.reason,
+            });
+          },
+          record.controller.signal
+        );
+
+        finalizeInstallRecord(record);
+        record.resolve(result);
+        emitInstallEvent('completed', {
+          translationId: record.translationId,
+          result,
+          reason: record.reason,
+        });
+      } catch (err) {
+        finalizeInstallRecord(record);
+        record.reject(err);
+
+        if (err.message === 'Download cancelled') {
+          emitInstallEvent('cancelled', {
+            translationId: record.translationId,
+            reason: record.reason,
+            phase: 'active',
+          });
+        } else {
+          emitInstallEvent('failed', {
+            translationId: record.translationId,
+            error: err.message,
+            reason: record.reason,
+          });
+        }
+      }
+    }
+  })().finally(() => {
+    queueProcessorPromise = null;
+  });
+
+  return queueProcessorPromise;
+}
+
+export function queueTranslationInstall(
+  translationId,
+  { onProgress, signal, reason = 'user' } = {}
+) {
+  const translation = getTranslationById(translationId);
+  if (!translation) {
+    return Promise.reject(new Error(`Unknown translation: ${translationId}`));
+  }
+  if (!canInstallTranslation(translationId)) {
+    return Promise.reject(new Error(`${translation.abbreviation} is not installable in this build.`));
+  }
+
+  let record = queuedInstallRecords.get(translationId);
+  if (!record) {
+    record = {
+      translationId,
+      listeners: new Set(),
+      progress: { done: 0, total: 0 },
+      promise: null,
+      resolve: null,
+      reject: null,
+      phase: 'queued',
+      reason,
+      controller: null,
+    };
+
+    record.promise = new Promise((resolve, reject) => {
+      record.resolve = resolve;
+      record.reject = reject;
+    });
+
+    queuedInstallRecords.set(translationId, record);
+    queuedInstalls.push(record);
+
+    emitInstallEvent('queued', {
+      translationId,
+      reason,
+    });
+
+    processInstallQueue();
+  } else if (reason === 'user' && record.reason !== 'user') {
+    record.reason = 'user';
+  }
+
+  const unsubscribe = addProgressListener(record, onProgress, signal);
+  return record.promise.finally(unsubscribe);
+}
+
+export function downloadTranslation(translationId, onProgress, signal) {
+  return queueTranslationInstall(translationId, { onProgress, signal });
+}
+
+export function cancelTranslationInstall(translationId) {
+  const record = queuedInstallRecords.get(translationId);
+  if (!record) return false;
+
+  if (record.phase === 'queued') {
+    const queueIndex = queuedInstalls.findIndex((item) => item.translationId === translationId);
+    if (queueIndex >= 0) {
+      queuedInstalls.splice(queueIndex, 1);
+    }
+
+    finalizeInstallRecord(record);
+    record.reject(new Error('Download cancelled'));
+    emitInstallEvent('cancelled', {
+      translationId,
+      reason: record.reason,
+      phase: 'queued',
+    });
+    return true;
+  }
+
+  if (record.phase === 'active') {
+    record.controller?.abort();
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Remove a downloaded translation
  */
 export async function removeTranslation(translationId) {
+  const queuedRecord = queuedInstallRecords.get(translationId);
+  if (queuedRecord) {
+    cancelTranslationInstall(translationId);
+    await queuedRecord.promise.catch(() => {});
+  }
+
   await deleteTranslationData(translationId);
   await deleteTranslationMeta(translationId);
+  emitInstallEvent('removed', { translationId });
 }

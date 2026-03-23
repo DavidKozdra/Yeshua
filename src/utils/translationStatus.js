@@ -1,10 +1,22 @@
 import { canInstallTranslation, getTranslationInstallSource } from './api';
 
-export function getTranslationStatus(translationId, meta) {
+function getQueuedDetailLabel(queueJob, isBundled) {
+  if (queueJob?.queuePosition > 1) {
+    const translationsAhead = queueJob.queuePosition - 1;
+    return `${translationsAhead} translation${translationsAhead === 1 ? '' : 's'} ${translationsAhead === 1 ? 'is' : 'are'} ahead in the queue.`;
+  }
+
+  return isBundled
+    ? 'You can already read this translation. The app will save it to device storage as soon as the current install finishes.'
+    : 'This translation will start installing as soon as the current queue clears.';
+}
+
+export function getTranslationStatus(translationId, meta, queueJob = null) {
   const installSource = getTranslationInstallSource(translationId);
   const isBundled = installSource === 'bundle';
   const isSavedOnDevice = meta?.isComplete === true;
-  const isInstalling = meta?.inProgress === true;
+  const isQueued = queueJob?.phase === 'queued';
+  const isInstalling = queueJob?.phase === 'active' || meta?.inProgress === true;
   const isPartial = Boolean(meta) && !isSavedOnDevice;
   const canReadNow = isBundled || isSavedOnDevice;
 
@@ -15,7 +27,15 @@ export function getTranslationStatus(translationId, meta) {
   let removeLabel = 'Remove';
   let tone = 'default';
 
-  if (isInstalling) {
+  if (isQueued) {
+    badgeLabels = isBundled
+      ? ['Ready now', 'Included with app', 'Queued to save']
+      : ['Queued'];
+    statusLabel = isBundled ? 'Included with app, queued to save' : 'Queued for install';
+    detailLabel = getQueuedDetailLabel(queueJob, isBundled);
+    actionLabel = isBundled ? 'Queued to save' : 'Queued';
+    tone = 'progress';
+  } else if (isInstalling) {
     badgeLabels = isBundled
       ? ['Ready now', 'Included with app', 'Saving to device']
       : ['Installing'];
@@ -80,6 +100,7 @@ export function getTranslationStatus(translationId, meta) {
     installSource,
     isBundled,
     isInstalling,
+    isQueued,
     isPartial,
     isSavedOnDevice,
     removeLabel,

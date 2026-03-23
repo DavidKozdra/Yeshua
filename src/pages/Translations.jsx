@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, Trash2, Check, Globe } from 'lucide-react';
 import { AVAILABLE_TRANSLATIONS } from '../utils/bibleData';
 import {
-  downloadTranslation,
+  cancelTranslationInstall,
+  getTranslationInstallQueueSnapshot,
+  queueTranslationInstall,
   removeTranslation,
+  subscribeToTranslationInstallEvents,
 } from '../utils/api';
 import { getAllDownloadedTranslations } from '../utils/db';
 import { getTranslationStatus } from '../utils/translationStatus';
@@ -11,74 +14,83 @@ import '../styles/translations.css';
 
 export default function Translations() {
   const [downloaded, setDownloaded] = useState([]);
-  const [downloading, setDownloading] = useState(null);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
-  const abortRef = useRef(null);
+  const [installState, setInstallState] = useState(() => getTranslationInstallQueueSnapshot());
 
   useEffect(() => {
-    loadDownloaded();
-    const intervalId = window.setInterval(loadDownloaded, 2000);
-    return () => window.clearInterval(intervalId);
-  }, []);
+    let cancelled = false;
 
-  async function loadDownloaded() {
-    const list = await getAllDownloadedTranslations({ includeIncomplete: true });
-    setDownloaded(list);
-  }
+    async function loadDownloaded() {
+      const list = await getAllDownloadedTranslations({ includeIncomplete: true });
+      if (!cancelled) {
+        setDownloaded(list);
+      }
+    }
+
+    loadDownloaded();
+    const unsubscribe = subscribeToTranslationInstallEvents((event) => {
+      setInstallState(event.snapshot);
+      if (event.type !== 'progress' && event.type !== 'queued') {
+        loadDownloaded();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
 
   function getDownloadMeta(id) {
     return downloaded.find((d) => d.id === id);
   }
 
-  async function handleDownload(id) {
-    if (getDownloadMeta(id)?.inProgress) return;
+  function getInstallActionLabel(status) {
+    if (status.isQueued || status.isInstalling || !installState.activeTranslationId) {
+      return status.actionLabel;
+    }
 
-    setDownloading(id);
-    setProgress({ done: 0, total: 1 });
+    if (status.isBundled) return 'Queue save';
+    if (status.isPartial) return 'Queue resume';
+    return 'Queue install';
+  }
 
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      await downloadTranslation(
-        id,
-        (done, total) => setProgress({ done, total }),
-        controller.signal
-      );
-      await loadDownloaded();
-    } catch (err) {
+  function handleDownload(id) {
+    void queueTranslationInstall(id).catch((err) => {
       if (err.message !== 'Download cancelled') {
         console.error('Download error:', err);
       }
-    }
-    setDownloading(null);
+    });
   }
 
-  function handleCancel() {
-    abortRef.current?.abort();
+  function handleCancel(id) {
+    cancelTranslationInstall(id);
   }
 
   async function handleRemove(id) {
     if (!confirm('Remove this translation from offline storage?')) return;
     await removeTranslation(id);
-    await loadDownloaded();
   }
 
   return (
     <div className="page">
       <h1 className="page-title">Translations</h1>
       <p className="translations-intro">
-        Ready now means you can open the translation immediately. Included with app means the text ships in this build. Saved on device means every chapter is cached in local storage.
+        Ready now means you can open the translation immediately. Included with app means the text ships in this build. Saved on device means every chapter is cached in local storage. New installs can queue behind the current one instead of being blocked.
       </p>
 
       <div className="translations-list">
         {AVAILABLE_TRANSLATIONS.map((t) => {
           const downloadMeta = getDownloadMeta(t.id);
-          const status = getTranslationStatus(t.id, downloadMeta);
-          const isActive = downloading === t.id;
+          const queueJob = installState.jobs[t.id] || null;
+          const status = getTranslationStatus(t.id, downloadMeta, queueJob);
+          const isActive = queueJob?.phase === 'active';
           const isInProgress = isActive || status.isInstalling;
-          const progressDone = isActive ? progress.done : downloadMeta?.completedChapters ?? 0;
-          const progressTotal = isActive ? progress.total : downloadMeta?.totalChapters ?? 0;
+          const progressDone = isActive
+            ? queueJob.progress.done
+            : downloadMeta?.completedChapters ?? 0;
+          const progressTotal = isActive
+            ? queueJob.progress.total
+            : downloadMeta?.totalChapters ?? 0;
           const StatusIcon =
             status.tone === 'ready' ? Check : status.tone === 'progress' ? Download : Globe;
 
@@ -132,8 +144,12 @@ export default function Translations() {
 
               <div className="translation-actions">
                 {isActive ? (
-                  <button className="btn btn-outline btn-sm" onClick={handleCancel}>
+                  <button className="btn btn-outline btn-sm" onClick={() => handleCancel(t.id)}>
                     Cancel
+                  </button>
+                ) : status.isQueued ? (
+                  <button className="btn btn-outline btn-sm" onClick={() => handleCancel(t.id)}>
+                    Remove from Queue
                   </button>
                 ) : status.isInstalling ? (
                   <button className="btn btn-outline btn-sm" disabled>
@@ -149,15 +165,14 @@ export default function Translations() {
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={() => handleDownload(t.id)}
-                      disabled={!status.canInstall || !!downloading}
+                      disabled={!status.canInstall}
                     >
                       <Download size={14} />
-                      {status.actionLabel}
+                      {getInstallActionLabel(status)}
                     </button>
                     <button
                       className="btn btn-outline btn-sm"
                       onClick={() => handleRemove(t.id)}
-                      disabled={!!downloading}
                     >
                       <Trash2 size={14} />
                       Clear
@@ -167,10 +182,10 @@ export default function Translations() {
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={() => handleDownload(t.id)}
-                    disabled={!status.canInstall || !!downloading}
+                    disabled={!status.canInstall}
                   >
                     <Download size={14} />
-                    {status.actionLabel}
+                    {getInstallActionLabel(status)}
                   </button>
                 )}
               </div>
