@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, ArrowRight, User, ExternalLink } from 'lucide-react';
 import { getTodaysReadings, getBookById } from '../utils/bibleData';
-import { getLastRead, getSettings, getProfile, saveProfile } from '../utils/storage';
+import HolyDayManager from '../components/HolyDayManager';
+import { useAppSettings } from '../hooks/useAppSettings';
+import { getLastRead, getProfile, saveProfile } from '../utils/storage';
 import '../styles/home.css';
 
 export default function Home() {
@@ -12,7 +14,7 @@ export default function Home() {
   const [profile, setProfile] = useState(getProfile);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
-  const settings = getSettings();
+  const settings = useAppSettings();
 
   useEffect(() => {
     setLastRead(getLastRead());
@@ -91,6 +93,13 @@ export default function Home() {
         </section>
       )}
 
+      {settings.enableHolyDayAwareness && (
+        <section className="home-section">
+          <p className="section-label">Holy Days</p>
+          <HolyDayManager />
+        </section>
+      )}
+
       {/* Recommended Readings */}
       <section className="home-section">
         <p className="section-label">Recommended for Today</p>
@@ -110,6 +119,24 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {settings.showBooksTab && (
+        <section className="home-section">
+          <p className="section-label">Library</p>
+          <div className="card card-clickable continue-card" onClick={() => navigate('/books')}>
+            <div className="continue-info">
+              <BookOpen size={20} />
+              <div>
+                <strong>Books Library</strong>
+                <div className="continue-translation">
+                  Bible, Qur&apos;an, Apocrypha, and Baha&apos;i resources
+                </div>
+              </div>
+            </div>
+            <ArrowRight size={18} />
+          </div>
+        </section>
+      )}
 
       {/* Quick Links / Research */}
       <section className="home-section">

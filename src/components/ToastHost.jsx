@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock3, X, XCircle } from 'lucide-react';
 import { getTranslationById } from '../utils/bibleData';
 import { subscribeToTranslationInstallEvents } from '../utils/api';
+import { subscribeToAppToasts } from '../utils/appToasts';
 
 const TOAST_DURATION_MS = 4200;
 
@@ -79,6 +80,16 @@ function getToastIcon(tone) {
   return Clock3;
 }
 
+function normalizeAppToast(toast) {
+  if (!toast?.title || !toast?.message) return null;
+
+  return {
+    tone: ['success', 'warning', 'danger', 'info'].includes(toast.tone) ? toast.tone : 'info',
+    title: toast.title,
+    message: toast.message,
+  };
+}
+
 export default function ToastHost() {
   const [toasts, setToasts] = useState([]);
   const timeoutMapRef = useRef(new Map());
@@ -95,8 +106,7 @@ export default function ToastHost() {
       setToasts((current) => current.filter((toast) => toast.id !== toastId));
     }
 
-    const unsubscribe = subscribeToTranslationInstallEvents((event) => {
-      const toast = buildToast(event);
+    function queueToast(toast) {
       if (!toast) return;
 
       toastIdRef.current += 1;
@@ -108,10 +118,18 @@ export default function ToastHost() {
       }, TOAST_DURATION_MS);
 
       timeoutMapRef.current.set(toastId, timeoutId);
+    }
+
+    const unsubscribe = subscribeToTranslationInstallEvents((event) => {
+      queueToast(buildToast(event));
+    });
+    const unsubscribeAppToasts = subscribeToAppToasts((toast) => {
+      queueToast(normalizeAppToast(toast));
     });
 
     return () => {
       unsubscribe();
+      unsubscribeAppToasts();
       for (const timeoutId of timeoutMapRef.current.values()) {
         window.clearTimeout(timeoutId);
       }

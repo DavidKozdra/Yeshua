@@ -31,6 +31,7 @@ import {
   stopTextToSpeech,
   TTS_RATE_OPTIONS,
 } from '../utils/tts';
+import { getWordsOfChristSegments } from '../utils/redLetters';
 import GlobalSearchBar from '../components/GlobalSearchBar';
 import '../styles/read.css';
 
@@ -611,22 +612,43 @@ export default function Read() {
               lineHeight: settings.lineHeight,
             }}
           >
-            {verses.map((v) => (
-              <span
-                key={v.verse}
-                className={`verse ${noteVerses.has(v.verse) ? 'has-note' : ''} ${
-                  highlightedVerse === v.verse ? 'verse-targeted' : ''
-                } ${speakingVerse === v.verse ? 'verse-speaking' : ''}`}
-                data-verse={v.verse}
-                onClick={() => openNoteForVerse(v.verse)}
-              >
-                {settings.showVerseNumbers && (
-                  <sup className="verse-num">{v.verse}</sup>
-                )}
-                {v.text}
-                {!settings.oneVersePerLine && ' '}
-              </span>
-            ))}
+            {verses.map((v) => {
+              const verseSegments = settings.showWordsOfChristInRed
+                ? getWordsOfChristSegments({
+                    translationId,
+                    bookId,
+                    chapter,
+                    verse: v.verse,
+                    text: v.text,
+                  })
+                : null;
+
+              return (
+                <span
+                  key={v.verse}
+                  className={`verse ${noteVerses.has(v.verse) ? 'has-note' : ''} ${
+                    highlightedVerse === v.verse ? 'verse-targeted' : ''
+                  } ${speakingVerse === v.verse ? 'verse-speaking' : ''}`}
+                  data-verse={v.verse}
+                  onClick={() => openNoteForVerse(v.verse)}
+                >
+                  {settings.showVerseNumbers && (
+                    <sup className="verse-num">{v.verse}</sup>
+                  )}
+                  {verseSegments
+                    ? verseSegments.map((segment, index) => (
+                        <span
+                          key={`${v.verse}-${index}`}
+                          className={segment.isRed ? 'verse-christ-words' : undefined}
+                        >
+                          {segment.text}
+                        </span>
+                      ))
+                    : v.text}
+                  {!settings.oneVersePerLine && ' '}
+                </span>
+              );
+            })}
           </div>
         )}
 

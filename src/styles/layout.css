@@ -89,8 +89,10 @@
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-around;
+  justify-content: space-evenly;
+  gap: 0.2rem;
   z-index: 100;
+  padding: 0 0.25rem;
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
@@ -106,7 +108,8 @@
   text-decoration: none;
   transition: color 0.2s;
   border-radius: var(--radius-sm);
-  min-width: 52px;
+  min-width: 0;
+  flex: 1 1 0;
 }
 
 .bottom-nav-link:hover {
