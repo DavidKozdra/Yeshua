@@ -1,6 +1,6 @@
-dist
+/dist/
 .claude
-node_modules
+/node_modules/
 *.log
 *.env
 .DS_Store
