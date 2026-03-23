@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock3, X, XCircle } from 'lucide-react';
 import { getTranslationById } from '../utils/bibleData';
 import { subscribeToTranslationInstallEvents } from '../utils/api';
+import { subscribeToBooksInstallEvents } from '../utils/booksApi';
+import { getBooksCollectionById } from '../utils/booksData';
 import { subscribeToAppToasts } from '../utils/appToasts';
 
 const TOAST_DURATION_MS = 4200;
@@ -73,6 +75,73 @@ function buildToast(event) {
   return null;
 }
 
+function getBooksCollectionLabel(collectionId) {
+  return getBooksCollectionById(collectionId)?.name || 'Collection';
+}
+
+function buildBooksToast(event) {
+  const label = getBooksCollectionLabel(event.collectionId);
+
+  if (event.type === 'queued') {
+    const queuedJob = event.snapshot.jobs[event.collectionId];
+    const hasInstallAhead =
+      Boolean(event.snapshot.activeCollectionId && event.snapshot.activeCollectionId !== event.collectionId) ||
+      (queuedJob?.queuePosition ?? 0) > 1;
+
+    if (!hasInstallAhead) {
+      return null;
+    }
+
+    return {
+      tone: 'info',
+      title: `${label} queued`,
+      message:
+        queuedJob?.queuePosition > 1
+          ? `${queuedJob.queuePosition - 1} collections are ahead in the queue.`
+          : 'This collection will start saving when the current install finishes.',
+    };
+  }
+
+  if (event.type === 'completed') {
+    if (event.result?.isComplete) {
+      return {
+        tone: 'success',
+        title: `${label} ready offline`,
+        message: `All ${event.result.totalChapters} chapters are saved on this device.`,
+      };
+    }
+
+    return {
+      tone: 'warning',
+      title: `${label} partially saved`,
+      message:
+        event.result?.sampleError ||
+        `${event.result?.completedChapters ?? 0} of ${event.result?.totalChapters ?? 0} chapters were saved.`,
+    };
+  }
+
+  if (event.type === 'failed') {
+    return {
+      tone: 'danger',
+      title: `${label} install failed`,
+      message: event.error || 'The collection could not be saved on this device.',
+    };
+  }
+
+  if (event.type === 'cancelled') {
+    return {
+      tone: 'info',
+      title: `${label} install cancelled`,
+      message:
+        event.phase === 'queued'
+          ? 'The collection was removed from the install queue.'
+          : 'The active install was stopped before it finished.',
+    };
+  }
+
+  return null;
+}
+
 function getToastIcon(tone) {
   if (tone === 'success') return CheckCircle2;
   if (tone === 'warning') return AlertTriangle;
@@ -123,12 +192,16 @@ export default function ToastHost() {
     const unsubscribe = subscribeToTranslationInstallEvents((event) => {
       queueToast(buildToast(event));
     });
+    const unsubscribeBooks = subscribeToBooksInstallEvents((event) => {
+      queueToast(buildBooksToast(event));
+    });
     const unsubscribeAppToasts = subscribeToAppToasts((toast) => {
       queueToast(normalizeAppToast(toast));
     });
 
     return () => {
       unsubscribe();
+      unsubscribeBooks();
       unsubscribeAppToasts();
       for (const timeoutId of timeoutMapRef.current.values()) {
         window.clearTimeout(timeoutId);

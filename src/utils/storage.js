@@ -11,6 +11,10 @@ import { DEFAULT_TRANSLATION_ID } from './translationConfig';
 import { getTranslationById } from './bibleData';
 import { HOLY_DAY_OPTIONS } from './holyDays';
 import { TTS_RATE_OPTIONS } from './tts';
+import {
+  DEFAULT_WORDS_OF_CHRIST_COLOR,
+  sanitizeWordsOfChristColor,
+} from './wordsOfChrist';
 
 const SETTINGS_KEY = 'yeshua-settings';
 const LAST_READ_KEY = 'yeshua-last-read';
@@ -47,6 +51,7 @@ const defaults = {
   textToSpeechRate: 1,
   customTheme: CUSTOM_THEME_DEFAULT,
   customThemes: [],
+  wordsOfChristColor: DEFAULT_WORDS_OF_CHRIST_COLOR,
 };
 
 function normalizeTextToSpeechRate(value) {
@@ -148,6 +153,7 @@ function normalizeSettings(parsedSettings = {}) {
     textToSpeechRate: normalizeTextToSpeechRate(parsedSettings.textToSpeechRate),
     customTheme: normalizedCustomTheme,
     customThemes,
+    wordsOfChristColor: sanitizeWordsOfChristColor(parsedSettings.wordsOfChristColor),
   };
 }
 
@@ -200,6 +206,7 @@ export function saveSettings(settings) {
     textToSpeechRate: normalizeTextToSpeechRate(settings.textToSpeechRate),
     customTheme: activeCustomTheme?.colors || normalizeCustomTheme(settings.customTheme),
     customThemes,
+    wordsOfChristColor: sanitizeWordsOfChristColor(settings.wordsOfChristColor),
   };
 
   localStorage.setItem(

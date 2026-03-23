@@ -183,10 +183,11 @@ export default function BookText() {
 
   const readerSubtitle = useMemo(() => {
     if (!work) return '';
+    const referenceBase = [work.subtitle, work.reference].filter(Boolean).join(' • ');
     if ((work.chapters || 1) <= 1) {
-      return `${work.subtitle} • ${work.reference}`;
+      return referenceBase;
     }
-    return `${work.subtitle} • ${work.reference} ${chapter}`;
+    return `${referenceBase} ${chapter}`.trim();
   }, [chapter, work]);
 
   if (!collection) {
@@ -340,7 +341,13 @@ export default function BookText() {
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  onClick={() => queueBooksCollectionInstall(collection.id)}
+                  onClick={() => {
+                    void queueBooksCollectionInstall(collection.id).catch((installError) => {
+                      if (installError.message !== 'Download cancelled') {
+                        console.error('Books download error:', installError);
+                      }
+                    });
+                  }}
                   disabled={!status.canInstall || status.isQueued}
                 >
                   <Download size={14} />

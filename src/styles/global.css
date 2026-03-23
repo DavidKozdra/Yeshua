@@ -14,6 +14,7 @@
   --accent-subtle: rgba(201, 169, 110, 0.15);
   --border: #2a2a44;
   --border-light: #333355;
+  --words-of-christ-color: color-mix(in srgb, var(--danger) 78%, var(--text-primary) 22%);
   --danger: #e74c3c;
   --danger-hover: #c0392b;
   --success: #2ecc71;
@@ -67,7 +68,10 @@
 }
 
 .verse-christ-words {
-  color: color-mix(in srgb, var(--danger) 78%, var(--text-primary) 22%);
+  color: var(
+    --words-of-christ-color,
+    color-mix(in srgb, var(--danger) 78%, var(--text-primary) 22%)
+  );
 }
 
 *,

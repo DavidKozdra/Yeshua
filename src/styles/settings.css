@@ -36,6 +36,21 @@
   font-weight: 500;
 }
 
+.setting-row-color input[type='color'] {
+  width: 48px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  padding: 0;
+  background: var(--bg-input);
+  cursor: pointer;
+}
+
+.setting-row-color input[type='color']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .setting-label svg {
   color: var(--text-muted);
 }
@@ -248,6 +263,17 @@
 
 .settings-help.error {
   color: var(--danger);
+}
+
+.settings-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.settings-library-list .translation-card {
+  width: 100%;
 }
 
 /* Preview */

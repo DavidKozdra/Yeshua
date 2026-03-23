@@ -1,14 +1,45 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Sun, BookOpen, Type, Eye, Palette, Search, Volume2, CalendarDays, Bell } from 'lucide-react';
-import { getSettings, saveSettings } from '../utils/storage';
+import { useNavigate } from 'react-router-dom';
+import {
+  Sun,
+  BookOpen,
+  Type,
+  Eye,
+  Palette,
+  Search,
+  Volume2,
+  CalendarDays,
+  Bell,
+  Download,
+  ExternalLink,
+  Globe,
+  Trash2,
+} from 'lucide-react';
+import { getLastBooksRead, getSettings, saveSettings } from '../utils/storage';
 import {
   AVAILABLE_TRANSLATIONS,
   BIBLE_BOOKS,
   getBookById,
   getTranslationById,
 } from '../utils/bibleData';
-import { getAllDownloadedTranslations } from '../utils/db';
+import {
+  getAllDownloadedLibraryCollections,
+  getAllDownloadedTranslations,
+} from '../utils/db';
 import { fetchChapter, subscribeToTranslationInstallEvents } from '../utils/api';
+import {
+  cancelBooksCollectionInstall,
+  getBooksInstallQueueSnapshot,
+  queueBooksCollectionInstall,
+  removeBooksCollection,
+  subscribeToBooksInstallEvents,
+} from '../utils/booksApi';
+import {
+  BOOKS_TAB_COLLECTIONS,
+  getBooksCollectionDefaultRoute,
+  getBooksCollectionStats,
+} from '../utils/booksData';
+import { getBooksCollectionStatus } from '../utils/booksStatus';
 import { getTranslationSelectLabel, getTranslationStatus } from '../utils/translationStatus';
 import { parseReferenceInput } from '../utils/reference';
 import {
@@ -28,6 +59,7 @@ import {
   supportsPreciseWordsOfChrist,
 } from '../utils/redLetters';
 import '../styles/settings.css';
+import '../styles/translations.css';
 
 const PREVIEW_DEFAULT = {
   bookId: 'JHN',
@@ -59,8 +91,11 @@ function formatPreviewReference(bookId, chapter, verse) {
 }
 
 export default function Settings() {
+  const navigate = useNavigate();
   const [settings, setSettings] = useState(getSettings);
   const [downloadedTranslations, setDownloadedTranslations] = useState([]);
+  const [downloadedCollections, setDownloadedCollections] = useState([]);
+  const [booksInstallState, setBooksInstallState] = useState(() => getBooksInstallQueueSnapshot());
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [themeDraft, setThemeDraft] = useState(() => normalizeCustomTheme(CUSTOM_THEME_DEFAULT));
   const [themeDraftName, setThemeDraftName] = useState('');
@@ -162,6 +197,30 @@ export default function Settings() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadDownloadedCollections() {
+      const collections = await getAllDownloadedLibraryCollections({ includeIncomplete: true });
+      if (!cancelled) {
+        setDownloadedCollections(collections);
+      }
+    }
+
+    loadDownloadedCollections();
+    const unsubscribe = subscribeToBooksInstallEvents((event) => {
+      setBooksInstallState(event.snapshot);
+      if (event.type !== 'progress' && event.type !== 'queued') {
+        loadDownloadedCollections();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     setReferenceInput(formatPreviewReference(previewBookId, previewChapter, previewVerse));
     setReferenceError('');
   }, [previewBookId, previewChapter, previewVerse]);
@@ -226,6 +285,43 @@ export default function Settings() {
     }
     setSettings(updated);
     saveSettings(updated);
+  }
+
+  function getBooksCollectionMeta(collectionId) {
+    return downloadedCollections.find((collection) => collection.id === collectionId) || null;
+  }
+
+  function getBooksCollectionTarget(collectionId) {
+    const lastBooksRead = getLastBooksRead();
+    if (lastBooksRead?.collectionId === collectionId && lastBooksRead?.workId) {
+      return `/books/${collectionId}/${lastBooksRead.workId}/${lastBooksRead.chapter || 1}`;
+    }
+
+    return getBooksCollectionDefaultRoute(collectionId);
+  }
+
+  function getBooksInstallActionLabel(status) {
+    if (status.isQueued || status.isInstalling || !booksInstallState.activeCollectionId) {
+      return status.actionLabel;
+    }
+
+    return status.isPartial ? 'Queue resume' : 'Queue save';
+  }
+
+  function handleBooksDownload(collectionId) {
+    void queueBooksCollectionInstall(collectionId).catch((error) => {
+      if (error.message !== 'Download cancelled') {
+        console.error('Books download error:', error);
+      }
+    });
+  }
+
+  async function handleRemoveBooksCollection(collectionId) {
+    if (!confirm('Remove this collection from offline storage?')) return;
+    await removeBooksCollection(collectionId);
+    setDownloadedCollections(
+      await getAllDownloadedLibraryCollections({ includeIncomplete: true })
+    );
   }
 
   function openThemeModal(themeToEdit = null) {
@@ -406,9 +502,220 @@ export default function Settings() {
             </div>
 
             <p className="settings-help">
-              Adds a Books tab for the Bible plus other Abrahamic collections, including bundled
-              Qur&apos;an and Apocrypha starter passages and official Baha&apos;i links.
+              Adds a Books tab for Bible-adjacent collections with separate install state for the
+              full Qur&apos;an and the wider Apocrypha shelf, plus linked Baha&apos;i and
+              Zoroastrian libraries.
             </p>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row setting-row-stack">
+              <div className="setting-label">
+                <Globe size={18} />
+                <span>Books Collection Storage</span>
+              </div>
+              <p className="settings-help">
+                Reader collections keep their own queue, cache, and remove controls separate from
+                Bible translation installs, but follow the same offline-first pattern.
+              </p>
+
+              <div className="settings-library-list">
+                {BOOKS_TAB_COLLECTIONS.map((collection) => {
+                  const meta = getBooksCollectionMeta(collection.id);
+                  const queueJob = booksInstallState.jobs[collection.id] || null;
+                  const status = getBooksCollectionStatus(collection, meta, queueJob);
+                  const stats = getBooksCollectionStats(collection.id, meta?.works);
+                  const progressDone =
+                    queueJob?.phase === 'active'
+                      ? queueJob.progress.done
+                      : meta?.completedChapters ?? 0;
+                  const progressTotal =
+                    queueJob?.phase === 'active'
+                      ? queueJob.progress.total
+                      : meta?.totalChapters ?? 0;
+                  const isActive = queueJob?.phase === 'active';
+                  const isInProgress = isActive || status.isInstalling;
+                  const isBibleReady = downloadedTranslations.length > 0;
+                  const primaryExternalHref = collection.works?.[0]?.href || null;
+
+                  return (
+                    <div
+                      key={collection.id}
+                      className={`card translation-card ${
+                        status.canOpenReader || status.isSavedOnDevice ? 'downloaded' : ''
+                      }`}
+                    >
+                      <div className="translation-info">
+                        <div className="translation-header">
+                          <h3>{collection.name}</h3>
+                          <span className="chip">
+                            <Globe size={12} />
+                            {collection.tradition}
+                          </span>
+                        </div>
+                        <p className="translation-abbr">
+                          {collection.kind === 'reader'
+                            ? `${stats.workCount} works • ${stats.totalChapters} chapters`
+                            : collection.kind === 'bible'
+                              ? isBibleReady
+                                ? 'Bible translations ready'
+                                : 'Uses Bible translation installs'
+                              : collection.sourceLabel}
+                        </p>
+                        <p className="translation-desc">{collection.description}</p>
+
+                        <div className="translation-badges">
+                          {status.badgeLabels.map((badge) => (
+                            <span
+                              key={badge}
+                              className={`chip translation-chip translation-chip-${status.tone}`}
+                            >
+                              {badge}
+                            </span>
+                          ))}
+                        </div>
+
+                        {!isInProgress && (
+                          <div className={`translation-status translation-status-${status.tone}`}>
+                            <span>{status.statusLabel}</span>
+                          </div>
+                        )}
+                        <p className="translation-detail">{status.detailLabel}</p>
+
+                        {isInProgress && (
+                          <div className="download-progress">
+                            <div className="progress-bar">
+                              <div
+                                className="progress-bar-fill"
+                                style={{
+                                  width: `${progressTotal ? (progressDone / progressTotal) * 100 : 0}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="progress-text">
+                              {progressDone} / {progressTotal} chapters
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="translation-actions">
+                        {collection.kind === 'bible' ? (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              onClick={() => navigate('/read')}
+                            >
+                              <BookOpen size={14} />
+                              Open Reader
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => navigate('/translations')}
+                            >
+                              <Download size={14} />
+                              Manage Translations
+                            </button>
+                          </>
+                        ) : collection.kind === 'reader' ? (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              onClick={() => navigate(getBooksCollectionTarget(collection.id))}
+                            >
+                              <BookOpen size={14} />
+                              Open
+                            </button>
+
+                            {isActive ? (
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => cancelBooksCollectionInstall(collection.id)}
+                              >
+                                Cancel
+                              </button>
+                            ) : status.isQueued ? (
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => cancelBooksCollectionInstall(collection.id)}
+                              >
+                                Remove from Queue
+                              </button>
+                            ) : status.isSavedOnDevice ? (
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleRemoveBooksCollection(collection.id)}
+                              >
+                                <Trash2 size={14} />
+                                {status.removeLabel}
+                              </button>
+                            ) : status.isPartial ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  onClick={() => handleBooksDownload(collection.id)}
+                                  disabled={!status.canInstall}
+                                >
+                                  <Download size={14} />
+                                  {getBooksInstallActionLabel(status)}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => handleRemoveBooksCollection(collection.id)}
+                                >
+                                  <Trash2 size={14} />
+                                  Clear
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleBooksDownload(collection.id)}
+                                disabled={!status.canInstall}
+                              >
+                                <Download size={14} />
+                                {getBooksInstallActionLabel(status)}
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              onClick={() => navigate('/books')}
+                            >
+                              <BookOpen size={14} />
+                              Browse in Books
+                            </button>
+                            {primaryExternalHref && (
+                              <a
+                                className="btn btn-primary btn-sm"
+                                href={primaryExternalHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <ExternalLink size={14} />
+                                Open Source
+                              </a>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -487,6 +794,19 @@ export default function Settings() {
                 />
                 <span className="toggle-slider" />
               </label>
+            </div>
+
+            <div className="setting-row setting-row-color">
+              <div className="setting-label">
+                <Palette size={18} />
+                <span>Words of Christ color</span>
+              </div>
+              <input
+                type="color"
+                value={settings.wordsOfChristColor}
+                disabled={!settings.showWordsOfChristInRed}
+                onChange={(e) => update('wordsOfChristColor', e.target.value)}
+              />
             </div>
 
             <p className="settings-help">
