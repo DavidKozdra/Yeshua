@@ -3,6 +3,8 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Read from './pages/Read';
+import Books from './pages/Books';
+import BookText from './pages/BookText';
 import Search from './pages/Search';
 import Translations from './pages/Translations';
 import Notes from './pages/Notes';
@@ -58,6 +60,9 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/read" element={<Read />} />
         <Route path="/read/:translationId/:bookId/:chapter" element={<Read />} />
+        <Route path="/books" element={<Books />} />
+        <Route path="/books/:collectionId" element={<BookText />} />
+        <Route path="/books/:collectionId/:workId/:chapter" element={<BookText />} />
         <Route path="/search" element={<Search />} />
         <Route path="/translations" element={<Translations />} />
         <Route path="/notes" element={<Notes />} />

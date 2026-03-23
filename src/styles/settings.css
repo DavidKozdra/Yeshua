@@ -36,6 +36,21 @@
   font-weight: 500;
 }
 
+.setting-row-color input[type='color'] {
+  width: 48px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  padding: 0;
+  background: var(--bg-input);
+  cursor: pointer;
+}
+
+.setting-row-color input[type='color']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .setting-label svg {
   color: var(--text-muted);
 }
@@ -144,6 +159,76 @@
   transform: translateX(20px);
 }
 
+.toggle input:disabled + .toggle-slider {
+  opacity: 0.5;
+}
+
+.holy-day-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.holy-day-setting-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-input) 90%, transparent);
+}
+
+.holy-day-setting-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.holy-day-setting-copy strong {
+  font-size: 0.92rem;
+}
+
+.holy-day-setting-copy span {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.holy-day-setting-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  width: 100%;
+  gap: 0.9rem;
+}
+
+.holy-day-setting-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.holy-day-settings-collapsed-note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.holy-day-setting-day-label {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .preview-toolbar {
   display: flex;
   flex-direction: column;
@@ -178,6 +263,17 @@
 
 .settings-help.error {
   color: var(--danger);
+}
+
+.settings-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.settings-library-list .translation-card {
+  width: 100%;
 }
 
 /* Preview */
@@ -301,6 +397,16 @@
 
   .preview-reference {
     flex-direction: column;
+  }
+
+  .holy-day-setting-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .holy-day-setting-controls {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .preview-selectors {

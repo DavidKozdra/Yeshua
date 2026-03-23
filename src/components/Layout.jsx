@@ -6,18 +6,26 @@ import GlobalSearchBar from './GlobalSearchBar';
 import { getSettings, subscribeToSettings } from '../utils/storage';
 import '../styles/layout.css';
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/read', icon: BookOpen, label: 'Read' },
-  { to: '/translations', icon: Languages, label: 'Translations' },
   { to: '/notes', icon: StickyNote, label: 'Notes' },
+  { to: '/translations', icon: Languages, label: 'Translations' },
   { to: '/settings', icon: SettingsIcon, label: 'Settings' },
 ];
 
 export default function Layout() {
   const location = useLocation();
   const [settings, setSettings] = useState(getSettings);
-  const isReadRoute = location.pathname.startsWith('/read');
+  const isReaderRoute =
+    location.pathname.startsWith('/read') || location.pathname.startsWith('/books/');
+  const navItems = settings.showBooksTab
+    ? [
+        ...BASE_NAV_ITEMS.slice(0, 2),
+        { to: '/books', icon: BookOpen, label: 'Books' },
+        ...BASE_NAV_ITEMS.slice(2),
+      ]
+    : BASE_NAV_ITEMS;
 
   useEffect(() => subscribeToSettings(setSettings), []);
 
@@ -29,7 +37,7 @@ export default function Layout() {
           <span className="brand-text">Yeshua</span>
         </div>
         <ul className="nav-list">
-          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+          {navItems.map(({ to, icon: Icon, label }) => (
             <li key={to}>
               <NavLink to={to} end={to === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                 <Icon size={22} />
@@ -41,7 +49,7 @@ export default function Layout() {
       </nav>
 
       <main className="main-content">
-        {settings.showGlobalSearchBar && !isReadRoute && <GlobalSearchBar />}
+        {settings.showGlobalSearchBar && !isReaderRoute && <GlobalSearchBar />}
 
         <div className="content-shell">
           <Outlet />
@@ -51,7 +59,7 @@ export default function Layout() {
       <ToastHost />
 
       <nav className="bottom-nav" aria-label="Main navigation">
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+        {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

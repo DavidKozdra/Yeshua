@@ -2,20 +2,26 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, ArrowRight, User, ExternalLink } from 'lucide-react';
 import { getTodaysReadings, getBookById } from '../utils/bibleData';
-import { getLastRead, getSettings, getProfile, saveProfile } from '../utils/storage';
+import HolyDayBanner from '../components/HolyDayBanner';
+import HolyDayManager from '../components/HolyDayManager';
+import HolyDayReminderManager from '../components/HolyDayReminderManager';
+import { useAppSettings } from '../hooks/useAppSettings';
+import { getLastBooksRead, getLastRead, getProfile, saveProfile } from '../utils/storage';
 import '../styles/home.css';
 
 export default function Home() {
   const navigate = useNavigate();
   const [readings] = useState(getTodaysReadings);
   const [lastRead, setLastRead] = useState(null);
+  const [lastBooksRead, setLastBooksRead] = useState(null);
   const [profile, setProfile] = useState(getProfile);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
-  const settings = getSettings();
+  const settings = useAppSettings();
 
   useEffect(() => {
     setLastRead(getLastRead());
+    setLastBooksRead(getLastBooksRead());
   }, []);
 
   function handleSaveName() {
@@ -31,6 +37,8 @@ export default function Home() {
 
   return (
     <div className="page home-page">
+      <HolyDayReminderManager />
+
       {/* Profile greeting */}
       <div className="home-header">
         <div className="profile-section">
@@ -65,6 +73,8 @@ export default function Home() {
         </div>
       </div>
 
+      <HolyDayBanner />
+
       {/* Continue Reading */}
       {lastRead && (
         <section className="home-section">
@@ -91,6 +101,13 @@ export default function Home() {
         </section>
       )}
 
+      {settings.enableHolyDayAwareness && (
+        <section className="home-section">
+          <p className="section-label">Holy Days</p>
+          <HolyDayManager />
+        </section>
+      )}
+
       {/* Recommended Readings */}
       <section className="home-section">
         <p className="section-label">Recommended for Today</p>
@@ -110,6 +127,35 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {settings.showBooksTab && (
+        <section className="home-section">
+          <p className="section-label">Library</p>
+          <div
+            className="card card-clickable continue-card"
+            onClick={() =>
+              navigate(
+                lastBooksRead?.collectionId && lastBooksRead?.workId
+                  ? `/books/${lastBooksRead.collectionId}/${lastBooksRead.workId}/${lastBooksRead.chapter || 1}`
+                  : '/books'
+              )
+            }
+          >
+            <div className="continue-info">
+              <BookOpen size={20} />
+              <div>
+                <strong>Books Library</strong>
+                <div className="continue-translation">
+                  {lastBooksRead?.collectionId
+                    ? `Continue ${lastBooksRead.collectionId.replace(/-/g, ' ')}`
+                    : "Bible, Qur'an, Apocrypha, Baha'i, and Zoroastrian resources"}
+                </div>
+              </div>
+            </div>
+            <ArrowRight size={18} />
+          </div>
+        </section>
+      )}
 
       {/* Quick Links / Research */}
       <section className="home-section">

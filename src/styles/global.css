@@ -14,6 +14,7 @@
   --accent-subtle: rgba(201, 169, 110, 0.15);
   --border: #2a2a44;
   --border-light: #333355;
+  --words-of-christ-color: color-mix(in srgb, var(--danger) 78%, var(--text-primary) 22%);
   --danger: #e74c3c;
   --danger-hover: #c0392b;
   --success: #2ecc71;
@@ -64,6 +65,13 @@
   --border-light: #e2d8c2;
   --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.verse-christ-words {
+  color: var(
+    --words-of-christ-color,
+    color-mix(in srgb, var(--danger) 78%, var(--text-primary) 22%)
+  );
 }
 
 *,

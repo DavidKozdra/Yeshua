@@ -1,5 +1,7 @@
 const FALLBACK_SHADOW = '0 2px 12px rgba(0, 0, 0, 0.3)';
 const FALLBACK_SHADOW_LG = '0 8px 32px rgba(0, 0, 0, 0.4)';
+import { DEFAULT_WORDS_OF_CHRIST_COLOR } from './wordsOfChrist';
+
 export const BUILT_IN_THEMES = ['dark', 'light', 'sepia'];
 export const CUSTOM_THEME_PREFIX = 'custom:';
 export const DEFAULT_CUSTOM_THEME_NAME = 'Custom Theme';
@@ -232,6 +234,8 @@ export function applyTheme(settings) {
   const root = document.documentElement;
   const theme = settings?.theme || 'dark';
   const activeCustomTheme = getActiveCustomTheme(settings);
+  const wordsOfChristColor =
+    settings?.wordsOfChristColor || DEFAULT_WORDS_OF_CHRIST_COLOR;
 
   if (activeCustomTheme) {
     root.setAttribute('data-theme', 'custom');
@@ -239,9 +243,11 @@ export function applyTheme(settings) {
     for (const [name, value] of Object.entries(variables)) {
       root.style.setProperty(name, value);
     }
+    root.style.setProperty('--words-of-christ-color', wordsOfChristColor);
     return;
   }
 
   clearCustomTheme(root);
   root.setAttribute('data-theme', isBuiltInTheme(theme) ? theme : BUILT_IN_THEMES[0]);
+  root.style.setProperty('--words-of-christ-color', wordsOfChristColor);
 }
