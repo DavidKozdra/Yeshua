@@ -12,8 +12,11 @@ import { fetchChapter, subscribeToTranslationInstallEvents } from '../utils/api'
 import { getTranslationSelectLabel, getTranslationStatus } from '../utils/translationStatus';
 import {
   applyTheme,
+  BUILT_IN_THEMES,
   CUSTOM_THEME_DEFAULT,
   buildCustomThemeVariables,
+  createCustomThemeId,
+  getActiveCustomTheme,
   normalizeCustomTheme,
 } from '../utils/theme';
 import '../styles/settings.css';
@@ -44,6 +47,12 @@ const CUSTOM_THEME_FIELDS = [
   { key: 'success', label: 'Success' },
   { key: 'danger', label: 'Danger' },
 ];
+
+const BUILT_IN_THEME_LABELS = {
+  dark: 'Dark',
+  light: 'Light',
+  sepia: 'Sepia',
+};
 
 function formatPreviewReference(bookId, chapter, verse) {
   return `${getBookById(bookId)?.name || bookId} ${chapter}:${verse}`;
@@ -80,9 +89,10 @@ export default function Settings() {
   const [settings, setSettings] = useState(getSettings);
   const [downloadedTranslations, setDownloadedTranslations] = useState([]);
   const [showThemeModal, setShowThemeModal] = useState(false);
-  const [themeDraft, setThemeDraft] = useState(() =>
-    normalizeCustomTheme(getSettings().customTheme)
-  );
+  const [themeDraft, setThemeDraft] = useState(() => normalizeCustomTheme(CUSTOM_THEME_DEFAULT));
+  const [themeDraftName, setThemeDraftName] = useState('');
+  const [themeNameError, setThemeNameError] = useState('');
+  const [editingThemeId, setEditingThemeId] = useState(null);
   const [previewBookId, setPreviewBookId] = useState(PREVIEW_DEFAULT.bookId);
   const [previewChapter, setPreviewChapter] = useState(PREVIEW_DEFAULT.chapter);
   const [previewVerse, setPreviewVerse] = useState(PREVIEW_DEFAULT.verse);
@@ -112,6 +122,7 @@ export default function Settings() {
     : null;
   const selectedPreviewVerse =
     previewVerses.find((item) => item.verse === previewVerse) || previewVerses[0] || null;
+  const activeCustomTheme = getActiveCustomTheme(settings);
 
   useEffect(() => {
     applyTheme(settings);
@@ -197,8 +208,22 @@ export default function Settings() {
 
   function update(key, value) {
     const updated = { ...settings, [key]: value };
+    if (key === 'theme') {
+      const selectedCustomTheme = settings.customThemes.find((theme) => theme.id === value);
+      if (selectedCustomTheme) {
+        updated.customTheme = selectedCustomTheme.colors;
+      }
+    }
     setSettings(updated);
     saveSettings(updated);
+  }
+
+  function openThemeModal(themeToEdit = null) {
+    setEditingThemeId(themeToEdit?.id || null);
+    setThemeDraftName(themeToEdit?.name || '');
+    setThemeDraft(normalizeCustomTheme(themeToEdit?.colors || CUSTOM_THEME_DEFAULT));
+    setThemeNameError('');
+    setShowThemeModal(true);
   }
 
   function handleReferenceSubmit() {
@@ -215,14 +240,37 @@ export default function Settings() {
   }
 
   function handleSaveCustomTheme() {
+    const trimmedName = themeDraftName.trim().replace(/\s+/g, ' ');
+    if (!trimmedName) {
+      setThemeNameError('Enter a theme name.');
+      return;
+    }
+
+    const normalizedColors = normalizeCustomTheme(themeDraft);
+    const hasEditingTheme = settings.customThemes.some((theme) => theme.id === editingThemeId);
+    const nextThemeId = hasEditingTheme
+      ? editingThemeId
+      : createCustomThemeId(trimmedName, settings.customThemes);
+    const customThemes = hasEditingTheme
+      ? settings.customThemes.map((theme) =>
+          theme.id === editingThemeId
+            ? { ...theme, name: trimmedName, colors: normalizedColors }
+            : theme
+        )
+      : [
+          ...settings.customThemes,
+          { id: nextThemeId, name: trimmedName, colors: normalizedColors },
+        ];
     const updated = {
       ...settings,
-      theme: 'custom',
-      customTheme: normalizeCustomTheme(themeDraft),
+      theme: nextThemeId,
+      customTheme: normalizedColors,
+      customThemes,
     };
 
     setSettings(updated);
     saveSettings(updated);
+    setThemeNameError('');
     setShowThemeModal(false);
   }
 
@@ -247,7 +295,7 @@ export default function Settings() {
                 <span>Theme</span>
               </div>
               <div className="theme-options">
-                {['dark', 'light', 'sepia'].map((themeName) => (
+                {BUILT_IN_THEMES.map((themeName) => (
                   <button
                     key={themeName}
                     className={`theme-btn theme-${themeName} ${
@@ -255,21 +303,38 @@ export default function Settings() {
                     }`}
                     onClick={() => update('theme', themeName)}
                   >
-                    {themeName.charAt(0).toUpperCase() + themeName.slice(1)}
+                    {BUILT_IN_THEME_LABELS[themeName]}
                   </button>
                 ))}
-                <button
-                  className={`theme-btn theme-custom ${settings.theme === 'custom' ? 'active' : ''}`}
-                  onClick={() => update('theme', 'custom')}
-                >
-                  Custom
-                </button>
+                {settings.customThemes.map((theme) => (
+                  <button
+                    key={theme.id}
+                    className={`theme-btn theme-custom-saved ${
+                      settings.theme === theme.id ? 'active' : ''
+                    }`}
+                    onClick={() => update('theme', theme.id)}
+                  >
+                    {theme.name}
+                  </button>
+                ))}
               </div>
               <div className="theme-actions">
-                <button className="btn btn-outline btn-sm" onClick={() => setShowThemeModal(true)}>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openThemeModal(activeCustomTheme)}
+                >
                   <Palette size={14} />
-                  {settings.theme === 'custom' ? 'Edit Custom Theme' : 'Create Custom Theme'}
+                  {activeCustomTheme ? `Edit ${activeCustomTheme.name}` : 'Create Custom Theme'}
                 </button>
+                {activeCustomTheme && (
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => openThemeModal()}
+                  >
+                    <Palette size={14} />
+                    New Theme
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -488,7 +553,24 @@ export default function Settings() {
       {showThemeModal && (
         <div className="modal-overlay" onClick={() => setShowThemeModal(false)}>
           <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Create Custom Theme</h2>
+            <h2>{editingThemeId ? 'Edit Custom Theme' : 'Create Custom Theme'}</h2>
+            <div className="theme-name-field">
+              <label htmlFor="custom-theme-name">Theme Name</label>
+              <input
+                id="custom-theme-name"
+                type="text"
+                value={themeDraftName}
+                onChange={(e) => {
+                  setThemeDraftName(e.target.value);
+                  if (themeNameError) {
+                    setThemeNameError('');
+                  }
+                }}
+                placeholder="Evening Gold"
+                autoFocus
+              />
+              {themeNameError && <p className="settings-help error">{themeNameError}</p>}
+            </div>
             <div className="theme-editor-grid">
               {CUSTOM_THEME_FIELDS.map((field) => (
                 <label key={field.key} className="theme-color-field">
@@ -513,7 +595,7 @@ export default function Settings() {
             <div className="theme-modal-preview" style={customPreviewStyle}>
               <div className="theme-modal-card">
                 <div className="theme-modal-topline">
-                  <span className="chip">Custom Theme</span>
+                  <span className="chip">{themeDraftName.trim() || 'Custom Theme'}</span>
                   <span className="theme-modal-ref">
                     {formatPreviewReference(previewBookId, previewChapter, previewVerse)}
                   </span>

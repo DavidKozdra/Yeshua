@@ -1,5 +1,8 @@
 const FALLBACK_SHADOW = '0 2px 12px rgba(0, 0, 0, 0.3)';
 const FALLBACK_SHADOW_LG = '0 8px 32px rgba(0, 0, 0, 0.4)';
+export const BUILT_IN_THEMES = ['dark', 'light', 'sepia'];
+export const CUSTOM_THEME_PREFIX = 'custom:';
+export const DEFAULT_CUSTOM_THEME_NAME = 'Custom Theme';
 
 export const CUSTOM_THEME_DEFAULT = {
   bgPrimary: '#101722',
@@ -38,6 +41,22 @@ const CUSTOM_THEME_VARIABLES = [
 
 function clamp(value, min = 0, max = 255) {
   return Math.min(max, Math.max(min, value));
+}
+
+function sanitizeCustomThemeName(name) {
+  if (typeof name !== 'string') return DEFAULT_CUSTOM_THEME_NAME;
+
+  const normalized = name.trim().replace(/\s+/g, ' ');
+  return normalized || DEFAULT_CUSTOM_THEME_NAME;
+}
+
+function slugifyThemeName(name) {
+  const baseSlug = sanitizeCustomThemeName(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return baseSlug || 'theme';
 }
 
 function sanitizeHex(value, fallback) {
@@ -104,6 +123,72 @@ export function normalizeCustomTheme(customTheme = {}) {
   return normalized;
 }
 
+export function createCustomThemeId(name, existingThemes = []) {
+  const existingIds = new Set(
+    Array.isArray(existingThemes)
+      ? existingThemes.map((theme) => theme?.id).filter(Boolean)
+      : []
+  );
+  const baseSlug = slugifyThemeName(name);
+  let suffix = 0;
+  let nextId = `${CUSTOM_THEME_PREFIX}${baseSlug}`;
+
+  while (existingIds.has(nextId)) {
+    suffix += 1;
+    nextId = `${CUSTOM_THEME_PREFIX}${baseSlug}-${suffix}`;
+  }
+
+  return nextId;
+}
+
+export function isBuiltInTheme(themeId) {
+  return BUILT_IN_THEMES.includes(themeId);
+}
+
+export function normalizeCustomThemes(customThemes = []) {
+  if (!Array.isArray(customThemes)) return [];
+
+  const normalizedThemes = [];
+  const seenIds = new Set();
+
+  for (const theme of customThemes) {
+    const name = sanitizeCustomThemeName(theme?.name);
+    const id =
+      typeof theme?.id === 'string' && theme.id.trim()
+        ? theme.id.trim()
+        : createCustomThemeId(name, normalizedThemes);
+
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+
+    normalizedThemes.push({
+      id,
+      name,
+      colors: normalizeCustomTheme(theme?.colors || theme),
+    });
+  }
+
+  return normalizedThemes;
+}
+
+export function getCustomThemeById(customThemes = [], themeId) {
+  if (!Array.isArray(customThemes) || typeof themeId !== 'string') return null;
+  return customThemes.find((theme) => theme.id === themeId) || null;
+}
+
+export function getActiveCustomTheme(settings) {
+  if (!settings) return null;
+  if (settings.theme === 'custom') {
+    return {
+      id: createCustomThemeId(DEFAULT_CUSTOM_THEME_NAME),
+      name: DEFAULT_CUSTOM_THEME_NAME,
+      colors: normalizeCustomTheme(settings.customTheme),
+    };
+  }
+
+  return getCustomThemeById(settings.customThemes, settings.theme);
+}
+
 export function buildCustomThemeVariables(customTheme = {}) {
   const normalized = normalizeCustomTheme(customTheme);
   const accentHover =
@@ -146,10 +231,11 @@ export function applyTheme(settings) {
 
   const root = document.documentElement;
   const theme = settings?.theme || 'dark';
+  const activeCustomTheme = getActiveCustomTheme(settings);
 
-  if (theme === 'custom') {
+  if (activeCustomTheme) {
     root.setAttribute('data-theme', 'custom');
-    const variables = buildCustomThemeVariables(settings?.customTheme);
+    const variables = buildCustomThemeVariables(activeCustomTheme.colors);
     for (const [name, value] of Object.entries(variables)) {
       root.style.setProperty(name, value);
     }
@@ -157,5 +243,5 @@ export function applyTheme(settings) {
   }
 
   clearCustomTheme(root);
-  root.setAttribute('data-theme', theme);
+  root.setAttribute('data-theme', isBuiltInTheme(theme) ? theme : BUILT_IN_THEMES[0]);
 }
