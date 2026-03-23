@@ -22,7 +22,11 @@ import {
 } from '../utils/theme';
 import { isTextToSpeechSupported, TTS_RATE_OPTIONS } from '../utils/tts';
 import { HOLY_DAY_OPTIONS } from '../utils/holyDays';
-import { getWordsOfChristSegments, supportsWordsOfChrist } from '../utils/redLetters';
+import {
+  getWordsOfChristSegments,
+  hasWordsOfChristVerse,
+  supportsPreciseWordsOfChrist,
+} from '../utils/redLetters';
 import '../styles/settings.css';
 
 const PREVIEW_DEFAULT = {
@@ -100,10 +104,14 @@ export default function Settings() {
           chapter: previewChapter,
           verse: selectedPreviewVerse.verse,
           text: selectedPreviewVerse.text,
+          allowVerseFallback: settings.useVerseRedLetterFallback,
         })
       : null;
-  const previewSupportsWordsOfChrist =
-    previewTranslationId && supportsWordsOfChrist(previewTranslationId);
+  const previewSupportsPreciseWordsOfChrist =
+    previewTranslationId && supportsPreciseWordsOfChrist(previewTranslationId);
+  const previewHasWordsOfChristVerse =
+    selectedPreviewVerse &&
+    hasWordsOfChristVerse(previewBookId, previewChapter, selectedPreviewVerse.verse);
 
   useEffect(() => {
     applyTheme(settings);
@@ -553,7 +561,28 @@ export default function Settings() {
             </div>
 
             <p className="settings-help">
-              Styled from KJV red-letter data. Other translations keep standard text color.
+              KJV uses word-level red-letter data for precise Christ-word highlighting.
+            </p>
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Palette size={18} />
+                <span>Use Verse Matches for All Translations</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.useVerseRedLetterFallback}
+                  disabled={!settings.showWordsOfChristInRed}
+                  onChange={(e) => update('useVerseRedLetterFallback', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <p className="settings-help">
+              Colors any verse that matches the KJV red-letter verse map, even when the current
+              translation does not have word-level markup.
             </p>
 
             <div className="setting-divider" />
@@ -718,11 +747,21 @@ export default function Settings() {
               {previewTranslationStatus?.detailLabel && (
                 <span className="settings-help">{previewTranslationStatus.detailLabel}</span>
               )}
-              {settings.showWordsOfChristInRed && !previewSupportsWordsOfChrist && (
+              {settings.showWordsOfChristInRed &&
+                !settings.useVerseRedLetterFallback &&
+                !previewSupportsPreciseWordsOfChrist && (
                 <span className="settings-help">
                   Red-letter preview is available when the preview translation is KJV.
                 </span>
               )}
+              {settings.showWordsOfChristInRed &&
+                settings.useVerseRedLetterFallback &&
+                !previewSupportsPreciseWordsOfChrist &&
+                previewHasWordsOfChristVerse && (
+                  <span className="settings-help">
+                    This preview is using verse-level red-letter matching from the KJV verse map.
+                  </span>
+                )}
             </div>
 
             <div

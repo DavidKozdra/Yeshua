@@ -23,7 +23,7 @@ import {
   getChapter,
   getTranslationMeta,
 } from '../utils/db';
-import { getSettings, saveLastRead, getLastRead, saveSettings } from '../utils/storage';
+import { saveLastRead, getLastRead, saveSettings } from '../utils/storage';
 import { DEFAULT_TRANSLATION_ID, FALLBACK_TRANSLATION_ID } from '../utils/translationConfig';
 import {
   isTextToSpeechSupported,
@@ -31,6 +31,7 @@ import {
   stopTextToSpeech,
   TTS_RATE_OPTIONS,
 } from '../utils/tts';
+import { useAppSettings } from '../hooks/useAppSettings';
 import { getWordsOfChristSegments } from '../utils/redLetters';
 import GlobalSearchBar from '../components/GlobalSearchBar';
 import '../styles/read.css';
@@ -39,7 +40,7 @@ export default function Read() {
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const settings = getSettings();
+  const settings = useAppSettings();
   const lastRead = getLastRead();
   const resolvedBook = getBookById(params.bookId || lastRead?.bookId || 'JHN') || getBookById('JHN');
   const parsedChapter = Number.parseInt(params.chapter ?? '', 10);
@@ -620,6 +621,7 @@ export default function Read() {
                     chapter,
                     verse: v.verse,
                     text: v.text,
+                    allowVerseFallback: settings.useVerseRedLetterFallback,
                   })
                 : null;
 

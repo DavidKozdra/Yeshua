@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, ArrowRight, User, ExternalLink } from 'lucide-react';
 import { getTodaysReadings, getBookById } from '../utils/bibleData';
+import HolyDayBanner from '../components/HolyDayBanner';
 import HolyDayManager from '../components/HolyDayManager';
+import HolyDayReminderManager from '../components/HolyDayReminderManager';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { getLastRead, getProfile, saveProfile } from '../utils/storage';
 import '../styles/home.css';
@@ -33,6 +35,8 @@ export default function Home() {
 
   return (
     <div className="page home-page">
+      <HolyDayReminderManager />
+
       {/* Profile greeting */}
       <div className="home-header">
         <div className="profile-section">
@@ -66,6 +70,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <HolyDayBanner />
 
       {/* Continue Reading */}
       {lastRead && (

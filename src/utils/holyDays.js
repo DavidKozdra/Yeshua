@@ -1,16 +1,16 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HEBREW_LOCALE = 'en-u-ca-hebrew';
-const HEBREW_DATE_FORMATTER = new Intl.DateTimeFormat(HEBREW_LOCALE, {
+const HEBREW_DATE_FORMATTER = createFormatter(HEBREW_LOCALE, {
   day: 'numeric',
   month: 'long',
   year: 'numeric',
 });
-const CIVIL_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+const CIVIL_DATE_FORMATTER = createFormatter(undefined, {
   month: 'long',
   day: 'numeric',
   year: 'numeric',
 });
-const CIVIL_SHORT_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+const CIVIL_SHORT_DATE_FORMATTER = createFormatter(undefined, {
   month: 'short',
   day: 'numeric',
 });
@@ -39,7 +39,30 @@ const MONTH_ALIASES = {
   elul: 'elul',
 };
 
+function createFormatter(locale, options) {
+  try {
+    return new Intl.DateTimeFormat(locale, options);
+  } catch {
+    return new Intl.DateTimeFormat(undefined, options);
+  }
+}
+
 const HOLY_DAY_DEFINITIONS = [
+  {
+    id: 'lent',
+    name: 'Lent',
+    shortName: 'Lent',
+    durationDays: 44,
+    priority: 70,
+    isHighHolyDay: false,
+    summary: 'A season of repentance, prayer, fasting, and preparation for Easter.',
+    practice: 'Slow down, repent, and order your reading around prayer, fasting, and the passion of Christ.',
+    primaryReading: { bookId: 'MAT', chapter: 4, label: 'Read Matthew 4' },
+    secondaryReading: { bookId: 'JOL', chapter: 2, label: 'Read Joel 2' },
+    matchesStart({ candidateDate, civilYear }) {
+      return isSameCivilDate(candidateDate, getAshWednesday(civilYear));
+    },
+  },
   {
     id: 'purim',
     name: 'Purim',
@@ -98,6 +121,21 @@ const HOLY_DAY_DEFINITIONS = [
     secondaryReading: { bookId: 'ACT', chapter: 2, label: 'Read Acts 2' },
     matchesStart({ monthKey, day }) {
       return monthKey === 'sivan' && day === 6;
+    },
+  },
+  {
+    id: 'easter',
+    name: 'Easter',
+    shortName: 'Easter',
+    durationDays: 1,
+    priority: 120,
+    isHighHolyDay: true,
+    summary: 'Celebrate the resurrection of Jesus Christ and the victory over death.',
+    practice: 'Center your reading on the empty tomb, resurrection hope, and new life in Christ.',
+    primaryReading: { bookId: 'JHN', chapter: 20, label: 'Read John 20' },
+    secondaryReading: { bookId: '1CO', chapter: 15, label: 'Read 1 Corinthians 15' },
+    matchesStart({ candidateDate, civilYear }) {
+      return isSameCivilDate(candidateDate, getEasterSunday(civilYear));
     },
   },
   {
@@ -161,6 +199,21 @@ const HOLY_DAY_DEFINITIONS = [
     },
   },
   {
+    id: 'christmas',
+    name: 'Christmas',
+    shortName: 'Christmas',
+    durationDays: 1,
+    priority: 115,
+    isHighHolyDay: true,
+    summary: 'Celebrate the birth of Jesus Christ and the Word made flesh.',
+    practice: 'Return to the Nativity accounts and worship Christ come near.',
+    primaryReading: { bookId: 'LUK', chapter: 2, label: 'Read Luke 2' },
+    secondaryReading: { bookId: 'JHN', chapter: 1, label: 'Read John 1' },
+    matchesStart({ civilMonth, civilDay }) {
+      return civilMonth === 12 && civilDay === 25;
+    },
+  },
+  {
     id: 'hanukkah',
     name: 'Hanukkah',
     shortName: 'Hanukkah',
@@ -207,6 +260,37 @@ function formatIsoDate(date) {
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function isSameCivilDate(leftDate, rightDate) {
+  return (
+    leftDate.getFullYear() === rightDate.getFullYear() &&
+    leftDate.getMonth() === rightDate.getMonth() &&
+    leftDate.getDate() === rightDate.getDate()
+  );
+}
+
+function getEasterSunday(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+
+  return new Date(year, month - 1, day, 12);
+}
+
+function getAshWednesday(year) {
+  return addDays(getEasterSunday(year), -46);
 }
 
 function formatShortDate(date) {
@@ -260,16 +344,37 @@ function sortOccurrences(left, right) {
   );
 }
 
+function sortByPriority(left, right) {
+  return right.priority - left.priority || left.startDate - right.startDate;
+}
+
 function findOccurrences(referenceDate, definitions, daysForward = 400) {
   const occurrences = [];
   const seenOccurrenceIds = new Set();
+  const backwardScanDays = Math.max(
+    30,
+    ...definitions.map((definition) => definition.durationDays + 7)
+  );
 
-  for (let offset = -30; offset <= daysForward; offset += 1) {
+  for (let offset = -backwardScanDays; offset <= daysForward; offset += 1) {
     const candidateDate = addDays(referenceDate, offset);
     const hebrewDate = getHebrewDateParts(candidateDate);
+    const civilYear = candidateDate.getFullYear();
+    const civilMonth = candidateDate.getMonth() + 1;
+    const civilDay = candidateDate.getDate();
 
     for (const definition of definitions) {
-      if (!definition.matchesStart(hebrewDate)) continue;
+      if (
+        !definition.matchesStart({
+          ...hebrewDate,
+          candidateDate,
+          civilYear,
+          civilMonth,
+          civilDay,
+        })
+      ) {
+        continue;
+      }
 
       const occurrenceId = `${definition.id}:${formatIsoDate(candidateDate)}`;
       if (seenOccurrenceIds.has(occurrenceId)) continue;
@@ -392,7 +497,9 @@ export function getHolyDayWindow(referenceDate = new Date(), options = {}) {
     : [];
   const weekEndDate = addDays(normalizedReferenceDate, bannerWindowDays - 1);
   const reminderEndDate = addDays(normalizedReferenceDate, reminderLeadDays);
-  const activeOccurrences = visibleOccurrences.filter((occurrence) => occurrence.isActive);
+  const activeOccurrences = visibleOccurrences
+    .filter((occurrence) => occurrence.isActive)
+    .sort(sortByPriority);
   const weekOccurrences = visibleOccurrences.filter(
     (occurrence) => occurrence.startDate <= weekEndDate && occurrence.endDate >= normalizedReferenceDate
   );
@@ -402,7 +509,9 @@ export function getHolyDayWindow(referenceDate = new Date(), options = {}) {
     activeOccurrences[0] ||
     weekOccurrences.find((occurrence) => !occurrence.isActive) ||
     null;
-  const activeReminderOccurrences = reminderOccurrences.filter((occurrence) => occurrence.isActive);
+  const activeReminderOccurrences = reminderOccurrences
+    .filter((occurrence) => occurrence.isActive)
+    .sort(sortByPriority);
   const reminderCandidates = reminderOccurrences.filter(
     (occurrence) => occurrence.startDate <= reminderEndDate && occurrence.endDate >= normalizedReferenceDate
   );

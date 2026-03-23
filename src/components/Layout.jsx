@@ -3,8 +3,6 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Home, BookOpen, Languages, StickyNote, SettingsIcon } from 'lucide-react';
 import ToastHost from './ToastHost';
 import GlobalSearchBar from './GlobalSearchBar';
-import HolyDayBanner from './HolyDayBanner';
-import HolyDayReminderManager from './HolyDayReminderManager';
 import { getSettings, subscribeToSettings } from '../utils/storage';
 import '../styles/layout.css';
 
@@ -52,14 +50,12 @@ export default function Layout() {
 
       <main className="main-content">
         {settings.showGlobalSearchBar && !isReaderRoute && <GlobalSearchBar />}
-        <HolyDayBanner />
 
         <div className="content-shell">
           <Outlet />
         </div>
       </main>
 
-      <HolyDayReminderManager />
       <ToastHost />
 
       <nav className="bottom-nav" aria-label="Main navigation">

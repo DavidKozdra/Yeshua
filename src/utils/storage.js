@@ -28,6 +28,7 @@ const defaults = {
   showBooksTab: true,
   showVerseNumbers: true,
   showWordsOfChristInRed: false,
+  useVerseRedLetterFallback: false,
   oneVersePerLine: false,
   showGlobalSearchBar: true,
   enableHolyDayAwareness: true,
@@ -129,6 +130,10 @@ function normalizeSettings(parsedSettings = {}) {
       typeof parsedSettings.showWordsOfChristInRed === 'boolean'
         ? parsedSettings.showWordsOfChristInRed
         : defaults.showWordsOfChristInRed,
+    useVerseRedLetterFallback:
+      typeof parsedSettings.useVerseRedLetterFallback === 'boolean'
+        ? parsedSettings.useVerseRedLetterFallback
+        : defaults.useVerseRedLetterFallback,
     enableHolyDayAwareness:
       typeof parsedSettings.enableHolyDayAwareness === 'boolean'
         ? parsedSettings.enableHolyDayAwareness
@@ -177,6 +182,10 @@ export function saveSettings(settings) {
       typeof settings.showWordsOfChristInRed === 'boolean'
         ? settings.showWordsOfChristInRed
         : defaults.showWordsOfChristInRed,
+    useVerseRedLetterFallback:
+      typeof settings.useVerseRedLetterFallback === 'boolean'
+        ? settings.useVerseRedLetterFallback
+        : defaults.useVerseRedLetterFallback,
     enableHolyDayAwareness:
       typeof settings.enableHolyDayAwareness === 'boolean'
         ? settings.enableHolyDayAwareness

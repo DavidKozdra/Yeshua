@@ -2,7 +2,7 @@ import kjvRedLetters from '../data/kjv-red-letters.json';
 
 const MARKER_PATTERN = /\*([a-z]+)$/i;
 const PILCROW_PREFIX = '¶ ';
-const SUPPORTED_TRANSLATION_IDS = new Set(['kjv']);
+const PRECISE_TRANSLATION_IDS = new Set(['kjv']);
 
 function parseMarkedTokens(markedText) {
   return String(markedText)
@@ -37,8 +37,16 @@ function collapseSegments(segments) {
   return collapsed;
 }
 
-export function supportsWordsOfChrist(translationId) {
-  return SUPPORTED_TRANSLATION_IDS.has(translationId);
+function getVerseKey(bookId, chapter, verse) {
+  return `${bookId}:${chapter}:${verse}`;
+}
+
+export function hasWordsOfChristVerse(bookId, chapter, verse) {
+  return Object.hasOwn(kjvRedLetters, getVerseKey(bookId, chapter, verse));
+}
+
+export function supportsPreciseWordsOfChrist(translationId) {
+  return PRECISE_TRANSLATION_IDS.has(translationId);
 }
 
 export function getWordsOfChristSegments({
@@ -47,14 +55,18 @@ export function getWordsOfChristSegments({
   chapter,
   verse,
   text,
+  allowVerseFallback = false,
 }) {
-  if (!supportsWordsOfChrist(translationId)) return null;
-
-  const markedText = kjvRedLetters[`${bookId}:${chapter}:${verse}`];
+  const markedText = kjvRedLetters[getVerseKey(bookId, chapter, verse)];
   if (!markedText) return null;
 
-  const markedTokens = parseMarkedTokens(markedText);
   const verseText = typeof text === 'string' ? text : '';
+
+  if (!supportsPreciseWordsOfChrist(translationId)) {
+    return allowVerseFallback ? [{ text: verseText, isRed: true }] : null;
+  }
+
+  const markedTokens = parseMarkedTokens(markedText);
   const hasPilcrowPrefix = verseText.startsWith(PILCROW_PREFIX);
   const currentTokens = verseText
     .replace(/^¶\s+/, '')
