@@ -6,7 +6,7 @@ import HolyDayBanner from '../components/HolyDayBanner';
 import HolyDayManager from '../components/HolyDayManager';
 import HolyDayReminderManager from '../components/HolyDayReminderManager';
 import { useAppSettings } from '../hooks/useAppSettings';
-import { getLastBooksRead, getLastRead, getProfile, saveProfile } from '../utils/storage';
+import { getLastBooksRead, getLastRead, getProfile } from '../utils/storage';
 import '../styles/home.css';
 
 export default function Home() {
@@ -15,21 +15,13 @@ export default function Home() {
   const [lastRead, setLastRead] = useState(null);
   const [lastBooksRead, setLastBooksRead] = useState(null);
   const [profile, setProfile] = useState(getProfile);
-  const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState(profile.name);
   const settings = useAppSettings();
 
   useEffect(() => {
     setLastRead(getLastRead());
     setLastBooksRead(getLastBooksRead());
+    setProfile(getProfile());
   }, []);
-
-  function handleSaveName() {
-    const updated = { ...profile, name: nameInput.trim() };
-    setProfile(updated);
-    saveProfile(updated);
-    setEditingName(false);
-  }
 
   function goToReading(bookId, chapter, translationId = settings.defaultTranslation) {
     navigate(`/read/${translationId}/${bookId}/${chapter}`);
@@ -46,29 +38,9 @@ export default function Home() {
             <User size={24} />
           </div>
           <div>
-            {editingName ? (
-              <div className="name-edit">
-                <input
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                  placeholder="Your name"
-                  autoFocus
-                />
-                <button className="btn btn-primary btn-sm" onClick={handleSaveName}>
-                  Save
-                </button>
-              </div>
-            ) : (
-              <>
-                <h1 className="greeting">
-                  {profile.name ? `Welcome back, ${profile.name}` : 'Welcome to Yeshua'}
-                </h1>
-                <button className="edit-name-btn" onClick={() => setEditingName(true)}>
-                  {profile.name ? 'Edit name' : 'Set your name'}
-                </button>
-              </>
-            )}
+            <h1 className="greeting">
+              {profile.name ? `Welcome back, ${profile.name}` : 'Welcome to Yeshua'}
+            </h1>
           </div>
         </div>
       </div>

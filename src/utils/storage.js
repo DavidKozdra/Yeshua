@@ -277,6 +277,48 @@ export function saveProfile(profile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
+export function exportAppStorageData() {
+  return {
+    settings: getSettings(),
+    lastRead: getLastRead(),
+    lastBooksRead: getLastBooksRead(),
+    profile: getProfile(),
+    holyDayReminders: getHolyDayReminderStore(),
+  };
+}
+
+export function importAppStorageData(snapshot = {}) {
+  saveSettings(snapshot.settings || getSettings());
+
+  if (snapshot.lastRead) {
+    localStorage.setItem(LAST_READ_KEY, JSON.stringify(snapshot.lastRead));
+  } else {
+    localStorage.removeItem(LAST_READ_KEY);
+  }
+
+  if (snapshot.lastBooksRead) {
+    localStorage.setItem(LAST_BOOKS_READ_KEY, JSON.stringify(snapshot.lastBooksRead));
+  } else {
+    localStorage.removeItem(LAST_BOOKS_READ_KEY);
+  }
+
+  saveProfile(snapshot.profile || { name: '' });
+
+  if (snapshot.holyDayReminders && typeof snapshot.holyDayReminders === 'object') {
+    localStorage.setItem(HOLY_DAY_REMINDER_KEY, JSON.stringify(snapshot.holyDayReminders));
+  } else {
+    localStorage.removeItem(HOLY_DAY_REMINDER_KEY);
+  }
+}
+
+export function clearAppStorageData() {
+  localStorage.removeItem(SETTINGS_KEY);
+  localStorage.removeItem(LAST_READ_KEY);
+  localStorage.removeItem(LAST_BOOKS_READ_KEY);
+  localStorage.removeItem(PROFILE_KEY);
+  localStorage.removeItem(HOLY_DAY_REMINDER_KEY);
+}
+
 function getHolyDayReminderStore() {
   try {
     const stored = localStorage.getItem(HOLY_DAY_REMINDER_KEY);

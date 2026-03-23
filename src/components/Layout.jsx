@@ -97,7 +97,11 @@ export default function Layout() {
             key={to}
             to={to}
             end={to === '/'}
-            className={({ isActive }) => `bottom-nav-link ${isActive ? 'active' : ''}`}
+            className={({ isActive }) =>
+              `bottom-nav-link ${to === '/read' ? 'bottom-nav-link-read' : ''} ${
+                isActive ? 'active' : ''
+              }`
+            }
           >
             <Icon size={20} />
             <span>{label}</span>

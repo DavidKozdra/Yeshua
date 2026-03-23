@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sun,
@@ -14,8 +14,11 @@ import {
   ExternalLink,
   Globe,
   Trash2,
+  User,
+  Upload,
+  FolderDown,
 } from 'lucide-react';
-import { getLastBooksRead, getSettings, saveSettings } from '../utils/storage';
+import { getLastBooksRead, getProfile, getSettings, saveProfile, saveSettings } from '../utils/storage';
 import {
   AVAILABLE_TRANSLATIONS,
   BIBLE_BOOKS,
@@ -58,6 +61,11 @@ import {
   hasWordsOfChristVerse,
   supportsPreciseWordsOfChrist,
 } from '../utils/redLetters';
+import {
+  clearAllAppData,
+  exportAppDataSnapshot,
+  importAppDataSnapshot,
+} from '../utils/appData';
 import '../styles/settings.css';
 import '../styles/translations.css';
 
@@ -85,6 +93,12 @@ const BUILT_IN_THEME_LABELS = {
 };
 const HOLY_DAY_REMINDER_OPTIONS = [0, 1, 2, 3, 5, 7, 14];
 const HOLY_DAY_DATE_LOOKAHEAD_DAYS = 400;
+const SETTINGS_TABS = [
+  { id: 'profile', label: 'Profile' },
+  { id: 'reader', label: 'Reader' },
+  { id: 'library', label: 'Library' },
+  { id: 'holy-days', label: 'Holy Days' },
+];
 
 function formatPreviewReference(bookId, chapter, verse) {
   return `${getBookById(bookId)?.name || bookId} ${chapter}:${verse}`;
@@ -92,7 +106,15 @@ function formatPreviewReference(bookId, chapter, verse) {
 
 export default function Settings() {
   const navigate = useNavigate();
+  const importFileRef = useRef(null);
   const [settings, setSettings] = useState(getSettings);
+  const [profile, setProfile] = useState(getProfile);
+  const [nameInput, setNameInput] = useState(() => getProfile().name || '');
+  const [activeTab, setActiveTab] = useState('profile');
+  const [dataMessage, setDataMessage] = useState('');
+  const [dataError, setDataError] = useState('');
+  const [isImportingData, setIsImportingData] = useState(false);
+  const [isDeletingData, setIsDeletingData] = useState(false);
   const [downloadedTranslations, setDownloadedTranslations] = useState([]);
   const [downloadedCollections, setDownloadedCollections] = useState([]);
   const [booksInstallState, setBooksInstallState] = useState(() => getBooksInstallQueueSnapshot());
@@ -400,6 +422,82 @@ export default function Settings() {
     saveSettings(updated);
   }
 
+  function handleSaveName() {
+    const updatedProfile = { ...profile, name: nameInput.trim() };
+    setProfile(updatedProfile);
+    saveProfile(updatedProfile);
+    setDataMessage('Profile name saved.');
+    setDataError('');
+  }
+
+  async function handleExportData() {
+    try {
+      const snapshot = await exportAppDataSnapshot();
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStamp = new Date().toISOString().slice(0, 10);
+
+      link.href = url;
+      link.download = `yeshua-data-${dateStamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      setDataMessage('Data export created.');
+      setDataError('');
+    } catch (error) {
+      setDataError(error.message || 'Unable to export data.');
+      setDataMessage('');
+    }
+  }
+
+  function handleImportButtonClick() {
+    importFileRef.current?.click();
+  }
+
+  async function handleImportData(event) {
+    const [file] = event.target.files || [];
+    if (!file) return;
+
+    setIsImportingData(true);
+    setDataMessage('');
+    setDataError('');
+
+    try {
+      const text = await file.text();
+      const snapshot = JSON.parse(text);
+      await importAppDataSnapshot(snapshot);
+      setDataMessage('Data import complete. Reloading the app.');
+      window.setTimeout(() => window.location.reload(), 300);
+    } catch (error) {
+      setDataError(error.message || 'Unable to import this file.');
+    } finally {
+      event.target.value = '';
+      setIsImportingData(false);
+    }
+  }
+
+  async function handleDeleteAllData() {
+    if (!confirm('Delete all Yeshua data from this device? This removes notes, downloads, settings, and profile data.')) {
+      return;
+    }
+
+    setIsDeletingData(true);
+    setDataMessage('');
+    setDataError('');
+
+    try {
+      await clearAllAppData();
+      setDataMessage('All local data removed. Reloading the app.');
+      window.setTimeout(() => window.location.reload(), 300);
+    } catch (error) {
+      setDataError(error.message || 'Unable to delete app data.');
+      setIsDeletingData(false);
+    }
+  }
+
   const translationOptions = [...translationStatuses].sort(
     (a, b) =>
       Number(b.status.canReadNow) - Number(a.status.canReadNow) ||
@@ -410,8 +508,101 @@ export default function Settings() {
   return (
     <div className="page">
       <h1 className="page-title">Settings</h1>
+      <input
+        ref={importFileRef}
+        type="file"
+        accept="application/json"
+        className="settings-import-input"
+        onChange={handleImportData}
+      />
+
+      <div className="settings-tabs" role="tablist" aria-label="Settings sections">
+        {SETTINGS_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div className="settings-sections">
+        {activeTab === 'profile' && (
+        <section className="settings-section">
+          <p className="section-label">Profile</p>
+          <div className="card settings-card-group">
+            <div className="setting-row setting-row-stack">
+              <div className="setting-label">
+                <User size={18} />
+                <span>Name</span>
+              </div>
+              <div className="settings-name-field">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSaveName();
+                    }
+                  }}
+                  placeholder="Your name"
+                />
+                <button className="btn btn-primary btn-sm" onClick={handleSaveName}>
+                  Save
+                </button>
+              </div>
+              <p className="settings-help">Used for the welcome message on the home screen.</p>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row setting-row-stack">
+              <div className="setting-label">
+                <FolderDown size={18} />
+                <span>Data</span>
+              </div>
+              <p className="settings-help">
+                Import a saved Yeshua backup, export the current device state, or remove all local
+                app data.
+              </p>
+              <div className="settings-data-actions">
+                <button className="btn btn-outline btn-sm" onClick={handleExportData}>
+                  <FolderDown size={14} />
+                  Export Data
+                </button>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={handleImportButtonClick}
+                  disabled={isImportingData}
+                >
+                  <Upload size={14} />
+                  {isImportingData ? 'Importing...' : 'Import Data'}
+                </button>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={handleDeleteAllData}
+                  disabled={isDeletingData}
+                >
+                  <Trash2 size={14} />
+                  {isDeletingData ? 'Deleting...' : 'Delete All Data'}
+                </button>
+              </div>
+              {dataMessage && <p className="settings-help">{dataMessage}</p>}
+              {dataError && <p className="settings-help error">{dataError}</p>}
+            </div>
+          </div>
+        </section>
+        )}
+
+        {activeTab === 'reader' && (
+        <>
         <section className="settings-section">
           <p className="section-label">Appearance</p>
           <div className="card settings-card-group">
@@ -482,7 +673,10 @@ export default function Settings() {
             </div>
           </div>
         </section>
+        </>
+        )}
 
+        {activeTab === 'library' && (
         <section className="settings-section">
           <p className="section-label">Library</p>
           <div className="card settings-card-group">
@@ -718,7 +912,10 @@ export default function Settings() {
             </div>
           </div>
         </section>
+        )}
 
+        {activeTab === 'reader' && (
+        <>
         <section className="settings-section">
           <p className="section-label">Reading</p>
           <div className="card settings-card-group">
@@ -1047,7 +1244,10 @@ export default function Settings() {
             </div>
           </div>
         </section>
+        </>
+        )}
 
+        {activeTab === 'holy-days' && (
         <section className="settings-section">
           <p className="section-label">Holy Days</p>
           <div className="card settings-card-group">
@@ -1151,6 +1351,7 @@ export default function Settings() {
             )}
           </div>
         </section>
+        )}
 
         <p className="settings-footer">
           Yeshua Bible Reader &middot; All data stored locally on your device.
