@@ -52,6 +52,9 @@ export function getTranslationStatus(translationId, meta) {
       typeof meta?.completedChapters === 'number' && typeof meta?.totalChapters === 'number'
         ? `${meta.completedChapters} / ${meta.totalChapters} chapters are saved. Finish the install to cache the full translation.`
         : 'Some chapters are saved, but this translation is not fully available offline yet.';
+    if (meta?.sampleError) {
+      detailLabel = `${detailLabel} Last issue: ${meta.sampleError}`;
+    }
     actionLabel = 'Resume';
     tone = 'progress';
   } else if (installSource === 'remote') {

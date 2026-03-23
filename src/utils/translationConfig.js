@@ -1,4 +1,4 @@
-export const DEFAULT_TRANSLATION_ID = 'nkjv';
+export const DEFAULT_TRANSLATION_ID = 'kjv';
 export const FALLBACK_TRANSLATION_ID = 'kjv';
 
 export function getTranslationPreferenceChain(preferredTranslationId = DEFAULT_TRANSLATION_ID) {

@@ -434,7 +434,7 @@ export default function Read() {
 
         {!loading && !error && offlineState.ready && (
           <div
-            className="verses"
+            className={`verses ${settings.oneVersePerLine ? 'verses-stacked' : ''}`}
             style={{
               fontSize: `${settings.fontSize}px`,
               lineHeight: settings.lineHeight,
@@ -449,7 +449,8 @@ export default function Read() {
                 {settings.showVerseNumbers && (
                   <sup className="verse-num">{v.verse}</sup>
                 )}
-                {v.text}{' '}
+                {v.text}
+                {!settings.oneVersePerLine && ' '}
               </span>
             ))}
           </div>

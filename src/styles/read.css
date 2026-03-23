@@ -226,6 +226,16 @@
   position: relative;
 }
 
+.verses-stacked .verse {
+  display: block;
+  margin-bottom: 0.7em;
+  padding-right: 0.1rem;
+}
+
+.verses-stacked .verse:last-child {
+  margin-bottom: 0;
+}
+
 .verse:hover {
   background: var(--accent-subtle);
 }

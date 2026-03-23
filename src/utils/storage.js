@@ -1,5 +1,6 @@
 import { CUSTOM_THEME_DEFAULT, normalizeCustomTheme } from './theme';
 import { DEFAULT_TRANSLATION_ID } from './translationConfig';
+import { getTranslationById } from './bibleData';
 
 const SETTINGS_KEY = 'yeshua-settings';
 const LAST_READ_KEY = 'yeshua-last-read';
@@ -11,24 +12,33 @@ const defaults = {
   theme: 'dark',
   defaultTranslation: DEFAULT_TRANSLATION_ID,
   showVerseNumbers: true,
+  oneVersePerLine: false,
   customTheme: CUSTOM_THEME_DEFAULT,
 };
+
+function normalizeSettings(parsedSettings = {}) {
+  const defaultTranslation = getTranslationById(parsedSettings.defaultTranslation)
+    ? parsedSettings.defaultTranslation
+    : DEFAULT_TRANSLATION_ID;
+
+  return {
+    ...defaults,
+    ...parsedSettings,
+    defaultTranslation,
+    customTheme: normalizeCustomTheme(parsedSettings.customTheme),
+  };
+}
 
 export function getSettings() {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (!stored) {
-      return { ...defaults, customTheme: { ...CUSTOM_THEME_DEFAULT } };
+      return normalizeSettings();
     }
 
-    const parsed = JSON.parse(stored);
-    return {
-      ...defaults,
-      ...parsed,
-      customTheme: normalizeCustomTheme(parsed.customTheme),
-    };
+    return normalizeSettings(JSON.parse(stored));
   } catch {
-    return { ...defaults, customTheme: { ...CUSTOM_THEME_DEFAULT } };
+    return normalizeSettings();
   }
 }
 

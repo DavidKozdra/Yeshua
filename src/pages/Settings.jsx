@@ -330,6 +330,23 @@ export default function Settings() {
                 <span className="toggle-slider" />
               </label>
             </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <BookOpen size={18} />
+                <span>One Verse Per Line</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.oneVersePerLine}
+                  onChange={(e) => update('oneVersePerLine', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
           </div>
         </section>
 

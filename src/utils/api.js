@@ -1,4 +1,4 @@
-import { getTranslationById, getBookApiPath, BIBLE_BOOKS } from './bibleData';
+import { getTranslationById, getBookApiPathCandidates, BIBLE_BOOKS } from './bibleData';
 import { saveChapter, getChapter, saveTranslationMeta, deleteTranslationData, deleteTranslationMeta } from './db';
 import { normalizeChapterVerses } from './chapterData';
 import { DEFAULT_TRANSLATION_ID, getTranslationPreferenceChain } from './translationConfig';
@@ -7,6 +7,35 @@ const DOWNLOAD_PROGRESS_SAVE_EVERY = 24;
 const bundleLoaders = import.meta.glob('../data/*-bundle.json');
 const bundleCache = new Map();
 const activeDownloads = new Map();
+const resolvedBookPathCache = new Map();
+
+function hasChapterContent(chapterData) {
+  return Array.isArray(chapterData) && chapterData.length > 0;
+}
+
+function extractChapterVerses(data) {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+
+  if (Array.isArray(data?.verses)) {
+    return data.verses;
+  }
+
+  if (Array.isArray(data?.chapter)) {
+    return data.chapter;
+  }
+
+  throw new Error('Unexpected API response format');
+}
+
+function getResolvedBookPathKey(translationId, bookId) {
+  return `${translationId}:${bookId}`;
+}
 
 function getBundleLoaderKey(translationId) {
   return `../data/${translationId}-bundle.json`;
@@ -101,10 +130,10 @@ export async function fetchChapter(translationId, bookId, chapter, options = {})
 
   // Try local cache first
   const cached = await getChapter(translationId, bookId, chapter);
-  if (cached) return cached;
+  if (hasChapterContent(cached)) return cached;
 
   const bundledChapter = await getBundledChapter(translationId, bookId, chapter);
-  if (bundledChapter) {
+  if (hasChapterContent(bundledChapter)) {
     await saveChapter(translationId, bookId, chapter, bundledChapter);
     return bundledChapter;
   }
@@ -117,31 +146,52 @@ export async function fetchChapter(translationId, bookId, chapter, options = {})
     throw new Error(`${translation.abbreviation} is not installable in this build.`);
   }
 
-  const bookPath = getBookApiPath(bookId);
-  const url = `${translation.apiSource}/${encodeURIComponent(bookPath)}/chapters/${chapter}.json`;
+  const pathCacheKey = getResolvedBookPathKey(translationId, bookId);
+  const cachedBookPath = resolvedBookPathCache.get(pathCacheKey);
+  const bookPathCandidates = [
+    ...(cachedBookPath ? [cachedBookPath] : []),
+    ...getBookApiPathCandidates(bookId).filter((path) => path !== cachedBookPath),
+  ];
 
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`Failed to fetch ${bookPath} ${chapter} (${res.status})`);
+  let res = null;
+  let failedStatus = null;
+
+  for (const bookPathCandidate of bookPathCandidates) {
+    const url = `${translation.apiSource}/${encodeURIComponent(bookPathCandidate)}/chapters/${chapter}.json`;
+    const candidateResponse = await fetch(url, { signal });
+
+    if (candidateResponse.status === 404) {
+      continue;
+    }
+
+    if (!candidateResponse.ok) {
+      failedStatus = candidateResponse.status;
+      break;
+    }
+
+    res = candidateResponse;
+    resolvedBookPathCache.set(pathCacheKey, bookPathCandidate);
+    break;
+  }
+
+  if (!res) {
+    const firstBookPath = bookPathCandidates[0] || bookId.toLowerCase();
+    throw new Error(
+      `Failed to fetch ${firstBookPath} ${chapter} (${failedStatus ?? 404})`
+    );
+  }
 
   const data = await res.json();
 
-  // Normalize verses into [{verse, text}]
-  let verses;
-  if (Array.isArray(data)) {
-    verses = data.map((v) => ({
-      verse: v.verse,
-      text: v.text,
-    }));
-  } else if (data.verses) {
-    verses = data.verses.map((v) => ({
-      verse: v.verse,
-      text: v.text,
-    }));
-  } else {
-    throw new Error('Unexpected API response format');
-  }
+  const verses = extractChapterVerses(data).map((v) => ({
+    verse: v.verse,
+    text: v.text,
+  }));
 
   const normalizedVerses = normalizeChapterVerses(verses);
+  if (!hasChapterContent(normalizedVerses)) {
+    throw new Error('This chapter response did not contain any verses.');
+  }
 
   // Cache locally
   await saveChapter(translationId, bookId, chapter, normalizedVerses);
@@ -184,6 +234,7 @@ export async function downloadTranslation(translationId, onProgress, signal) {
     let downloaded = 0;
     let completedChapters = 0;
     const errors = [];
+    let sampleError = '';
     const downloadedAt = new Date().toISOString();
     const concurrency = Math.min(getDownloadConcurrency(), totalChapters);
     let nextTaskIndex = 0;
@@ -204,6 +255,8 @@ export async function downloadTranslation(translationId, onProgress, signal) {
         totalChapters,
         completedChapters,
         errors: errors.length,
+        failedChapters: errors.length,
+        sampleError,
         isComplete: completedChapters === totalChapters,
         inProgress: downloaded < totalChapters,
         ...overrides,
@@ -227,15 +280,24 @@ export async function downloadTranslation(translationId, onProgress, signal) {
 
         try {
           const existing = await getChapter(translationId, book.id, chapter);
-          if (!existing) {
-            await fetchChapter(translationId, book.id, chapter, { signal });
+          if (hasChapterContent(existing)) {
+            completedChapters++;
+          } else {
+            const fetchedChapter = await fetchChapter(translationId, book.id, chapter, { signal });
+            if (!hasChapterContent(fetchedChapter)) {
+              throw new Error('No verses were saved for this chapter.');
+            }
+            completedChapters++;
           }
-          completedChapters++;
         } catch (err) {
           if (signal?.aborted || err?.name === 'AbortError') {
             throw new Error('Download cancelled');
           }
-          errors.push(`${book.name} ${chapter}: ${err.message}`);
+          const errorMessage = `${book.name} ${chapter}: ${err.message}`;
+          errors.push(errorMessage);
+          if (!sampleError) {
+            sampleError = errorMessage;
+          }
         }
 
         downloaded++;
@@ -259,6 +321,7 @@ export async function downloadTranslation(translationId, onProgress, signal) {
       completedChapters,
       isComplete: completedChapters === totalChapters,
       errors,
+      sampleError,
     };
   })().finally(() => {
     unsubscribe();
