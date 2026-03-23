@@ -1,0 +1,87 @@
+.translations-intro {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  font-size: 0.92rem;
+}
+
+.translations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.translation-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.translation-card.downloaded {
+  border-color: var(--accent);
+}
+
+.translation-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.translation-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.15rem;
+}
+
+.translation-header h3 {
+  font-size: 1rem;
+}
+
+.translation-abbr {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.translation-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.translation-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--success);
+}
+
+.translation-actions {
+  flex-shrink: 0;
+  padding-top: 0.25rem;
+}
+
+.download-progress {
+  margin-top: 0.5rem;
+}
+
+.progress-text {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 0.3rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
