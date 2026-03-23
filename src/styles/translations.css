@@ -2,6 +2,7 @@
   color: var(--text-secondary);
   margin-bottom: 1.5rem;
   font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 .translations-list {
@@ -51,6 +52,34 @@
   line-height: 1.4;
 }
 
+.translation-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+
+.translation-chip {
+  border: 1px solid transparent;
+}
+
+.translation-chip-ready {
+  background: rgba(46, 204, 113, 0.12);
+  color: var(--success);
+}
+
+.translation-chip-progress {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.translation-chip-pending,
+.translation-chip-unavailable,
+.translation-chip-default {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
 .translation-status {
   display: flex;
   align-items: center;
@@ -60,8 +89,21 @@
   color: var(--success);
 }
 
-.translation-status.incomplete {
+.translation-status-progress {
   color: var(--accent);
+}
+
+.translation-status-pending,
+.translation-status-unavailable,
+.translation-status-default {
+  color: var(--text-secondary);
+}
+
+.translation-detail {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
 }
 
 .translation-actions {

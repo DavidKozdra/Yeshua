@@ -1,4 +1,5 @@
 import { openDB } from 'idb';
+import { chapterVersesEqual, normalizeChapterVerses } from './chapterData';
 
 const DB_NAME = 'yeshua-bible';
 const DB_VERSION = 1;
@@ -49,13 +50,23 @@ function getDB() {
 export async function saveChapter(translationId, bookId, chapter, verses) {
   const db = await getDB();
   const key = `${translationId}:${bookId}:${chapter}`;
-  await db.put('chapters', verses, key);
+  const normalizedVerses = normalizeChapterVerses(verses);
+  await db.put('chapters', normalizedVerses, key);
+  return normalizedVerses;
 }
 
 export async function getChapter(translationId, bookId, chapter) {
   const db = await getDB();
   const key = `${translationId}:${bookId}:${chapter}`;
-  return db.get('chapters', key);
+  const storedVerses = await db.get('chapters', key);
+  if (!storedVerses) return storedVerses;
+
+  const normalizedVerses = normalizeChapterVerses(storedVerses);
+  if (!chapterVersesEqual(storedVerses, normalizedVerses)) {
+    await db.put('chapters', normalizedVerses, key);
+  }
+
+  return normalizedVerses;
 }
 
 export async function deleteTranslationData(translationId) {

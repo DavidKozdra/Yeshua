@@ -82,6 +82,26 @@ const BOOKS = [
 
 const CONCURRENCY = 10;
 
+function normalizeVerses(verses) {
+  const normalized = [];
+  const seenVerses = new Set();
+
+  for (const entry of verses) {
+    const verse = Number(entry?.verse);
+    if (!Number.isInteger(verse) || verse < 1 || seenVerses.has(verse)) {
+      continue;
+    }
+
+    seenVerses.add(verse);
+    normalized.push({
+      verse,
+      text: typeof entry?.text === 'string' ? entry.text : String(entry?.text ?? ''),
+    });
+  }
+
+  return normalized;
+}
+
 async function fetchChapter(book, chapter) {
   const url = `${API_BASE}/${encodeURIComponent(book.name)}/chapters/${chapter}.json`;
   const res = await fetch(url);
@@ -98,7 +118,7 @@ async function fetchChapter(book, chapter) {
   } else {
     throw new Error(`Unexpected format for ${book.id} ${chapter}`);
   }
-  return verses;
+  return normalizeVerses(verses);
 }
 
 async function main() {

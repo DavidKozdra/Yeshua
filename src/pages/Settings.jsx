@@ -8,7 +8,8 @@ import {
   getTranslationById,
 } from '../utils/bibleData';
 import { getAllDownloadedTranslations } from '../utils/db';
-import { fetchChapter, getTranslationInstallSource } from '../utils/api';
+import { fetchChapter } from '../utils/api';
+import { getTranslationSelectLabel, getTranslationStatus } from '../utils/translationStatus';
 import {
   applyTheme,
   CUSTOM_THEME_DEFAULT,
@@ -93,13 +94,21 @@ export default function Settings() {
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState('');
 
-  const offlineTranslations = downloadedTranslations.filter((item) => item.isComplete);
-  const offlineTranslationIds = new Set(offlineTranslations.map((item) => item.id));
-  const previewTranslationId = offlineTranslationIds.has(settings.defaultTranslation)
+  const translationMetaMap = new Map(downloadedTranslations.map((item) => [item.id, item]));
+  const translationStatuses = AVAILABLE_TRANSLATIONS.map((translation) => ({
+    translation,
+    status: getTranslationStatus(translation.id, translationMetaMap.get(translation.id)),
+  }));
+  const readyTranslations = translationStatuses.filter((item) => item.status.canReadNow);
+  const readyTranslationIds = new Set(readyTranslations.map((item) => item.translation.id));
+  const previewTranslationId = readyTranslationIds.has(settings.defaultTranslation)
     ? settings.defaultTranslation
-    : offlineTranslations[0]?.id || null;
+    : readyTranslations[0]?.translation.id || null;
   const previewTranslation = previewTranslationId
     ? getTranslationById(previewTranslationId)
+    : null;
+  const previewTranslationStatus = previewTranslationId
+    ? getTranslationStatus(previewTranslationId, translationMetaMap.get(previewTranslationId))
     : null;
   const selectedPreviewVerse =
     previewVerses.find((item) => item.verse === previewVerse) || previewVerses[0] || null;
@@ -213,8 +222,10 @@ export default function Settings() {
     setShowThemeModal(false);
   }
 
-  const translationOptions = [...AVAILABLE_TRANSLATIONS].sort(
-    (a, b) => Number(offlineTranslationIds.has(b.id)) - Number(offlineTranslationIds.has(a.id))
+  const translationOptions = [...translationStatuses].sort(
+    (a, b) =>
+      Number(b.status.canReadNow) - Number(a.status.canReadNow) ||
+      Number(b.status.isSavedOnDevice) - Number(a.status.isSavedOnDevice)
   );
   const customPreviewStyle = buildCustomThemeVariables(themeDraft);
 
@@ -334,16 +345,9 @@ export default function Settings() {
                 value={settings.defaultTranslation}
                 onChange={(e) => update('defaultTranslation', e.target.value)}
               >
-                {translationOptions.map((translationOption) => (
-                  <option key={translationOption.id} value={translationOption.id}>
-                    {translationOption.abbreviation} - {translationOption.name}
-                    {offlineTranslationIds.has(translationOption.id)
-                      ? ' - Offline'
-                      : getTranslationInstallSource(translationOption.id) === 'bundle'
-                        ? ' - Install included'
-                        : getTranslationInstallSource(translationOption.id) === 'remote'
-                          ? ' - Download needed'
-                          : ' - Bundle required'}
+                {translationOptions.map(({ translation, status }) => (
+                  <option key={translation.id} value={translation.id}>
+                    {getTranslationSelectLabel(translation, translationMetaMap.get(translation.id))}
                   </option>
                 ))}
               </select>
@@ -416,13 +420,16 @@ export default function Settings() {
             <div className="preview-meta">
               <span className="chip">
                 {previewTranslation
-                  ? `${previewTranslation.abbreviation} preview`
+                  ? `${previewTranslation.abbreviation} preview · ${previewTranslationStatus?.statusLabel || 'Ready now'}`
                   : 'Offline preview unavailable'}
               </span>
               {previewTranslationId && previewTranslationId !== settings.defaultTranslation && (
                 <span className="settings-help">
-                  Preview is using an offline translation because your default is not downloaded yet.
+                  Preview is using a translation that is ready now because your default is not available for offline reading yet.
                 </span>
+              )}
+              {previewTranslationStatus?.detailLabel && (
+                <span className="settings-help">{previewTranslationStatus.detailLabel}</span>
               )}
             </div>
 

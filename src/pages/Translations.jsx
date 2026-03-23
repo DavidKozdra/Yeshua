@@ -2,12 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Download, Trash2, Check, Globe } from 'lucide-react';
 import { AVAILABLE_TRANSLATIONS } from '../utils/bibleData';
 import {
-  canInstallTranslation,
   downloadTranslation,
-  getTranslationInstallSource,
   removeTranslation,
 } from '../utils/api';
 import { getAllDownloadedTranslations } from '../utils/db';
+import { getTranslationStatus } from '../utils/translationStatus';
 import '../styles/translations.css';
 
 export default function Translations() {
@@ -32,6 +31,8 @@ export default function Translations() {
   }
 
   async function handleDownload(id) {
+    if (getDownloadMeta(id)?.inProgress) return;
+
     setDownloading(id);
     setProgress({ done: 0, total: 1 });
 
@@ -67,28 +68,24 @@ export default function Translations() {
     <div className="page">
       <h1 className="page-title">Translations</h1>
       <p className="translations-intro">
-        Download Bible translations for offline reading. Once downloaded, you can read without an internet connection.
+        Ready now means you can open the translation immediately. Included with app means the text ships in this build. Saved on device means every chapter is cached in local storage.
       </p>
 
       <div className="translations-list">
         {AVAILABLE_TRANSLATIONS.map((t) => {
           const downloadMeta = getDownloadMeta(t.id);
-          const installSource = getTranslationInstallSource(t.id);
-          const isInstallable = canInstallTranslation(t.id);
+          const status = getTranslationStatus(t.id, downloadMeta);
           const isActive = downloading === t.id;
-          const isComplete = downloadMeta?.isComplete === true;
-          const isPartial = !!downloadMeta && !isComplete;
-          const actionLabel = installSource === 'bundle' ? 'Install' : 'Download';
-          const progressLabel =
-            typeof downloadMeta?.completedChapters === 'number' &&
-            typeof downloadMeta?.totalChapters === 'number'
-              ? `${downloadMeta.completedChapters} / ${downloadMeta.totalChapters} chapters saved`
-              : 'Stored locally, but not ready for offline reading';
+          const isInProgress = isActive || status.isInstalling;
+          const progressDone = isActive ? progress.done : downloadMeta?.completedChapters ?? 0;
+          const progressTotal = isActive ? progress.total : downloadMeta?.totalChapters ?? 0;
+          const StatusIcon =
+            status.tone === 'ready' ? Check : status.tone === 'progress' ? Download : Globe;
 
           return (
             <div
               key={t.id}
-              className={`card translation-card ${isComplete ? 'downloaded' : ''}`}
+              className={`card translation-card ${status.canReadNow ? 'downloaded' : ''}`}
             >
               <div className="translation-info">
                 <div className="translation-header">
@@ -100,40 +97,34 @@ export default function Translations() {
                 </div>
                 <p className="translation-abbr">{t.abbreviation}</p>
                 <p className="translation-desc">{t.description}</p>
+                <div className="translation-badges">
+                  {status.badgeLabels.map((badge) => (
+                    <span key={badge} className={`chip translation-chip translation-chip-${status.tone}`}>
+                      {badge}
+                    </span>
+                  ))}
+                </div>
 
-                {isComplete && !isActive && (
-                  <div className="translation-status">
-                    <Check size={14} />
-                    <span>Available offline</span>
+                {!isInProgress && (
+                  <div className={`translation-status translation-status-${status.tone}`}>
+                    <StatusIcon size={14} />
+                    <span>{status.statusLabel}</span>
                   </div>
                 )}
+                <p className="translation-detail">{status.detailLabel}</p>
 
-                {isPartial && !isActive && (
-                  <div className="translation-status incomplete">
-                    <Download size={14} />
-                    <span>{progressLabel}</span>
-                  </div>
-                )}
-
-                {!isInstallable && !isComplete && !isPartial && !isActive && (
-                  <div className="translation-status incomplete">
-                    <Download size={14} />
-                    <span>Requires a licensed local bundle in this build.</span>
-                  </div>
-                )}
-
-                {isActive && (
+                {isInProgress && (
                   <div className="download-progress">
                     <div className="progress-bar">
                       <div
                         className="progress-bar-fill"
                         style={{
-                          width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%`,
+                          width: `${progressTotal ? (progressDone / progressTotal) * 100 : 0}%`,
                         }}
                       />
                     </div>
                     <span className="progress-text">
-                      {progress.done} / {progress.total} chapters
+                      {progressDone} / {progressTotal} chapters
                     </span>
                   </div>
                 )}
@@ -144,20 +135,24 @@ export default function Translations() {
                   <button className="btn btn-outline btn-sm" onClick={handleCancel}>
                     Cancel
                   </button>
-                ) : isComplete ? (
+                ) : status.isInstalling ? (
+                  <button className="btn btn-outline btn-sm" disabled>
+                    {status.actionLabel}
+                  </button>
+                ) : status.isSavedOnDevice ? (
                   <button className="btn btn-danger btn-sm" onClick={() => handleRemove(t.id)}>
                     <Trash2 size={14} />
-                    Remove
+                    {status.removeLabel}
                   </button>
-                ) : isPartial ? (
+                ) : status.isPartial ? (
                   <>
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={() => handleDownload(t.id)}
-                      disabled={!isInstallable || !!downloading}
+                      disabled={!status.canInstall || !!downloading}
                     >
                       <Download size={14} />
-                      Resume
+                      {status.actionLabel}
                     </button>
                     <button
                       className="btn btn-outline btn-sm"
@@ -172,10 +167,10 @@ export default function Translations() {
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={() => handleDownload(t.id)}
-                    disabled={!isInstallable || !!downloading}
+                    disabled={!status.canInstall || !!downloading}
                   >
                     <Download size={14} />
-                    {isPartial ? 'Resume' : actionLabel}
+                    {status.actionLabel}
                   </button>
                 )}
               </div>
