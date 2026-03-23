@@ -3,7 +3,6 @@
 Yeshua is an offline-first Scripture reading app built as a Progressive Web App. It combines Bible reading, translation downloads, study notes, search, holy day awareness, and a growing library of related religious texts in a single installable interface.
 
 Live site: [readyeshua.com](https://readyeshua.com/)  
-Notes view: [readyeshua.com/notes](https://readyeshua.com/notes)
 
 <img width="2460" height="1516" alt="Yeshua application screenshot" src="https://github.com/user-attachments/assets/f3db9388-fd50-4103-8a01-d1c1238813e0" />
 
