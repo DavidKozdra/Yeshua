@@ -55,6 +55,11 @@
   padding: 0.5rem 0;
 }
 
+.setting-row > select {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .setting-row-stack {
   align-items: flex-start;
   flex-direction: column;
@@ -448,6 +453,10 @@
   .setting-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .setting-row > select {
+    width: 100%;
   }
 
   .settings-name-field,
