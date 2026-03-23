@@ -22,7 +22,7 @@ export default function Layout() {
   const navItems = settings.showBooksTab
     ? [
         ...BASE_NAV_ITEMS.slice(0, 2),
-        { to: '/books', icon: LibraryBig, label: 'Books' },
+        { to: '/books', icon: LibraryBig, label: 'Library' },
         ...BASE_NAV_ITEMS.slice(2),
       ]
     : BASE_NAV_ITEMS;

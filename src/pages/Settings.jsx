@@ -683,7 +683,7 @@ export default function Settings() {
             <div className="setting-row">
               <div className="setting-label">
                 <BookOpen size={18} />
-                <span>Show Books Tab</span>
+                <span>Show Library Tab</span>
               </div>
               <label className="toggle">
                 <input
@@ -696,7 +696,7 @@ export default function Settings() {
             </div>
 
             <p className="settings-help">
-              Adds a Books tab for Bible-adjacent collections with separate install state for the
+              Adds a Library tab for Bible-adjacent collections with separate install state for the
               full Qur&apos;an and the wider Apocrypha shelf, plus linked Baha&apos;i and
               Zoroastrian libraries.
             </p>
@@ -706,7 +706,7 @@ export default function Settings() {
             <div className="setting-row setting-row-stack">
               <div className="setting-label">
                 <Globe size={18} />
-                <span>Books Collection Storage</span>
+                <span>Library Collection Storage</span>
               </div>
               <p className="settings-help">
                 Reader collections keep their own queue, cache, and remove controls separate from
@@ -889,7 +889,7 @@ export default function Settings() {
                               onClick={() => navigate('/books')}
                             >
                               <BookOpen size={14} />
-                              Browse in Books
+                              Browse in Library
                             </button>
                             {primaryExternalHref && (
                               <a

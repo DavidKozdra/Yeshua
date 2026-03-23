@@ -116,7 +116,7 @@ export default function Home() {
             <div className="continue-info">
               <BookOpen size={20} />
               <div>
-                <strong>Books Library</strong>
+                <strong>Library</strong>
                 <div className="continue-translation">
                   {lastBooksRead?.collectionId
                     ? `Continue ${lastBooksRead.collectionId.replace(/-/g, ' ')}`

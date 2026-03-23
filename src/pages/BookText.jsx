@@ -197,7 +197,7 @@ export default function BookText() {
           <h1 className="page-title">Collection Not Available</h1>
           <p>The requested collection could not be found.</p>
           <button type="button" className="btn btn-primary" onClick={() => navigate('/books')}>
-            Back to Books
+            Back to Library
           </button>
         </div>
       </div>
@@ -209,9 +209,9 @@ export default function BookText() {
       <div className="page books-page">
         <div className="empty-state">
           <h1 className="page-title">{collection.name}</h1>
-          <p>This collection opens as source links from the Books tab rather than in the in-app reader.</p>
+          <p>This collection opens as source links from the Library tab rather than in the in-app reader.</p>
           <button type="button" className="btn btn-primary" onClick={() => navigate('/books')}>
-            Back to Books
+            Back to Library
           </button>
         </div>
       </div>
@@ -260,7 +260,7 @@ export default function BookText() {
     <div className="page book-reader-page">
       <div className="book-reader-toolbar">
         <button type="button" className="btn btn-outline btn-sm" onClick={() => navigate('/books')}>
-          Back to Books
+          Back to Library
         </button>
 
         <div className="book-reader-picker-group">
@@ -432,7 +432,7 @@ export default function BookText() {
               ? `Chapter ${chapter - 1}`
               : previousWork
                 ? previousWork.title
-                : 'Books'}
+                : 'Library'}
           </button>
 
           <button type="button" className="btn btn-outline" onClick={goNext}>
