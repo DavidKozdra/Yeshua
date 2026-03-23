@@ -10,6 +10,12 @@
   box-shadow: var(--shadow);
 }
 
+[data-animations='on'] .holy-day-banner,
+[data-animations='on'] .holy-day-manager,
+[data-animations='on'] .holy-day-list-item {
+  animation: holy-day-enter 420ms ease-out both;
+}
+
 .holy-day-banner.is-high-holy-day {
   border-color: color-mix(in srgb, var(--accent) 46%, var(--border));
 }
@@ -103,6 +109,11 @@
   background: color-mix(in srgb, var(--bg-input) 92%, transparent);
 }
 
+[data-animations='on'] .holy-day-list-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
 .holy-day-list-copy {
   display: flex;
   flex-direction: column;
@@ -146,6 +157,17 @@
 .holy-day-disclaimer {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+@keyframes holy-day-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 767px) {

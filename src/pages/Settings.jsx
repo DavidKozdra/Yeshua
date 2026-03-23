@@ -96,6 +96,7 @@ const HOLY_DAY_DATE_LOOKAHEAD_DAYS = 400;
 const SETTINGS_TABS = [
   { id: 'profile', label: 'Profile' },
   { id: 'reader', label: 'Reader' },
+  { id: 'accessibility', label: 'Accessibility' },
   { id: 'library', label: 'Library' },
   { id: 'holy-days', label: 'Holy Days' },
 ];
@@ -671,6 +672,95 @@ export default function Settings() {
                 <span className="toggle-slider" />
               </label>
             </div>
+          </div>
+        </section>
+
+        </>
+        )}
+
+        {activeTab === 'accessibility' && (
+        <>
+        <section className="settings-section">
+          <p className="section-label">Motion</p>
+          <div className="card settings-card-group">
+            <div className="setting-row">
+              <div className="setting-label">
+                <Sun size={18} />
+                <span>Enable Animations</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.enableAnimations}
+                  onChange={(e) => update('enableAnimations', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <p className="settings-help">
+              Controls entrance motion, hover movement, and decorative interface transitions across
+              the app.
+            </p>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <p className="section-label">Accessibility</p>
+          <div className="card settings-card-group">
+            <div className="setting-row">
+              <div className="setting-label">
+                <Eye size={18} />
+                <span>Enhanced Focus Indicators</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.enhancedFocusIndicators}
+                  onChange={(e) => update('enhancedFocusIndicators', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Type size={18} />
+                <span>Underline Links</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.underlineLinks}
+                  onChange={(e) => update('underlineLinks', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <BookOpen size={18} />
+                <span>Larger Touch Targets</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.largeTouchTargets}
+                  onChange={(e) => update('largeTouchTargets', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <p className="settings-help">
+              Adds stronger keyboard focus outlines, optional link underlines, and roomier buttons
+              and controls for easier tapping.
+            </p>
           </div>
         </section>
         </>

@@ -1,4 +1,5 @@
 import { canInstallBooksCollection, getBooksInstallSource } from './booksApi';
+import { formatInstallIssue } from './installErrors';
 
 function getQueuedDetailLabel(queueJob) {
   if (queueJob?.queuePosition > 1) {
@@ -64,10 +65,10 @@ export function getBooksCollectionStatus(collection, meta, queueJob = null) {
     statusLabel = 'Partially saved';
     detailLabel =
       typeof meta?.completedChapters === 'number' && typeof meta?.totalChapters === 'number'
-        ? `${meta.completedChapters} / ${meta.totalChapters} chapters are saved locally.`
+        ? `${meta.completedChapters} / ${meta.totalChapters} chapters are saved locally. Resume to retry skipped chapters.`
         : 'Some chapters are cached, but the canon is not fully saved yet.';
     if (meta?.sampleError) {
-      detailLabel = `${detailLabel} Last issue: ${meta.sampleError}`;
+      detailLabel = `${detailLabel} Latest skipped chapter: ${formatInstallIssue(meta.sampleError)}`;
     }
     actionLabel = 'Resume';
     tone = 'progress';

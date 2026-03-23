@@ -5,6 +5,7 @@ import { subscribeToTranslationInstallEvents } from '../utils/api';
 import { subscribeToBooksInstallEvents } from '../utils/booksApi';
 import { getBooksCollectionById } from '../utils/booksData';
 import { subscribeToAppToasts } from '../utils/appToasts';
+import { formatInstallIssue } from '../utils/installErrors';
 
 const TOAST_DURATION_MS = 4200;
 
@@ -48,7 +49,7 @@ function buildToast(event) {
       tone: 'warning',
       title: `${label} partially saved`,
       message:
-        event.result?.sampleError ||
+        formatInstallIssue(event.result?.sampleError) ||
         `${event.result?.completedChapters ?? 0} of ${event.result?.totalChapters ?? 0} chapters were saved.`,
     };
   }
@@ -115,7 +116,7 @@ function buildBooksToast(event) {
       tone: 'warning',
       title: `${label} partially saved`,
       message:
-        event.result?.sampleError ||
+        formatInstallIssue(event.result?.sampleError) ||
         `${event.result?.completedChapters ?? 0} of ${event.result?.totalChapters ?? 0} chapters were saved.`,
     };
   }

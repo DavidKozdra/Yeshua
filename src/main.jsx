@@ -5,10 +5,13 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import './styles/global.css';
 import { getSettings } from './utils/storage';
+import { applyDisplayPreferences } from './utils/displayPreferences';
 import { applyTheme } from './utils/theme';
 
 // Apply saved theme before render to prevent flash
-applyTheme(getSettings());
+const initialSettings = getSettings();
+applyTheme(initialSettings);
+applyDisplayPreferences(initialSettings);
 
 registerSW({
   immediate: true,

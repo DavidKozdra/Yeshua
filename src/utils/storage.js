@@ -30,6 +30,10 @@ const defaults = {
   lineHeight: 1.8,
   theme: 'dark',
   defaultTranslation: DEFAULT_TRANSLATION_ID,
+  enableAnimations: true,
+  enhancedFocusIndicators: true,
+  underlineLinks: false,
+  largeTouchTargets: false,
   showBooksTab: true,
   showVerseNumbers: true,
   showWordsOfChristInRed: false,
@@ -128,6 +132,22 @@ function normalizeSettings(parsedSettings = {}) {
     ...parsedSettings,
     theme,
     defaultTranslation,
+    enableAnimations:
+      typeof parsedSettings.enableAnimations === 'boolean'
+        ? parsedSettings.enableAnimations
+        : defaults.enableAnimations,
+    enhancedFocusIndicators:
+      typeof parsedSettings.enhancedFocusIndicators === 'boolean'
+        ? parsedSettings.enhancedFocusIndicators
+        : defaults.enhancedFocusIndicators,
+    underlineLinks:
+      typeof parsedSettings.underlineLinks === 'boolean'
+        ? parsedSettings.underlineLinks
+        : defaults.underlineLinks,
+    largeTouchTargets:
+      typeof parsedSettings.largeTouchTargets === 'boolean'
+        ? parsedSettings.largeTouchTargets
+        : defaults.largeTouchTargets,
     showBooksTab:
       typeof parsedSettings.showBooksTab === 'boolean'
         ? parsedSettings.showBooksTab
@@ -181,6 +201,22 @@ export function saveSettings(settings) {
       (isBuiltInTheme(settings.theme) || activeCustomTheme)
         ? settings.theme
         : defaults.theme,
+    enableAnimations:
+      typeof settings.enableAnimations === 'boolean'
+        ? settings.enableAnimations
+        : defaults.enableAnimations,
+    enhancedFocusIndicators:
+      typeof settings.enhancedFocusIndicators === 'boolean'
+        ? settings.enhancedFocusIndicators
+        : defaults.enhancedFocusIndicators,
+    underlineLinks:
+      typeof settings.underlineLinks === 'boolean'
+        ? settings.underlineLinks
+        : defaults.underlineLinks,
+    largeTouchTargets:
+      typeof settings.largeTouchTargets === 'boolean'
+        ? settings.largeTouchTargets
+        : defaults.largeTouchTargets,
     showBooksTab:
       typeof settings.showBooksTab === 'boolean'
         ? settings.showBooksTab

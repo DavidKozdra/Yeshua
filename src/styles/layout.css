@@ -75,6 +75,7 @@
 .nav-link:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+  transform: translateX(3px);
 }
 
 .nav-link.active {
@@ -118,6 +119,7 @@
 
 .bottom-nav-link:hover {
   color: var(--text-secondary);
+  transform: translateY(-1px);
 }
 
 .bottom-nav-link.active {
@@ -279,6 +281,10 @@
   pointer-events: auto;
 }
 
+[data-animations='on'] .toast {
+  animation: toast-enter 280ms ease-out both;
+}
+
 .toast-success {
   border-color: color-mix(in srgb, var(--success) 35%, var(--border));
 }
@@ -349,6 +355,17 @@
 .toast-close:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Desktop layout */
