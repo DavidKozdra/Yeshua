@@ -8,13 +8,13 @@
 /* Top bar */
 .read-topbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
   padding: 0.65rem 1rem;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
-  gap: 0.5rem;
+  gap: 0.75rem;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .read-selectors {
@@ -22,6 +22,7 @@
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+  flex: 0 1 auto;
 }
 
 .selector-btn {
@@ -61,6 +62,7 @@
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   transition: color 0.2s;
+  flex-shrink: 0;
 }
 
 .research-link:hover {
@@ -176,6 +178,10 @@
     max-width: 780px;
     margin: 0 auto;
   }
+
+  .read-topbar {
+    padding: 0.65rem 1.25rem;
+  }
 }
 
 .chapter-heading {
@@ -184,6 +190,40 @@
   font-weight: 700;
   margin-bottom: 1.25rem;
   color: var(--text-primary);
+}
+
+.read-tts-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border) 72%);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-subtle) 65%, var(--bg-secondary) 35%);
+}
+
+.read-tts-banner.is-error {
+  border-color: color-mix(in srgb, var(--danger) 28%, var(--border) 72%);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-secondary) 88%);
+}
+
+.read-tts-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.read-tts-copy svg {
+  color: var(--accent);
+}
+
+.read-tts-banner.is-error .read-tts-copy svg {
+  color: var(--danger);
 }
 
 .read-error {
@@ -243,6 +283,11 @@
 .verse-targeted {
   background: var(--accent-subtle);
   outline: 1px solid rgba(201, 169, 110, 0.45);
+}
+
+.verse-speaking {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
 }
 
 .verse.has-note {
@@ -337,5 +382,12 @@
   .fab-menu {
     bottom: 2rem;
     right: 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .read-tts-banner {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

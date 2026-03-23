@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sun, BookOpen, Type, Eye, Palette, Search } from 'lucide-react';
+import { Sun, BookOpen, Type, Eye, Palette, Search, Volume2 } from 'lucide-react';
 import { getSettings, saveSettings } from '../utils/storage';
 import {
   AVAILABLE_TRANSLATIONS,
@@ -20,6 +20,7 @@ import {
   getActiveCustomTheme,
   normalizeCustomTheme,
 } from '../utils/theme';
+import { isTextToSpeechSupported, TTS_RATE_OPTIONS } from '../utils/tts';
 import '../styles/settings.css';
 
 const PREVIEW_DEFAULT = {
@@ -87,6 +88,7 @@ export default function Settings() {
   const selectedPreviewVerse =
     previewVerses.find((item) => item.verse === previewVerse) || previewVerses[0] || null;
   const activeCustomTheme = getActiveCustomTheme(settings);
+  const textToSpeechSupported = isTextToSpeechSupported();
 
   useEffect(() => {
     applyTheme(settings);
@@ -397,6 +399,51 @@ export default function Settings() {
                 <span className="toggle-slider" />
               </label>
             </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Volume2 size={18} />
+                <span>Text to Speech Tool</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.showTextToSpeechTool}
+                  onChange={(e) => update('showTextToSpeechTool', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Volume2 size={18} />
+                <span>Text to Speech Speed</span>
+              </div>
+              <select
+                value={settings.textToSpeechRate}
+                onChange={(e) => update('textToSpeechRate', Number.parseFloat(e.target.value))}
+                disabled={!settings.showTextToSpeechTool || !textToSpeechSupported}
+              >
+                {TTS_RATE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <p className={`settings-help ${textToSpeechSupported ? '' : 'error'}`}>
+              {textToSpeechSupported
+                ? settings.showTextToSpeechTool
+                  ? 'Uses your device voice to read the current chapter aloud from the reader tools menu.'
+                  : 'Turn this on to show a read-aloud control in the reader tools menu.'
+                : 'This browser does not support text to speech right now.'}
+            </p>
           </div>
         </section>
 

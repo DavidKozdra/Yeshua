@@ -9,11 +9,13 @@ import {
 } from './theme';
 import { DEFAULT_TRANSLATION_ID } from './translationConfig';
 import { getTranslationById } from './bibleData';
+import { TTS_RATE_OPTIONS } from './tts';
 
 const SETTINGS_KEY = 'yeshua-settings';
 const LAST_READ_KEY = 'yeshua-last-read';
 const PROFILE_KEY = 'yeshua-profile';
 const SETTINGS_EVENT = 'yeshua-settings-changed';
+const VALID_TTS_RATES = new Set(TTS_RATE_OPTIONS.map((option) => option.value));
 
 const defaults = {
   fontSize: 18,
@@ -23,9 +25,22 @@ const defaults = {
   showVerseNumbers: true,
   oneVersePerLine: false,
   showGlobalSearchBar: true,
+  showTextToSpeechTool: true,
+  textToSpeechRate: 1,
   customTheme: CUSTOM_THEME_DEFAULT,
   customThemes: [],
 };
+
+function normalizeTextToSpeechRate(value) {
+  const parsedValue =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number.parseFloat(value)
+        : Number.NaN;
+
+  return VALID_TTS_RATES.has(parsedValue) ? parsedValue : defaults.textToSpeechRate;
+}
 
 function normalizeSettings(parsedSettings = {}) {
   const defaultTranslation = getTranslationById(parsedSettings.defaultTranslation)
@@ -54,6 +69,11 @@ function normalizeSettings(parsedSettings = {}) {
     ...parsedSettings,
     theme,
     defaultTranslation,
+    showTextToSpeechTool:
+      typeof parsedSettings.showTextToSpeechTool === 'boolean'
+        ? parsedSettings.showTextToSpeechTool
+        : defaults.showTextToSpeechTool,
+    textToSpeechRate: normalizeTextToSpeechRate(parsedSettings.textToSpeechRate),
     customTheme: normalizedCustomTheme,
     customThemes,
   };
@@ -82,6 +102,11 @@ export function saveSettings(settings) {
       (isBuiltInTheme(settings.theme) || activeCustomTheme)
         ? settings.theme
         : defaults.theme,
+    showTextToSpeechTool:
+      typeof settings.showTextToSpeechTool === 'boolean'
+        ? settings.showTextToSpeechTool
+        : defaults.showTextToSpeechTool,
+    textToSpeechRate: normalizeTextToSpeechRate(settings.textToSpeechRate),
     customTheme: activeCustomTheme?.colors || normalizeCustomTheme(settings.customTheme),
     customThemes,
   };

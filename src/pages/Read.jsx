@@ -10,6 +10,8 @@ import {
   X,
   Plus,
   Search,
+  Volume2,
+  Square,
 } from 'lucide-react';
 import { BIBLE_BOOKS, getBookById, getTranslationById } from '../utils/bibleData';
 import { fetchChapter, resolveInstallableTranslationId } from '../utils/api';
@@ -21,8 +23,15 @@ import {
   getChapter,
   getTranslationMeta,
 } from '../utils/db';
-import { getSettings, saveLastRead, getLastRead } from '../utils/storage';
+import { getSettings, saveLastRead, getLastRead, saveSettings } from '../utils/storage';
 import { DEFAULT_TRANSLATION_ID, FALLBACK_TRANSLATION_ID } from '../utils/translationConfig';
+import {
+  isTextToSpeechSupported,
+  speakChapter,
+  stopTextToSpeech,
+  TTS_RATE_OPTIONS,
+} from '../utils/tts';
+import GlobalSearchBar from '../components/GlobalSearchBar';
 import '../styles/read.css';
 
 export default function Read() {
@@ -56,15 +65,23 @@ export default function Read() {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [availableTranslations, setAvailableTranslations] = useState([]);
   const [highlightedVerse, setHighlightedVerse] = useState(null);
+  const [isSpeakingChapter, setIsSpeakingChapter] = useState(false);
+  const [speakingVerse, setSpeakingVerse] = useState(null);
+  const [speechError, setSpeechError] = useState('');
   const [offlineState, setOfflineState] = useState({
     ready: false,
     message: 'Preparing your offline Bible library...',
     progress: null,
   });
   const contentRef = useRef(null);
+  const speechCleanupRef = useRef(null);
 
   const book = resolvedBook;
   const translation = resolvedTranslation;
+  const textToSpeechSupported = isTextToSpeechSupported();
+  const textToSpeechSpeedLabel =
+    TTS_RATE_OPTIONS.find((option) => option.value === settings.textToSpeechRate)?.label ||
+    'Normal';
 
   useEffect(() => {
     let cancelled = false;
@@ -187,6 +204,21 @@ export default function Read() {
   }, [bookId, chapter]);
 
   useEffect(() => {
+    setIsSpeakingChapter(false);
+    setSpeakingVerse(null);
+    setSpeechError('');
+
+    return () => {
+      if (speechCleanupRef.current) {
+        speechCleanupRef.current();
+        speechCleanupRef.current = null;
+      } else {
+        stopTextToSpeech();
+      }
+    };
+  }, [translationId, bookId, chapter]);
+
+  useEffect(() => {
     const verseMatch = location.hash.match(/^#v(\d+)$/i);
     if (!verseMatch || loading || error || !offlineState.ready || !verses.length) {
       if (!verseMatch) {
@@ -276,6 +308,76 @@ export default function Read() {
     setShowReaderActions(false);
   }
 
+  function handleStopTextToSpeech() {
+    if (speechCleanupRef.current) {
+      speechCleanupRef.current();
+      speechCleanupRef.current = null;
+    } else {
+      stopTextToSpeech();
+    }
+
+    setIsSpeakingChapter(false);
+    setSpeakingVerse(null);
+    setSpeechError('');
+    setShowReaderActions(false);
+  }
+
+  function handleStartTextToSpeech() {
+    setShowReaderActions(false);
+
+    if (!textToSpeechSupported) {
+      setSpeechError('Text to speech is not available in this browser.');
+      return;
+    }
+
+    if (!offlineState.ready || loading || error || !verses.length) {
+      setSpeechError('Load a chapter before starting text to speech.');
+      return;
+    }
+
+    if (speechCleanupRef.current) {
+      speechCleanupRef.current();
+      speechCleanupRef.current = null;
+    }
+
+    setSpeechError('');
+
+    try {
+      speechCleanupRef.current = speakChapter({
+        bookName: book.name,
+        chapter,
+        verses,
+        rate: settings.textToSpeechRate,
+        onVerseStart: (verseNumber) => {
+          setSpeakingVerse(verseNumber);
+          const targetElement = contentRef.current?.querySelector(`[data-verse="${verseNumber}"]`);
+          targetElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        },
+        onComplete: () => {
+          speechCleanupRef.current = null;
+          setIsSpeakingChapter(false);
+          setSpeakingVerse(null);
+        },
+        onError: (message) => {
+          speechCleanupRef.current = null;
+          setIsSpeakingChapter(false);
+          setSpeakingVerse(null);
+          setSpeechError(
+            typeof message === 'string' && message.trim()
+              ? message
+              : 'Speech playback failed.'
+          );
+        },
+      });
+      setIsSpeakingChapter(true);
+    } catch (err) {
+      speechCleanupRef.current = null;
+      setIsSpeakingChapter(false);
+      setSpeakingVerse(null);
+      setSpeechError(err.message || 'Text to speech could not start.');
+    }
+  }
+
   async function handleSaveNote() {
     if (!noteText.trim()) return;
     const note = {
@@ -351,9 +453,12 @@ export default function Read() {
                 <option key={t.id} value={t.id}>
                   {t.abbreviation}
                 </option>
-              ))}
+            ))}
           </select>
         </div>
+        {settings.showGlobalSearchBar && (
+          <GlobalSearchBar translationId={translationId} variant="inline" />
+        )}
         <a
           href={`https://biblehub.com/${book?.name?.toLowerCase().replace(/\s+/g, '_') || bookId}/${chapter}.htm`}
           target="_blank"
@@ -441,6 +546,24 @@ export default function Read() {
           {book?.name} {chapter}
         </h2>
 
+        {(isSpeakingChapter || speechError) && (
+          <div className={`read-tts-banner ${speechError ? 'is-error' : ''}`}>
+            <div className="read-tts-copy">
+              <Volume2 size={16} />
+              <span>
+                {isSpeakingChapter
+                  ? `Reading aloud at ${textToSpeechSpeedLabel.toLowerCase()} speed.`
+                  : speechError}
+              </span>
+            </div>
+            {isSpeakingChapter && (
+              <button className="btn btn-outline btn-sm" onClick={handleStopTextToSpeech}>
+                Stop
+              </button>
+            )}
+          </div>
+        )}
+
         {loading && <div className="loading-spinner">Loading...</div>}
         {!loading && !offlineState.ready && (
           <div className="read-empty-state">
@@ -493,7 +616,7 @@ export default function Read() {
                 key={v.verse}
                 className={`verse ${noteVerses.has(v.verse) ? 'has-note' : ''} ${
                   highlightedVerse === v.verse ? 'verse-targeted' : ''
-                }`}
+                } ${speakingVerse === v.verse ? 'verse-speaking' : ''}`}
                 data-verse={v.verse}
                 onClick={() => openNoteForVerse(v.verse)}
               >
@@ -559,6 +682,15 @@ export default function Read() {
       <div className="fab-menu">
         {showReaderActions && (
           <div className="fab-menu-actions">
+            {settings.showTextToSpeechTool && textToSpeechSupported && (
+              <button
+                className="fab-action"
+                onClick={isSpeakingChapter ? handleStopTextToSpeech : handleStartTextToSpeech}
+              >
+                {isSpeakingChapter ? <Square size={16} /> : <Volume2 size={16} />}
+                <span>{isSpeakingChapter ? 'Stop reading' : 'Read chapter aloud'}</span>
+              </button>
+            )}
             <button className="fab-action" onClick={openQuickNoteModal}>
               <StickyNote size={16} />
               <span>Add note</span>
