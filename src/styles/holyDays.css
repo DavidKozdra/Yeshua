@@ -15,7 +15,7 @@
 }
 
 .holy-day-banner.is-active {
-  padding: 1.2rem 1.3rem 1.15rem;
+  margin: 10px  auto 50px;
   box-shadow: var(--shadow-lg);
 }
 
@@ -155,9 +155,7 @@
     padding: 0.95rem;
   }
 
-  .holy-day-banner.is-active {
-    padding: 1.05rem;
-  }
+  
 
   .holy-day-manager-header,
   .holy-day-list-item {
