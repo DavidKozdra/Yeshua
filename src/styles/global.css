@@ -96,6 +96,40 @@ body {
   overflow-x: hidden;
 }
 
+html[data-theme='dark'][data-accessibility-contrast='on'] {
+  --text-primary: #ffffff;
+  --text-secondary: #e2e2f1;
+  --text-muted: #c4c4d6;
+}
+
+html[data-theme='light'][data-accessibility-contrast='on'] {
+  --text-primary: #09090f;
+  --text-secondary: #232334;
+  --text-muted: #3b3b52;
+}
+
+html[data-theme='sepia'][data-accessibility-contrast='on'] {
+  --text-primary: #241b12;
+  --text-secondary: #3b2e22;
+  --text-muted: #5a4937;
+}
+
+[data-accessibility-letter-spacing='on'] body,
+[data-accessibility-letter-spacing='on'] input,
+[data-accessibility-letter-spacing='on'] textarea,
+[data-accessibility-letter-spacing='on'] select,
+[data-accessibility-letter-spacing='on'] button {
+  letter-spacing: 0.03em;
+}
+
+[data-accessibility-word-spacing='on'] body,
+[data-accessibility-word-spacing='on'] input,
+[data-accessibility-word-spacing='on'] textarea,
+[data-accessibility-word-spacing='on'] select,
+[data-accessibility-word-spacing='on'] button {
+  word-spacing: 0.12em;
+}
+
 a {
   color: var(--accent);
   text-decoration: none;

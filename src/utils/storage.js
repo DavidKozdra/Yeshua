@@ -34,6 +34,9 @@ const defaults = {
   enhancedFocusIndicators: true,
   underlineLinks: false,
   largeTouchTargets: false,
+  highContrastText: false,
+  increasedLetterSpacing: false,
+  increasedWordSpacing: false,
   showBooksTab: true,
   showVerseNumbers: true,
   showWordsOfChristInRed: false,
@@ -148,6 +151,18 @@ function normalizeSettings(parsedSettings = {}) {
       typeof parsedSettings.largeTouchTargets === 'boolean'
         ? parsedSettings.largeTouchTargets
         : defaults.largeTouchTargets,
+    highContrastText:
+      typeof parsedSettings.highContrastText === 'boolean'
+        ? parsedSettings.highContrastText
+        : defaults.highContrastText,
+    increasedLetterSpacing:
+      typeof parsedSettings.increasedLetterSpacing === 'boolean'
+        ? parsedSettings.increasedLetterSpacing
+        : defaults.increasedLetterSpacing,
+    increasedWordSpacing:
+      typeof parsedSettings.increasedWordSpacing === 'boolean'
+        ? parsedSettings.increasedWordSpacing
+        : defaults.increasedWordSpacing,
     showBooksTab:
       typeof parsedSettings.showBooksTab === 'boolean'
         ? parsedSettings.showBooksTab
@@ -217,6 +232,18 @@ export function saveSettings(settings) {
       typeof settings.largeTouchTargets === 'boolean'
         ? settings.largeTouchTargets
         : defaults.largeTouchTargets,
+    highContrastText:
+      typeof settings.highContrastText === 'boolean'
+        ? settings.highContrastText
+        : defaults.highContrastText,
+    increasedLetterSpacing:
+      typeof settings.increasedLetterSpacing === 'boolean'
+        ? settings.increasedLetterSpacing
+        : defaults.increasedLetterSpacing,
+    increasedWordSpacing:
+      typeof settings.increasedWordSpacing === 'boolean'
+        ? settings.increasedWordSpacing
+        : defaults.increasedWordSpacing,
     showBooksTab:
       typeof settings.showBooksTab === 'boolean'
         ? settings.showBooksTab

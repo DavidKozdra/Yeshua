@@ -77,6 +77,7 @@ export default function Read() {
   });
   const contentRef = useRef(null);
   const speechCleanupRef = useRef(null);
+  const touchGestureRef = useRef(null);
 
   const book = resolvedBook;
   const translation = resolvedTranslation;
@@ -271,6 +272,52 @@ export default function Read() {
       if (idx < BIBLE_BOOKS.length - 1) {
         goTo(BIBLE_BOOKS[idx + 1].id, 1);
       }
+    }
+  }
+
+  function handleContentTouchStart(event) {
+    if (
+      showBookSelector ||
+      showChapterSelector ||
+      showNoteModal ||
+      showReaderActions ||
+      loading ||
+      error ||
+      !offlineState.ready ||
+      event.touches.length !== 1
+    ) {
+      touchGestureRef.current = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    touchGestureRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      startedAt: Date.now(),
+    };
+  }
+
+  function handleContentTouchEnd(event) {
+    if (!touchGestureRef.current || event.changedTouches.length !== 1) {
+      touchGestureRef.current = null;
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - touchGestureRef.current.x;
+    const deltaY = touch.clientY - touchGestureRef.current.y;
+    const elapsedMs = Date.now() - touchGestureRef.current.startedAt;
+    touchGestureRef.current = null;
+
+    if (elapsedMs > 700) return;
+    if (Math.abs(deltaX) < 72) return;
+    if (Math.abs(deltaX) <= Math.abs(deltaY) * 1.25) return;
+
+    if (deltaX < 0) {
+      nextChapter();
+    } else {
+      prevChapter();
     }
   }
 
@@ -543,7 +590,15 @@ export default function Read() {
       )}
 
       {/* Bible text */}
-      <div className="read-content" ref={contentRef}>
+      <div
+        className="read-content"
+        ref={contentRef}
+        onTouchStart={handleContentTouchStart}
+        onTouchEnd={handleContentTouchEnd}
+        onTouchCancel={() => {
+          touchGestureRef.current = null;
+        }}
+      >
         <h2 className="chapter-heading">
           {book?.name} {chapter}
         </h2>
