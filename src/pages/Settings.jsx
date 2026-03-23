@@ -20,7 +20,15 @@ import {
   getActiveCustomTheme,
   normalizeCustomTheme,
 } from '../utils/theme';
-import { isTextToSpeechSupported, TTS_RATE_OPTIONS } from '../utils/tts';
+import {
+  DEFAULT_TEXT_TO_SPEECH_VOICE,
+  getTextToSpeechVoices,
+  isTextToSpeechSupported,
+  speakTextSample,
+  stopTextToSpeech,
+  subscribeToTextToSpeechVoices,
+  TTS_RATE_OPTIONS,
+} from '../utils/tts';
 import '../styles/settings.css';
 
 const PREVIEW_DEFAULT = {
@@ -68,6 +76,10 @@ export default function Settings() {
   const [previewVerses, setPreviewVerses] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState('');
+  const [availableVoices, setAvailableVoices] = useState(() => getTextToSpeechVoices());
+  const [isTestingTextToSpeech, setIsTestingTextToSpeech] = useState(false);
+  const [textToSpeechTestMessage, setTextToSpeechTestMessage] = useState('');
+  const [textToSpeechTestError, setTextToSpeechTestError] = useState('');
 
   const translationMetaMap = new Map(downloadedTranslations.map((item) => [item.id, item]));
   const translationStatuses = AVAILABLE_TRANSLATIONS.map((translation) => ({
@@ -89,6 +101,12 @@ export default function Settings() {
     previewVerses.find((item) => item.verse === previewVerse) || previewVerses[0] || null;
   const activeCustomTheme = getActiveCustomTheme(settings);
   const textToSpeechSupported = isTextToSpeechSupported();
+  const availableVoiceIds = new Set(availableVoices.map((voice) => voice.id));
+  const selectedVoiceId = availableVoiceIds.has(settings.textToSpeechVoice)
+    ? settings.textToSpeechVoice
+    : DEFAULT_TEXT_TO_SPEECH_VOICE;
+  const selectedVoiceLabel =
+    availableVoices.find((voice) => voice.id === selectedVoiceId)?.label || 'System Default';
 
   useEffect(() => {
     applyTheme(settings);
@@ -114,6 +132,14 @@ export default function Settings() {
     return () => {
       cancelled = true;
       unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => subscribeToTextToSpeechVoices(setAvailableVoices), []);
+
+  useEffect(() => {
+    return () => {
+      stopTextToSpeech();
     };
   }, []);
 
@@ -238,6 +264,44 @@ export default function Settings() {
     saveSettings(updated);
     setThemeNameError('');
     setShowThemeModal(false);
+  }
+
+  function handleTestTextToSpeech() {
+    if (!textToSpeechSupported) {
+      setTextToSpeechTestError('This browser does not support text to speech right now.');
+      setTextToSpeechTestMessage('');
+      return;
+    }
+
+    stopTextToSpeech();
+    setIsTestingTextToSpeech(true);
+    setTextToSpeechTestMessage('');
+    setTextToSpeechTestError('');
+
+    try {
+      speakTextSample({
+        text: 'This is a text to speech test for the Yeshua reader.',
+        language: previewTranslation?.language || 'English',
+        rate: settings.textToSpeechRate,
+        volume: settings.textToSpeechVolume,
+        voiceId: selectedVoiceId,
+        onComplete: () => {
+          setIsTestingTextToSpeech(false);
+          setTextToSpeechTestMessage('Voice test finished.');
+        },
+        onError: (details) => {
+          setIsTestingTextToSpeech(false);
+          setTextToSpeechTestError(
+            typeof details?.message === 'string' && details.message.trim()
+              ? details.message
+              : 'Voice test failed.'
+          );
+        },
+      });
+    } catch (err) {
+      setIsTestingTextToSpeech(false);
+      setTextToSpeechTestError(err.message || 'Voice test could not start.');
+    }
   }
 
   const translationOptions = [...translationStatuses].sort(
@@ -422,6 +486,52 @@ export default function Settings() {
             <div className="setting-row">
               <div className="setting-label">
                 <Volume2 size={18} />
+                <span>Text to Speech Voice</span>
+              </div>
+              <select
+                value={selectedVoiceId}
+                onChange={(e) => update('textToSpeechVoice', e.target.value)}
+                disabled={!settings.showTextToSpeechTool || !textToSpeechSupported}
+              >
+                <option value={DEFAULT_TEXT_TO_SPEECH_VOICE}>System Default</option>
+                {availableVoices.map((voice) => (
+                  <option key={voice.id} value={voice.id}>
+                    {voice.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Volume2 size={18} />
+                <span>Text to Speech Volume</span>
+              </div>
+              <div className="tts-volume-control">
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  step="5"
+                  value={Math.round(settings.textToSpeechVolume * 100)}
+                  onChange={(e) =>
+                    update('textToSpeechVolume', Number.parseInt(e.target.value, 10) / 100)
+                  }
+                  disabled={!settings.showTextToSpeechTool || !textToSpeechSupported}
+                />
+                <span className="tts-volume-value">
+                  {Math.round(settings.textToSpeechVolume * 100)}%
+                </span>
+              </div>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Volume2 size={18} />
                 <span>Text to Speech Speed</span>
               </div>
               <select
@@ -440,10 +550,40 @@ export default function Settings() {
             <p className={`settings-help ${textToSpeechSupported ? '' : 'error'}`}>
               {textToSpeechSupported
                 ? settings.showTextToSpeechTool
-                  ? 'Uses your device voice to read the current chapter aloud from the reader tools menu.'
+                  ? `Uses ${selectedVoiceLabel} at ${Math.round(settings.textToSpeechVolume * 100)}% volume from the reader tools menu. If synthesis fails, switch back to System Default.`
                   : 'Turn this on to show a read-aloud control in the reader tools menu.'
                 : 'This browser does not support text to speech right now.'}
             </p>
+            {textToSpeechSupported && (
+              <div className="tts-diagnostics">
+                <span className="settings-help">
+                  {availableVoices.length > 0
+                    ? `${availableVoices.length} voice${availableVoices.length === 1 ? '' : 's'} detected by the browser.`
+                    : 'No browser voices detected yet.'}
+                </span>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={handleTestTextToSpeech}
+                  disabled={isTestingTextToSpeech}
+                >
+                  {isTestingTextToSpeech ? 'Testing...' : 'Test Voice'}
+                </button>
+              </div>
+            )}
+            {textToSpeechSupported &&
+              settings.showTextToSpeechTool &&
+              settings.textToSpeechVoice &&
+              !availableVoiceIds.has(settings.textToSpeechVoice) && (
+                <p className="settings-help error">
+                  The saved voice is not available in this browser right now. System Default will be used instead.
+                </p>
+              )}
+            {textToSpeechTestMessage && (
+              <p className="settings-help">{textToSpeechTestMessage}</p>
+            )}
+            {textToSpeechTestError && (
+              <p className="settings-help error">{textToSpeechTestError}</p>
+            )}
           </div>
         </section>
 

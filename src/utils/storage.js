@@ -9,7 +9,12 @@ import {
 } from './theme';
 import { DEFAULT_TRANSLATION_ID } from './translationConfig';
 import { getTranslationById } from './bibleData';
-import { TTS_RATE_OPTIONS } from './tts';
+import {
+  DEFAULT_TEXT_TO_SPEECH_VOICE,
+  DEFAULT_TEXT_TO_SPEECH_VOLUME,
+  normalizeTextToSpeechVolume,
+  TTS_RATE_OPTIONS,
+} from './tts';
 
 const SETTINGS_KEY = 'yeshua-settings';
 const LAST_READ_KEY = 'yeshua-last-read';
@@ -27,9 +32,15 @@ const defaults = {
   showGlobalSearchBar: true,
   showTextToSpeechTool: true,
   textToSpeechRate: 1,
+  textToSpeechVoice: DEFAULT_TEXT_TO_SPEECH_VOICE,
+  textToSpeechVolume: DEFAULT_TEXT_TO_SPEECH_VOLUME,
   customTheme: CUSTOM_THEME_DEFAULT,
   customThemes: [],
 };
+
+function normalizeTextToSpeechVoice(value) {
+  return typeof value === 'string' ? value : DEFAULT_TEXT_TO_SPEECH_VOICE;
+}
 
 function normalizeTextToSpeechRate(value) {
   const parsedValue =
@@ -74,6 +85,8 @@ function normalizeSettings(parsedSettings = {}) {
         ? parsedSettings.showTextToSpeechTool
         : defaults.showTextToSpeechTool,
     textToSpeechRate: normalizeTextToSpeechRate(parsedSettings.textToSpeechRate),
+    textToSpeechVoice: normalizeTextToSpeechVoice(parsedSettings.textToSpeechVoice),
+    textToSpeechVolume: normalizeTextToSpeechVolume(parsedSettings.textToSpeechVolume),
     customTheme: normalizedCustomTheme,
     customThemes,
   };
@@ -107,6 +120,8 @@ export function saveSettings(settings) {
         ? settings.showTextToSpeechTool
         : defaults.showTextToSpeechTool,
     textToSpeechRate: normalizeTextToSpeechRate(settings.textToSpeechRate),
+    textToSpeechVoice: normalizeTextToSpeechVoice(settings.textToSpeechVoice),
+    textToSpeechVolume: normalizeTextToSpeechVolume(settings.textToSpeechVolume),
     customTheme: activeCustomTheme?.colors || normalizeCustomTheme(settings.customTheme),
     customThemes,
   };

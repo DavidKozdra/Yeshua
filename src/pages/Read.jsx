@@ -347,7 +347,10 @@ export default function Read() {
         bookName: book.name,
         chapter,
         verses,
+        language: translation.language,
         rate: settings.textToSpeechRate,
+        volume: settings.textToSpeechVolume,
+        voiceId: settings.textToSpeechVoice,
         onVerseStart: (verseNumber) => {
           setSpeakingVerse(verseNumber);
           const targetElement = contentRef.current?.querySelector(`[data-verse="${verseNumber}"]`);
@@ -358,14 +361,20 @@ export default function Read() {
           setIsSpeakingChapter(false);
           setSpeakingVerse(null);
         },
-        onError: (message) => {
+        onError: (details) => {
           speechCleanupRef.current = null;
           setIsSpeakingChapter(false);
           setSpeakingVerse(null);
+          const baseMessage =
+            typeof details === 'string' && details.trim()
+              ? details
+              : typeof details?.message === 'string' && details.message.trim()
+                ? details.message
+                : 'Speech playback failed.';
           setSpeechError(
-            typeof message === 'string' && message.trim()
-              ? message
-              : 'Speech playback failed.'
+            typeof details?.verse === 'number'
+              ? `${book.name} ${chapter}:${details.verse}. ${baseMessage}`
+              : baseMessage
           );
         },
       });
