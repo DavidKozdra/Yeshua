@@ -1,3 +1,23 @@
+.note-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.note-compose-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.note-compose-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .notes-search {
   display: flex;
   align-items: center;
@@ -39,9 +59,23 @@
 
 .note-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 0.5rem;
+  gap: 1rem;
+}
+
+.note-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.note-title {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.3;
 }
 
 .note-ref {
@@ -51,15 +85,21 @@
   color: var(--accent);
   font-size: 0.85rem;
   font-weight: 600;
+  text-align: left;
 }
 
 .note-ref:hover {
   text-decoration: underline;
 }
 
+.note-chip {
+  align-self: flex-start;
+}
+
 .note-date {
   font-size: 0.75rem;
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .note-text {
@@ -99,9 +139,26 @@
   min-height: 80px;
 }
 
+.note-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .note-edit-actions {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
   margin-top: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .note-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .note-date {
+    align-self: flex-start;
+  }
 }

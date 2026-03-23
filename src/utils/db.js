@@ -5,6 +5,18 @@ const DB_VERSION = 1;
 
 let dbPromise;
 
+function isTranslationComplete(meta) {
+  if (!meta) return false;
+  if (typeof meta.isComplete === 'boolean') return meta.isComplete;
+  if (
+    typeof meta.completedChapters === 'number' &&
+    typeof meta.totalChapters === 'number'
+  ) {
+    return meta.totalChapters > 0 && meta.completedChapters >= meta.totalChapters;
+  }
+  return (meta.errors ?? 0) === 0;
+}
+
 function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
@@ -68,16 +80,22 @@ export async function saveTranslationMeta(translationId, meta) {
 
 export async function getTranslationMeta(translationId) {
   const db = await getDB();
-  return db.get('translations', translationId);
+  const meta = await db.get('translations', translationId);
+  return meta ? { ...meta, isComplete: isTranslationComplete(meta) } : null;
 }
 
-export async function getAllDownloadedTranslations() {
+export async function getAllDownloadedTranslations(options = {}) {
+  const { includeIncomplete = false } = options;
   const db = await getDB();
   const keys = await db.getAllKeys('translations');
   const results = [];
   for (const key of keys) {
     const meta = await db.get('translations', key);
-    if (meta) results.push({ id: key, ...meta });
+    if (!meta) continue;
+    const normalized = { id: key, ...meta, isComplete: isTranslationComplete(meta) };
+    if (includeIncomplete || normalized.isComplete) {
+      results.push(normalized);
+    }
   }
   return results;
 }

@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Download, Trash2, Check, Loader, Globe } from 'lucide-react';
+import { Download, Trash2, Check, Globe } from 'lucide-react';
 import { AVAILABLE_TRANSLATIONS } from '../utils/bibleData';
-import { downloadTranslation, removeTranslation } from '../utils/api';
+import {
+  canInstallTranslation,
+  downloadTranslation,
+  getTranslationInstallSource,
+  removeTranslation,
+} from '../utils/api';
 import { getAllDownloadedTranslations } from '../utils/db';
 import '../styles/translations.css';
 
@@ -13,15 +18,17 @@ export default function Translations() {
 
   useEffect(() => {
     loadDownloaded();
+    const intervalId = window.setInterval(loadDownloaded, 2000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
   async function loadDownloaded() {
-    const list = await getAllDownloadedTranslations();
+    const list = await getAllDownloadedTranslations({ includeIncomplete: true });
     setDownloaded(list);
   }
 
-  function isDownloaded(id) {
-    return downloaded.some((d) => d.id === id);
+  function getDownloadMeta(id) {
+    return downloaded.find((d) => d.id === id);
   }
 
   async function handleDownload(id) {
@@ -65,11 +72,24 @@ export default function Translations() {
 
       <div className="translations-list">
         {AVAILABLE_TRANSLATIONS.map((t) => {
-          const isDl = isDownloaded(t.id);
+          const downloadMeta = getDownloadMeta(t.id);
+          const installSource = getTranslationInstallSource(t.id);
+          const isInstallable = canInstallTranslation(t.id);
           const isActive = downloading === t.id;
+          const isComplete = downloadMeta?.isComplete === true;
+          const isPartial = !!downloadMeta && !isComplete;
+          const actionLabel = installSource === 'bundle' ? 'Install' : 'Download';
+          const progressLabel =
+            typeof downloadMeta?.completedChapters === 'number' &&
+            typeof downloadMeta?.totalChapters === 'number'
+              ? `${downloadMeta.completedChapters} / ${downloadMeta.totalChapters} chapters saved`
+              : 'Stored locally, but not ready for offline reading';
 
           return (
-            <div key={t.id} className={`card translation-card ${isDl ? 'downloaded' : ''}`}>
+            <div
+              key={t.id}
+              className={`card translation-card ${isComplete ? 'downloaded' : ''}`}
+            >
               <div className="translation-info">
                 <div className="translation-header">
                   <h3>{t.name}</h3>
@@ -81,10 +101,24 @@ export default function Translations() {
                 <p className="translation-abbr">{t.abbreviation}</p>
                 <p className="translation-desc">{t.description}</p>
 
-                {isDl && !isActive && (
+                {isComplete && !isActive && (
                   <div className="translation-status">
                     <Check size={14} />
                     <span>Available offline</span>
+                  </div>
+                )}
+
+                {isPartial && !isActive && (
+                  <div className="translation-status incomplete">
+                    <Download size={14} />
+                    <span>{progressLabel}</span>
+                  </div>
+                )}
+
+                {!isInstallable && !isComplete && !isPartial && !isActive && (
+                  <div className="translation-status incomplete">
+                    <Download size={14} />
+                    <span>Requires a licensed local bundle in this build.</span>
                   </div>
                 )}
 
@@ -110,23 +144,38 @@ export default function Translations() {
                   <button className="btn btn-outline btn-sm" onClick={handleCancel}>
                     Cancel
                   </button>
-                ) : isDl ? (
+                ) : isComplete ? (
                   <button className="btn btn-danger btn-sm" onClick={() => handleRemove(t.id)}>
                     <Trash2 size={14} />
                     Remove
                   </button>
+                ) : isPartial ? (
+                  <>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleDownload(t.id)}
+                      disabled={!isInstallable || !!downloading}
+                    >
+                      <Download size={14} />
+                      Resume
+                    </button>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => handleRemove(t.id)}
+                      disabled={!!downloading}
+                    >
+                      <Trash2 size={14} />
+                      Clear
+                    </button>
+                  </>
                 ) : (
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={() => handleDownload(t.id)}
-                    disabled={!!downloading}
+                    disabled={!isInstallable || !!downloading}
                   >
-                    {downloading ? (
-                      <Loader size={14} className="spin" />
-                    ) : (
-                      <Download size={14} />
-                    )}
-                    Download
+                    <Download size={14} />
+                    {isPartial ? 'Resume' : actionLabel}
                   </button>
                 )}
               </div>

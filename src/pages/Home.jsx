@@ -25,8 +25,8 @@ export default function Home() {
     setEditingName(false);
   }
 
-  function goToReading(bookId, chapter) {
-    navigate(`/read/${settings.defaultTranslation}/${bookId}/${chapter}`);
+  function goToReading(bookId, chapter, translationId = settings.defaultTranslation) {
+    navigate(`/read/${translationId}/${bookId}/${chapter}`);
   }
 
   return (
@@ -71,7 +71,13 @@ export default function Home() {
           <p className="section-label">Continue Reading</p>
           <div
             className="card card-clickable continue-card"
-            onClick={() => goToReading(lastRead.bookId, lastRead.chapter)}
+            onClick={() =>
+              goToReading(
+                lastRead.bookId,
+                lastRead.chapter,
+                lastRead.translationId || settings.defaultTranslation
+              )
+            }
           >
             <div className="continue-info">
               <BookOpen size={20} />
@@ -110,6 +116,7 @@ export default function Home() {
         <p className="section-label">Study & Research</p>
         <div className="links-grid">
           {[
+            { name: 'Bible Project', url: 'https://bibleproject.com/', desc: 'Videos, podcasts, and guides for every book' },
             { name: 'Blue Letter Bible', url: 'https://www.blueletterbible.org/', desc: 'Concordance, lexicon, interlinear' },
             { name: 'Bible Hub', url: 'https://biblehub.com/', desc: 'Commentaries and cross-references' },
             { name: 'Got Questions', url: 'https://www.gotquestions.org/', desc: 'Biblical Q&A resource' },

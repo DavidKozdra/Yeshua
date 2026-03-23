@@ -12,7 +12,8 @@ export default function Notes() {
   const [notes, setNotes] = useState([]);
   const [search, setSearch] = useState('');
   const [editingNote, setEditingNote] = useState(null);
-  const [editText, setEditText] = useState('');
+  const [editDraft, setEditDraft] = useState({ title: '', text: '' });
+  const [newNote, setNewNote] = useState({ title: '', text: '' });
 
   useEffect(() => {
     loadNotes();
@@ -32,34 +33,93 @@ export default function Notes() {
   }
 
   async function handleSaveEdit() {
-    if (!editingNote || !editText.trim()) return;
+    if (!editingNote || (!editDraft.title.trim() && !editDraft.text.trim())) return;
     await saveNote({
       ...editingNote,
-      text: editText.trim(),
+      title: editDraft.title.trim(),
+      text: editDraft.text.trim(),
       updatedAt: new Date().toISOString(),
     });
     setEditingNote(null);
+    setEditDraft({ title: '', text: '' });
+    await loadNotes();
+  }
+
+  async function handleCreateNote() {
+    if (!newNote.title.trim() && !newNote.text.trim()) return;
+
+    const now = new Date().toISOString();
+    await saveNote({
+      title: newNote.title.trim(),
+      text: newNote.text.trim(),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    setNewNote({ title: '', text: '' });
     await loadNotes();
   }
 
   function goToVerse(note) {
-    navigate(`/read/${settings.defaultTranslation}/${note.bookId}/${note.chapter}`);
+    if (!note.bookId || !note.chapter) return;
+    navigate(
+      `/read/${note.translationId || settings.defaultTranslation}/${note.bookId}/${note.chapter}`
+    );
+  }
+
+  function getReference(note) {
+    if (!note.bookId || !note.chapter) return null;
+    const book = getBookById(note.bookId);
+    return `${book?.name || note.bookId} ${note.chapter}${note.verse ? `:${note.verse}` : ''}`;
   }
 
   const filtered = notes.filter((n) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const bookName = getBookById(n.bookId)?.name?.toLowerCase() || '';
+    const title = n.title?.toLowerCase() || '';
+    const reference = n.bookId && n.chapter
+      ? `${bookName} ${n.chapter}${n.verse ? `:${n.verse}` : ''}`
+      : '';
     return (
-      n.text.toLowerCase().includes(q) ||
+      title.includes(q) ||
+      (n.text || '').toLowerCase().includes(q) ||
       bookName.includes(q) ||
-      `${bookName} ${n.chapter}:${n.verse}`.includes(q)
+      reference.includes(q)
     );
   });
 
   return (
     <div className="page">
       <h1 className="page-title">Notes</h1>
+
+      <div className="card note-compose">
+        <div className="note-compose-header">
+          <StickyNote size={18} />
+          <span>New Note</span>
+        </div>
+        <input
+          type="text"
+          value={newNote.title}
+          onChange={(e) => setNewNote((current) => ({ ...current, title: e.target.value }))}
+          placeholder="Title (optional)"
+        />
+        <textarea
+          value={newNote.text}
+          onChange={(e) => setNewNote((current) => ({ ...current, text: e.target.value }))}
+          placeholder="Write a note without attaching it to a verse..."
+          rows={4}
+        />
+        <div className="note-compose-actions">
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleCreateNote}
+            disabled={!newNote.title.trim() && !newNote.text.trim()}
+          >
+            Save Note
+          </button>
+        </div>
+      </div>
 
       {notes.length > 0 && (
         <div className="notes-search">
@@ -77,7 +137,7 @@ export default function Notes() {
         <div className="empty-state">
           <StickyNote size={48} strokeWidth={1} />
           <h3>No notes yet</h3>
-          <p>Tap on any verse while reading to add a note.</p>
+          <p>Add a note here or tap any verse while reading.</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -86,22 +146,34 @@ export default function Notes() {
       ) : (
         <div className="notes-list">
           {filtered.map((note) => {
-            const book = getBookById(note.bookId);
-            const ref = `${book?.name || note.bookId} ${note.chapter}:${note.verse}`;
+            const ref = getReference(note);
 
             return (
               <div key={note.id} className="card note-card">
                 {editingNote?.id === note.id ? (
                   <div className="note-edit">
+                    <input
+                      type="text"
+                      value={editDraft.title}
+                      onChange={(e) =>
+                        setEditDraft((current) => ({ ...current, title: e.target.value }))
+                      }
+                      placeholder="Title (optional)"
+                    />
                     <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
+                      value={editDraft.text}
+                      onChange={(e) =>
+                        setEditDraft((current) => ({ ...current, text: e.target.value }))
+                      }
                       autoFocus
                     />
                     <div className="note-edit-actions">
                       <button
                         className="btn btn-outline btn-sm"
-                        onClick={() => setEditingNote(null)}
+                        onClick={() => {
+                          setEditingNote(null);
+                          setEditDraft({ title: '', text: '' });
+                        }}
                       >
                         Cancel
                       </button>
@@ -113,21 +185,28 @@ export default function Notes() {
                 ) : (
                   <>
                     <div className="note-header">
-                      <button className="note-ref" onClick={() => goToVerse(note)}>
-                        <BookOpen size={14} />
-                        <span>{ref}</span>
-                      </button>
+                      <div className="note-meta">
+                        <strong className="note-title">{note.title || ref || 'Untitled note'}</strong>
+                        {ref ? (
+                          <button className="note-ref" onClick={() => goToVerse(note)}>
+                            <BookOpen size={14} />
+                            <span>{ref}</span>
+                          </button>
+                        ) : (
+                          <span className="chip note-chip">General note</span>
+                        )}
+                      </div>
                       <span className="note-date">
                         {new Date(note.updatedAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="note-text">{note.text}</p>
+                    {note.text && <p className="note-text">{note.text}</p>}
                     <div className="note-actions">
                       <button
                         className="note-action-btn"
                         onClick={() => {
                           setEditingNote(note);
-                          setEditText(note.text);
+                          setEditDraft({ title: note.title || '', text: note.text || '' });
                         }}
                       >
                         <Edit3 size={14} />

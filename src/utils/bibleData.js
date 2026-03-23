@@ -71,6 +71,13 @@ export const BIBLE_BOOKS = [
 
 export const AVAILABLE_TRANSLATIONS = [
   {
+    id: 'nkjv',
+    name: 'New King James Version',
+    abbreviation: 'NKJV',
+    language: 'English',
+    description: 'Modernized KJV wording. This build needs a licensed local bundle to install it offline.',
+  },
+  {
     id: 'kjv',
     name: 'King James Version',
     abbreviation: 'KJV',

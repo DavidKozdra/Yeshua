@@ -196,6 +196,23 @@
   margin-bottom: 0.75rem;
 }
 
+.read-empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text-secondary);
+}
+
+.read-progress {
+  max-width: 320px;
+  margin: 1rem auto 0;
+}
+
+.read-empty-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
 /* Verses */
 .verses {
   font-family: var(--font-reading);

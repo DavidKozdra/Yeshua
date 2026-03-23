@@ -1,3 +1,6 @@
+import { CUSTOM_THEME_DEFAULT, normalizeCustomTheme } from './theme';
+import { DEFAULT_TRANSLATION_ID } from './translationConfig';
+
 const SETTINGS_KEY = 'yeshua-settings';
 const LAST_READ_KEY = 'yeshua-last-read';
 const PROFILE_KEY = 'yeshua-profile';
@@ -6,21 +9,37 @@ const defaults = {
   fontSize: 18,
   lineHeight: 1.8,
   theme: 'dark',
-  defaultTranslation: 'kjv',
+  defaultTranslation: DEFAULT_TRANSLATION_ID,
   showVerseNumbers: true,
+  customTheme: CUSTOM_THEME_DEFAULT,
 };
 
 export function getSettings() {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
-    return stored ? { ...defaults, ...JSON.parse(stored) } : { ...defaults };
+    if (!stored) {
+      return { ...defaults, customTheme: { ...CUSTOM_THEME_DEFAULT } };
+    }
+
+    const parsed = JSON.parse(stored);
+    return {
+      ...defaults,
+      ...parsed,
+      customTheme: normalizeCustomTheme(parsed.customTheme),
+    };
   } catch {
-    return { ...defaults };
+    return { ...defaults, customTheme: { ...CUSTOM_THEME_DEFAULT } };
   }
 }
 
 export function saveSettings(settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      ...settings,
+      customTheme: normalizeCustomTheme(settings.customTheme),
+    })
+  );
 }
 
 export function getLastRead() {

@@ -11,24 +11,36 @@ import {
   Plus,
 } from 'lucide-react';
 import { BIBLE_BOOKS, getBookById, getTranslationById } from '../utils/bibleData';
-import { fetchChapter } from '../utils/api';
-import { getNotesForChapter, saveNote, deleteNote } from '../utils/db';
+import { fetchChapter, resolveInstallableTranslationId } from '../utils/api';
+import {
+  getNotesForChapter,
+  saveNote,
+  deleteNote,
+  getAllDownloadedTranslations,
+  getChapter,
+  getTranslationMeta,
+} from '../utils/db';
 import { getSettings, saveLastRead, getLastRead } from '../utils/storage';
-import { getAllDownloadedTranslations } from '../utils/db';
+import { DEFAULT_TRANSLATION_ID, FALLBACK_TRANSLATION_ID } from '../utils/translationConfig';
 import '../styles/read.css';
 
 export default function Read() {
   const params = useParams();
   const navigate = useNavigate();
   const settings = getSettings();
+  const lastRead = getLastRead();
+  const resolvedBook = getBookById(params.bookId || lastRead?.bookId || 'JHN') || getBookById('JHN');
+  const parsedChapter = Number.parseInt(params.chapter ?? '', 10);
+  const resolvedChapter = Number.isNaN(parsedChapter) ? lastRead?.chapter || 1 : parsedChapter;
+  const resolvedTranslation =
+    getTranslationById(params.translationId || lastRead?.translationId || settings.defaultTranslation) ||
+    getTranslationById(settings.defaultTranslation) ||
+    getTranslationById(DEFAULT_TRANSLATION_ID) ||
+    getTranslationById(FALLBACK_TRANSLATION_ID);
 
-  const resolvedTranslation = params.translationId || settings.defaultTranslation;
-  const resolvedBook = params.bookId || getLastRead()?.bookId || 'JHN';
-  const resolvedChapter = parseInt(params.chapter) || getLastRead()?.chapter || 1;
-
-  const [translationId, setTranslationId] = useState(resolvedTranslation);
-  const [bookId, setBookId] = useState(resolvedBook);
-  const [chapter, setChapter] = useState(resolvedChapter);
+  const translationId = resolvedTranslation.id;
+  const bookId = resolvedBook.id;
+  const chapter = Math.min(Math.max(resolvedChapter, 1), resolvedBook.chapters);
   const [verses, setVerses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,29 +52,127 @@ export default function Read() {
   const [noteText, setNoteText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [availableTranslations, setAvailableTranslations] = useState([]);
+  const [offlineState, setOfflineState] = useState({
+    ready: false,
+    message: 'Preparing your offline Bible library...',
+    progress: null,
+  });
   const contentRef = useRef(null);
 
-  const book = getBookById(bookId);
-  const translation = getTranslationById(translationId);
+  const book = resolvedBook;
+  const translation = resolvedTranslation;
 
   useEffect(() => {
-    getAllDownloadedTranslations().then(setAvailableTranslations);
-  }, []);
+    let cancelled = false;
+    let timeoutId;
+
+    async function syncOfflineState() {
+      const downloadedTranslations = await getAllDownloadedTranslations();
+      if (cancelled) return false;
+
+      setAvailableTranslations(downloadedTranslations);
+
+      const translationReady = downloadedTranslations.some((item) => item.id === translationId);
+      const cachedChapter = await getChapter(translationId, bookId, chapter);
+      if (cancelled) return false;
+
+      if (!translationReady && downloadedTranslations.length > 0 && !cachedChapter) {
+        const fallbackTranslation =
+          downloadedTranslations.find((item) => item.id === settings.defaultTranslation) ||
+          downloadedTranslations[0];
+
+        if (fallbackTranslation && fallbackTranslation.id !== translationId) {
+          navigate(`/read/${fallbackTranslation.id}/${bookId}/${chapter}`, { replace: true });
+          return false;
+        }
+      }
+
+      if (translationReady || cachedChapter) {
+        setOfflineState({ ready: true, message: '', progress: null });
+        return false;
+      }
+
+      const startupTranslationId = resolveInstallableTranslationId();
+      const startupTranslation = startupTranslationId
+        ? getTranslationById(startupTranslationId)
+        : null;
+      const startupMeta = startupTranslationId
+        ? await getTranslationMeta(startupTranslationId)
+        : null;
+      if (cancelled) return false;
+
+      setOfflineState({
+        ready: false,
+        message: startupMeta?.inProgress
+          ? `Preparing ${startupTranslation?.abbreviation || 'your offline Bible library'}...`
+          : downloadedTranslations.length === 0
+            ? startupTranslation
+              ? `${startupTranslation.abbreviation} is installed by default in this build.`
+              : 'Download a translation to start reading offline.'
+            : `${translation.abbreviation} is not downloaded yet.`,
+        progress: startupMeta?.totalChapters
+          ? {
+              done: startupMeta.completedChapters ?? 0,
+              total: startupMeta.totalChapters,
+            }
+          : null,
+      });
+
+      return Boolean(startupMeta?.inProgress);
+    }
+
+    async function watchOfflineState() {
+      let shouldPoll = true;
+
+      while (!cancelled && shouldPoll) {
+        shouldPoll = await syncOfflineState();
+        if (!shouldPoll || cancelled) break;
+
+        await new Promise((resolve) => {
+          timeoutId = window.setTimeout(resolve, 1200);
+        });
+      }
+    }
+
+    watchOfflineState();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [
+    translationId,
+    bookId,
+    chapter,
+    settings.defaultTranslation,
+    navigate,
+    translation.abbreviation,
+  ]);
 
   const loadChapter = useCallback(async () => {
+    if (!offlineState.ready) {
+      setVerses([]);
+      setChapterNotes([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchChapter(translationId, bookId, chapter);
+      const data = await fetchChapter(translationId, bookId, chapter, { offlineOnly: true });
       setVerses(data);
       saveLastRead({ translationId, bookId, chapter });
       const notes = await getNotesForChapter(bookId, chapter);
       setChapterNotes(notes);
     } catch (err) {
+      setVerses([]);
+      setChapterNotes([]);
       setError(err.message);
     }
     setLoading(false);
-  }, [translationId, bookId, chapter]);
+  }, [offlineState.ready, translationId, bookId, chapter]);
 
   useEffect(() => {
     loadChapter();
@@ -72,10 +182,8 @@ export default function Read() {
     contentRef.current?.scrollTo(0, 0);
   }, [bookId, chapter]);
 
-  function goTo(newBook, newChapter) {
-    setBookId(newBook);
-    setChapter(newChapter);
-    navigate(`/read/${translationId}/${newBook}/${newChapter}`, { replace: true });
+  function goTo(newBook, newChapter, newTranslation = translationId) {
+    navigate(`/read/${newTranslation}/${newBook}/${newChapter}`, { replace: true });
   }
 
   function prevChapter() {
@@ -124,6 +232,7 @@ export default function Read() {
     if (!noteText.trim()) return;
     const note = {
       ...(editingNoteId ? { id: editingNoteId } : {}),
+      translationId,
       bookId,
       chapter,
       verse: selectedVerse,
@@ -181,8 +290,7 @@ export default function Read() {
             className="translation-select"
             value={translationId}
             onChange={(e) => {
-              setTranslationId(e.target.value);
-              navigate(`/read/${e.target.value}/${bookId}/${chapter}`, { replace: true });
+              goTo(bookId, chapter, e.target.value);
             }}
           >
             {/* Always show current translation */}
@@ -286,6 +394,35 @@ export default function Read() {
         </h2>
 
         {loading && <div className="loading-spinner">Loading...</div>}
+        {!loading && !offlineState.ready && (
+          <div className="read-empty-state">
+            <p>{offlineState.message}</p>
+            {offlineState.progress && (
+              <div className="download-progress read-progress">
+                <div className="progress-bar">
+                  <div
+                    className="progress-bar-fill"
+                    style={{
+                      width: `${
+                        offlineState.progress.total
+                          ? (offlineState.progress.done / offlineState.progress.total) * 100
+                          : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+                <span className="progress-text">
+                  {offlineState.progress.done} / {offlineState.progress.total} chapters saved
+                </span>
+              </div>
+            )}
+            <div className="read-empty-actions">
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/translations')}>
+                Open Translations
+              </button>
+            </div>
+          </div>
+        )}
         {error && (
           <div className="read-error">
             <p>{error}</p>
@@ -295,7 +432,7 @@ export default function Read() {
           </div>
         )}
 
-        {!loading && !error && (
+        {!loading && !error && offlineState.ready && (
           <div
             className="verses"
             style={{
@@ -319,16 +456,18 @@ export default function Read() {
         )}
 
         {/* Chapter navigation */}
-        <div className="chapter-nav">
-          <button className="btn btn-outline" onClick={prevChapter}>
-            <ChevronLeft size={18} />
-            Previous
-          </button>
-          <button className="btn btn-outline" onClick={nextChapter}>
-            Next
-            <ChevronRight size={18} />
-          </button>
-        </div>
+        {offlineState.ready && !error && (
+          <div className="chapter-nav">
+            <button className="btn btn-outline" onClick={prevChapter}>
+              <ChevronLeft size={18} />
+              Previous
+            </button>
+            <button className="btn btn-outline" onClick={nextChapter}>
+              Next
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Note modal */}
