@@ -174,7 +174,7 @@ textarea {
 /* Utility */
 .page {
   padding: 1.5rem;
-  max-width: 860px;
+  max-width: 90%;
   margin: 0 auto;
   padding-bottom: calc(var(--nav-height) + 2rem);
 }
