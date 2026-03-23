@@ -1,13 +1,204 @@
-export const ABRAHAMIC_COLLECTIONS = [
+const BIBLE_API_ROOT = 'https://raw.githubusercontent.com/wldeh/bible-api/main/bibles';
+
+const APOCRYPHA_WORKS = [
+  {
+    id: 'tobit',
+    title: 'Tobit',
+    subtitle: 'Deuterocanonical history',
+    reference: 'Tobit',
+    description: 'Wisdom, exile, family faithfulness, and providence.',
+    chapters: 14,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: 'tobit',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: 'judith',
+    title: 'Judith',
+    subtitle: 'Deliverance and courage',
+    reference: 'Judith',
+    description: 'A dramatic account of courage, prayer, and deliverance.',
+    chapters: 16,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: 'judith',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: 'wisdom-of-solomon',
+    title: 'Wisdom of Solomon',
+    subtitle: 'Righteousness and immortality',
+    reference: 'Wisdom',
+    description: 'A wisdom book centered on righteousness, justice, and divine wisdom.',
+    chapters: 19,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: 'wisdomofsolomon',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: 'sirach',
+    title: 'Sirach',
+    subtitle: 'Ecclesiasticus',
+    reference: 'Sirach',
+    description: 'A long wisdom collection on virtue, humility, worship, and daily conduct.',
+    chapters: 51,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: 'ecclesiasticus',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: 'baruch',
+    title: 'Baruch',
+    subtitle: 'Confession and hope',
+    reference: 'Baruch',
+    description: 'Prayers of repentance and hope, including the wisdom hymn.',
+    chapters: 6,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-engbrent/books`,
+      bookPath: 'baruch',
+      sourceLabel: 'Brenton English Septuagint',
+    },
+  },
+  {
+    id: 'prayer-of-manasses',
+    title: 'Prayer of Manasses',
+    subtitle: 'Prayer of repentance',
+    reference: 'Prayer of Manasses',
+    description: 'A brief penitential prayer traditionally associated with King Manasseh.',
+    chapters: 1,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: 'prayerofmanasses',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: '1-esdras',
+    title: '1 Esdras',
+    subtitle: 'Historical retelling',
+    reference: '1 Esdras',
+    description: 'An alternate Greek retelling of Ezra-Nehemiah material.',
+    chapters: 9,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: '1esdras',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: '2-esdras',
+    title: '2 Esdras',
+    subtitle: 'Apocalyptic visions',
+    reference: '2 Esdras',
+    description: 'A visionary and apocalyptic work often grouped with the wider apocrypha.',
+    chapters: 16,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: '2esdras',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: 'song-of-the-three-holy-children',
+    title: 'Song of the Three Holy Children',
+    subtitle: 'Prayer and praise',
+    reference: 'Song of the Three Holy Children',
+    description: 'The prayer and song associated with the fiery furnace narrative.',
+    chapters: 1,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: 'songofthethreeholychildren',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: 'susanna',
+    title: 'Susanna',
+    subtitle: 'Judgment and innocence',
+    reference: 'Susanna',
+    description: 'A Daniel-related narrative about false accusation and righteous judgment.',
+    chapters: 1,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: 'susanna',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: 'bel-and-the-dragon',
+    title: 'Bel and the Dragon',
+    subtitle: 'Daniel addition',
+    reference: 'Bel and the Dragon',
+    description: 'A Daniel-related narrative challenging idolatry and false worship.',
+    chapters: 1,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: 'belandthedragon',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: '1-maccabees',
+    title: '1 Maccabees',
+    subtitle: 'Hasmonean history',
+    reference: '1 Maccabees',
+    description: 'A historical account of the Maccabean revolt and its aftermath.',
+    chapters: 16,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: '1maccabees',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+  {
+    id: '2-maccabees',
+    title: '2 Maccabees',
+    subtitle: 'Martyrdom and restoration',
+    reference: '2 Maccabees',
+    description: 'A retelling of the Maccabean era with focus on temple restoration and martyrdom.',
+    chapters: 15,
+    source: {
+      provider: 'bible-api',
+      apiSource: `${BIBLE_API_ROOT}/en-US-kjvcpb/books`,
+      bookPath: '2maccabees',
+      sourceLabel: 'Cambridge Paragraph Bible',
+    },
+  },
+];
+
+function getTotalChapters(works = []) {
+  return works.reduce((total, work) => total + (work.chapters || 0), 0);
+}
+
+export const BOOK_COLLECTIONS = [
   {
     id: 'bible',
     kind: 'bible',
     name: 'Bible',
     tradition: 'Judaism and Christianity',
     description:
-      'The existing offline Bible reader with translations, notes, and search.',
+      'The existing offline Bible reader with translations, notes, search, red-letter support, and holy-day awareness.',
     summary:
-      'Includes the Torah, Prophets, Writings, Gospels, and apostolic writings already supported in the app.',
+      'Use the Bible reader for canonical Old and New Testament reading with the existing translation install flow.',
     actionLabel: 'Open Bible reader',
   },
   {
@@ -16,85 +207,15 @@ export const ABRAHAMIC_COLLECTIONS = [
     name: "Qur'an",
     tradition: 'Islam',
     description:
-      'A starter set of public-domain English passages to widen the library beyond the Bible.',
+      'Full Qur\'an access through the Pickthall English translation with per-collection download and offline caching.',
     summary:
-      'Uses the Pickthall English rendering for local reading inside the app.',
-    sourceLabel: 'Pickthall translation (public domain)',
-    works: [
-      {
-        id: 'al-fatihah',
-        title: 'Al-Fatihah',
-        subtitle: 'The Opening',
-        reference: 'Surah 1',
-        description: 'The opening prayer of the Qur\'an.',
-        sourceLabel: 'Pickthall translation (public domain)',
-        passages: [
-          { verse: 1, text: 'In the name of Allah, the Beneficent, the Merciful.' },
-          { verse: 2, text: 'Praise be to Allah, Lord of the Worlds,' },
-          { verse: 3, text: 'The Beneficent, the Merciful.' },
-          { verse: 4, text: 'Master of the Day of Judgment,' },
-          { verse: 5, text: 'Thee (alone) we worship; Thee (alone) we ask for help.' },
-          { verse: 6, text: 'Show us the straight path,' },
-          {
-            verse: 7,
-            text: 'The path of those whom Thou hast favoured; Not the (path) of those who earn Thine anger nor of those who go astray.',
-          },
-        ],
-      },
-      {
-        id: 'maryam',
-        title: 'Maryam',
-        subtitle: 'Jesus speaks in infancy',
-        reference: 'Surah 19:30-36',
-        description:
-          'A passage centered on Mary and Jesus, often compared in interfaith study.',
-        sourceLabel: 'Pickthall translation (public domain)',
-        passages: [
-          {
-            verse: 30,
-            text: 'He spake: Lo! I am the slave of Allah. He hath given me the Scripture and hath appointed me a Prophet,',
-          },
-          {
-            verse: 31,
-            text: 'And hath made me blessed wheresoever I may be, and hath enjoined upon me prayer and almsgiving so long as I remain alive,',
-          },
-          {
-            verse: 32,
-            text: 'And (hath made me) dutiful toward her who bore me, and hath not made me arrogant, unblest.',
-          },
-          {
-            verse: 33,
-            text: 'Peace on me the day I was born, and the day I die, and the day I shall be raised alive!',
-          },
-          {
-            verse: 34,
-            text: 'Such was Jesus, son of Mary: (this is) a statement of the truth concerning which they doubt.',
-          },
-          {
-            verse: 35,
-            text: 'It befitteth not (the Majesty of) Allah that He should take unto Himself a son. Glory be to Him! When He decreeth a thing, He saith unto it only: Be! and it is.',
-          },
-          {
-            verse: 36,
-            text: 'And lo! Allah is my Lord and your Lord. So serve Him. That is the right path.',
-          },
-        ],
-      },
-      {
-        id: 'al-ikhlas',
-        title: 'Al-Ikhlas',
-        subtitle: 'Sincerity',
-        reference: 'Surah 112',
-        description: 'A short confession of divine oneness.',
-        sourceLabel: 'Pickthall translation (public domain)',
-        passages: [
-          { verse: 1, text: 'Say: He is Allah, the One!' },
-          { verse: 2, text: 'Allah, the eternally Besought of all!' },
-          { verse: 3, text: 'He begetteth not nor was begotten.' },
-          { verse: 4, text: 'And there is none comparable unto Him.' },
-        ],
-      },
-    ],
+      'The catalog contains all 114 surahs. You can stream online or save the whole canon to device storage.',
+    sourceLabel: 'Quran API: alquran.cloud, edition en.pickthall',
+    catalogSource: 'quran-api',
+    defaultWorkId: '1',
+    workCount: 114,
+    totalChapters: 114,
+    chapterLabel: 'Surah',
   },
   {
     id: 'apocrypha',
@@ -102,105 +223,121 @@ export const ABRAHAMIC_COLLECTIONS = [
     name: 'Apocrypha',
     tradition: 'Jewish and Christian literature',
     description:
-      'A starter shelf of deuterocanonical passages that do not appear in the default Bible book list today.',
+      'A fuller deuterocanonical and wider apocryphal shelf, with its own install/remove flow separate from Bible translations.',
     summary:
-      'Useful for broadening the library while leaving the Bible reader data model unchanged.',
-    sourceLabel: 'Public-domain English texts',
-    works: [
-      {
-        id: 'wisdom-3',
-        title: 'Wisdom of Solomon',
-        subtitle: 'Hope of the righteous',
-        reference: 'Wisdom 3:1-9',
-        description: 'A classic deuterocanonical passage on immortality and judgment.',
-        sourceLabel: 'WEBUS public-domain text',
-        passages: [
-          { verse: 1, text: 'But the souls of the righteous are in the hand of God, and no torment will touch them.' },
-          { verse: 2, text: 'In the eyes of the foolish they seemed to have died. Their departure was considered a disaster,' },
-          { verse: 3, text: 'and their travel away from us ruin, but they are in peace.' },
-          { verse: 4, text: 'For even if in the sight of men they are punished, their hope is full of immortality.' },
-          { verse: 5, text: 'Having borne a little chastening, they will receive great good; because God tested them, and found them worthy of himself.' },
-          { verse: 6, text: 'He tested them like gold in the furnace, and he accepted them as a whole burnt offering.' },
-          { verse: 7, text: 'In the time of their visitation they will shine. They will run back and forth like sparks among stubble.' },
-          { verse: 8, text: 'They will judge nations and have dominion over peoples. The Lord will reign over them forever.' },
-          { verse: 9, text: 'Those who trust him will understand truth. The faithful will live with him in love, because grace and mercy are with his chosen ones.' },
-        ],
-      },
-      {
-        id: 'sirach-2',
-        title: 'Sirach',
-        subtitle: 'Endurance and trust',
-        reference: 'Sirach 2:1-11',
-        description: 'A wisdom passage on endurance, humility, and trust in God.',
-        sourceLabel: 'Brenton Septuagint translation (public domain)',
-        passages: [
-          { verse: 1, text: 'My son, if thou come to serve the Lord, prepare thy soul for temptation.' },
-          { verse: 2, text: 'Set thy heart aright, and constantly endure, and make not haste in time of trouble.' },
-          { verse: 3, text: 'Cleave unto him, and depart not away, that thou mayest be increased at thy last end.' },
-          { verse: 4, text: 'Whatsoever is brought upon thee take cheerfully, and be patient when thou art changed to a low estate.' },
-          { verse: 5, text: 'For gold is tried in the fire, and acceptable men in the furnace of adversity.' },
-          { verse: 6, text: 'Believe in him, and he will help thee; order thy way aright, and trust in him.' },
-          { verse: 7, text: 'Ye that fear the Lord, wait for his mercy; and go not aside, lest ye fall.' },
-          { verse: 8, text: 'Ye that fear the Lord, believe him; and your reward shall not fail.' },
-          { verse: 9, text: 'Ye that fear the Lord, hope for good, and for everlasting joy and mercy.' },
-          {
-            verse: 10,
-            text: 'Look at the generations of old, and see; did ever any trust in the Lord, and was confounded? or did any abide in his fear, and was forsaken? or whom did he ever despise, that called upon him?',
-          },
-          {
-            verse: 11,
-            text: 'For the Lord is full of compassion and mercy, longsuffering, and very pitiful, and forgiveth sins, and saveth in time of affliction.',
-          },
-        ],
-      },
-    ],
+      'Combines public-domain Cambridge Paragraph Bible and Brenton sources where those books are exposed cleanly upstream.',
+    sourceLabel: 'Bible API public-domain sources',
+    defaultWorkId: 'tobit',
+    works: APOCRYPHA_WORKS,
+    workCount: APOCRYPHA_WORKS.length,
+    totalChapters: getTotalChapters(APOCRYPHA_WORKS),
+    chapterLabel: 'Chapter',
   },
   {
     id: 'bahai',
     kind: 'external',
-    name: "Baha'i Texts",
+    name: "Baha'i Library",
     tradition: "Baha'i Faith",
     description:
-      'Direct links into the official Baha\'i Reference Library for authoritative online reading.',
+      'A broader official Bahá\'í library entry point for authoritative writings and guidance.',
     summary:
-      'The app links out here instead of bundling local copies because the official English texts remain copyrighted.',
-    sourceLabel: 'Official Baha\'i Reference Library',
+      'These remain linked to the official Bahá\'í Reference Library rather than mirrored locally because the English texts are still governed by official terms.',
+    sourceLabel: 'Official Bahá\'í Reference Library',
     works: [
-      {
-        id: 'bahai-library',
-        title: "Baha'i Reference Library",
-        subtitle: 'Official portal',
-        reference: 'bahai.org/library',
-        description:
-          'Browse the main library for authoritative writings, prayers, and guidance.',
-        href: 'https://www.bahai.org/library',
-      },
       {
         id: 'authoritative-texts',
         title: 'Authoritative Writings and Guidance',
-        subtitle: 'Collection overview',
-        reference: 'bahai.org/library/authoritative-texts',
-        description:
-          'An overview of the major collections available in English online.',
+        subtitle: 'Official collection overview',
+        reference: 'Bahai.org library root',
+        description: 'Browse the full official collections page across Bahá’u’lláh, the Báb, ‘Abdu’l‑Bahá, prayers, Shoghi Effendi, and more.',
         href: 'https://www.bahai.org/library/authoritative-texts/',
       },
       {
-        id: 'kitab-i-aqdas',
-        title: 'The Kitab-i-Aqdas',
-        subtitle: 'The Most Holy Book',
-        reference: 'Official reading page',
-        description:
-          'The official overview and online reader for one of the central Baha\'i texts.',
-        href: 'https://www.bahai.org/library/authoritative-texts/bahaullah/kitab-i-aqdas/',
+        id: 'bahaullah',
+        title: 'Writings of Bahá’u’lláh',
+        subtitle: 'Official author collection',
+        reference: 'Bahá’u’lláh',
+        description: 'Principal works of Bahá’u’lláh translated into English in the official library.',
+        href: 'https://www.bahai.org/library/authoritative-texts/bahaullah/',
+      },
+      {
+        id: 'the-bab',
+        title: 'Writings of the Báb',
+        subtitle: 'Official author collection',
+        reference: 'The Báb',
+        description: 'Official access to selections and translated writings of the Báb.',
+        href: 'https://www.bahai.org/library/authoritative-texts/the-bab/',
+      },
+      {
+        id: 'abdul-baha',
+        title: 'Writings and Talks of ‘Abdu’l‑Bahá',
+        subtitle: 'Official author collection',
+        reference: '‘Abdu’l‑Bahá',
+        description: 'Official access to talks, tablets, and major compilations by ‘Abdu’l‑Bahá.',
+        href: 'https://www.bahai.org/library/authoritative-texts/abdul-baha/',
+      },
+      {
+        id: 'downloads',
+        title: 'Downloads Index',
+        subtitle: 'Official downloadable texts',
+        reference: 'PDF, DOCX, HTML',
+        description: 'Browse the official downloads index for the current English publications and formats.',
+        href: 'https://www.bahai.org/library/authoritative-texts/downloads',
+      },
+    ],
+  },
+  {
+    id: 'zoroastrian',
+    kind: 'external',
+    name: 'Zoroastrian Texts',
+    tradition: 'Zoroastrianism',
+    description:
+      'A Zoroastrian shelf anchored around public-domain Avesta and related translations.',
+    summary:
+      'These are linked out to archival sources because the current app build does not yet have a normalized Zoroastrian text API comparable to the Bible or Qur\'an sources.',
+    sourceLabel: 'Public-domain archival sources',
+    works: [
+      {
+        id: 'avesta-index',
+        title: 'Avesta Archive',
+        subtitle: 'Collection overview',
+        reference: 'Sacred Texts Archive',
+        description: 'Top-level Zoroastrian index for the Avesta and related translations.',
+        href: 'https://www.sacred-texts.com/zor/index.htm',
+      },
+      {
+        id: 'yasna',
+        title: 'Yasna',
+        subtitle: 'Sacred liturgy and Gathas',
+        reference: 'Primary liturgical text',
+        description: 'A direct reading entry into the Yasna material in the Sacred Texts archive.',
+        href: 'https://www.sacred-texts.com/zor/sbe31/yasnae.htm',
+      },
+      {
+        id: 'vendidad',
+        title: 'Vendidad',
+        subtitle: 'Ritual and purity laws',
+        reference: 'Sacred Books of the East',
+        description: 'Archival entry point to the Vendidad translation volumes.',
+        href: 'https://www.sacred-texts.com/zor/sbe04/index.htm',
+      },
+      {
+        id: 'khordeh-avesta',
+        title: 'Khordeh Avesta',
+        subtitle: 'Daily prayer collection',
+        reference: 'Prayer book and liturgy',
+        description: 'Archival entry point to the Khordeh Avesta and related liturgical material.',
+        href: 'https://www.sacred-texts.com/zor/sbe23/index.htm',
       },
     ],
   },
 ];
 
-const COLLECTION_MAP = new Map(ABRAHAMIC_COLLECTIONS.map((collection) => [collection.id, collection]));
+const COLLECTION_MAP = new Map(BOOK_COLLECTIONS.map((collection) => [collection.id, collection]));
 
-export const BOOKS_TAB_COLLECTIONS = ABRAHAMIC_COLLECTIONS;
-export const READER_COLLECTIONS = ABRAHAMIC_COLLECTIONS.filter(
+export const BOOKS_TAB_COLLECTIONS = BOOK_COLLECTIONS;
+export const READER_COLLECTIONS = BOOK_COLLECTIONS.filter((collection) => collection.kind === 'reader');
+export const DOWNLOADABLE_BOOK_COLLECTIONS = BOOK_COLLECTIONS.filter(
   (collection) => collection.kind === 'reader'
 );
 
@@ -208,9 +345,38 @@ export function getBooksCollectionById(collectionId) {
   return COLLECTION_MAP.get(collectionId) || null;
 }
 
-export function getBooksWorkById(collectionId, workId) {
+export function getBooksCollectionWorks(collectionId, resolvedWorks = null) {
   const collection = getBooksCollectionById(collectionId);
-  if (!collection?.works) return null;
-  return collection.works.find((work) => work.id === workId) || null;
+  if (!collection) return [];
+  if (Array.isArray(resolvedWorks)) return resolvedWorks;
+  return Array.isArray(collection.works) ? collection.works : [];
+}
+
+export function getBooksWorkById(collectionId, workId, resolvedWorks = null) {
+  const works = getBooksCollectionWorks(collectionId, resolvedWorks);
+  return works.find((work) => work.id === workId) || null;
+}
+
+export function getBooksCollectionDefaultRoute(collectionId, resolvedWorks = null) {
+  const collection = getBooksCollectionById(collectionId);
+  if (!collection) return '/books';
+
+  const works = getBooksCollectionWorks(collectionId, resolvedWorks);
+  const defaultWorkId = collection.defaultWorkId || works[0]?.id;
+  if (!defaultWorkId) return '/books';
+
+  return `/books/${collection.id}/${defaultWorkId}/1`;
+}
+
+export function getBooksCollectionStats(collectionId, resolvedWorks = null) {
+  const collection = getBooksCollectionById(collectionId);
+  if (!collection) return { workCount: 0, totalChapters: 0 };
+
+  const works = getBooksCollectionWorks(collectionId, resolvedWorks);
+
+  return {
+    workCount: collection.workCount || works.length,
+    totalChapters: collection.totalChapters || getTotalChapters(works),
+  };
 }
 

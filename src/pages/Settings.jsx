@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Sun, BookOpen, Type, Eye, Palette, Search, Volume2, CalendarDays, Bell } from 'lucide-react';
 import { getSettings, saveSettings } from '../utils/storage';
 import {
@@ -21,7 +21,7 @@ import {
   normalizeCustomTheme,
 } from '../utils/theme';
 import { isTextToSpeechSupported, TTS_RATE_OPTIONS } from '../utils/tts';
-import { HOLY_DAY_OPTIONS } from '../utils/holyDays';
+import { getHolyDayWindow, HOLY_DAY_OPTIONS } from '../utils/holyDays';
 import {
   getWordsOfChristSegments,
   hasWordsOfChristVerse,
@@ -52,6 +52,7 @@ const BUILT_IN_THEME_LABELS = {
   sepia: 'Sepia',
 };
 const HOLY_DAY_REMINDER_OPTIONS = [0, 1, 2, 3, 5, 7, 14];
+const HOLY_DAY_DATE_LOOKAHEAD_DAYS = 400;
 
 function formatPreviewReference(bookId, chapter, verse) {
   return `${getBookById(bookId)?.name || bookId} ${chapter}:${verse}`;
@@ -112,6 +113,26 @@ export default function Settings() {
   const previewHasWordsOfChristVerse =
     selectedPreviewVerse &&
     hasWordsOfChristVerse(previewBookId, previewChapter, selectedPreviewVerse.verse);
+
+  const holidayDayLabels = useMemo(() => {
+    if (!settings.enableHolyDayAwareness) {
+      return {};
+    }
+
+    const holyDayWindow = getHolyDayWindow(new Date(), {
+      bannerWindowDays: HOLY_DAY_DATE_LOOKAHEAD_DAYS,
+      daysForward: HOLY_DAY_DATE_LOOKAHEAD_DAYS,
+      preferences: settings.holyDayPreferences,
+    });
+
+    return holyDayWindow.week.reduce((acc, occurrence) => {
+      if (!acc[occurrence.id]) {
+        acc[occurrence.id] = occurrence.shortRangeLabel || occurrence.rangeLabel;
+      }
+
+      return acc;
+    }, {});
+  }, [settings.enableHolyDayAwareness, settings.holyDayPreferences]);
 
   useEffect(() => {
     applyTheme(settings);
@@ -388,98 +409,6 @@ export default function Settings() {
               Adds a Books tab for the Bible plus other Abrahamic collections, including bundled
               Qur&apos;an and Apocrypha starter passages and official Baha&apos;i links.
             </p>
-          </div>
-        </section>
-
-        <section className="settings-section">
-          <p className="section-label">Holy Days</p>
-          <div className="card settings-card-group">
-            <div className="setting-row">
-              <div className="setting-label">
-                <CalendarDays size={18} />
-                <span>Enable Holy Day Awareness</span>
-              </div>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={settings.enableHolyDayAwareness}
-                  onChange={(e) => update('enableHolyDayAwareness', e.target.checked)}
-                />
-                <span className="toggle-slider" />
-              </label>
-            </div>
-
-            <div className="setting-divider" />
-
-            <div className="setting-row">
-              <div className="setting-label">
-                <Bell size={18} />
-                <span>Reminder Lead Time</span>
-              </div>
-              <select
-                value={settings.holyDayReminderLeadDays}
-                onChange={(e) => update('holyDayReminderLeadDays', Number.parseInt(e.target.value, 10))}
-                disabled={!settings.enableHolyDayAwareness}
-              >
-                {HOLY_DAY_REMINDER_OPTIONS.map((days) => (
-                  <option key={days} value={days}>
-                    {days === 0 ? 'Same day only' : `${days} day${days === 1 ? '' : 's'} before`}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <p className="settings-help">
-              Hidden observances stay out of banners and reminders. Silent observances still appear
-              in the holiday manager but will not trigger reminder toasts.
-            </p>
-
-            <div className="setting-divider" />
-
-            <div className="holy-day-settings-list">
-              {HOLY_DAY_OPTIONS.map((holiday) => {
-                const preference = settings.holyDayPreferences[holiday.id];
-
-                return (
-                  <div key={holiday.id} className="holy-day-setting-item">
-                    <div className="holy-day-setting-copy">
-                      <strong>{holiday.name}</strong>
-                      <span>{holiday.isHighHolyDay ? 'High holy day' : 'Optional observance'}</span>
-                    </div>
-
-                    <div className="holy-day-setting-controls">
-                      <div className="holy-day-setting-toggle">
-                        <span>Shown</span>
-                        <label className="toggle">
-                          <input
-                            type="checkbox"
-                            checked={preference?.enabled !== false}
-                            disabled={!settings.enableHolyDayAwareness}
-                            onChange={(e) => updateHolyDayPreference(holiday.id, 'enabled', e.target.checked)}
-                          />
-                          <span className="toggle-slider" />
-                        </label>
-                      </div>
-
-                      <div className="holy-day-setting-toggle">
-                        <span>Alert</span>
-                        <label className="toggle">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(preference?.remindersEnabled)}
-                            disabled={!settings.enableHolyDayAwareness || preference?.enabled === false}
-                            onChange={(e) =>
-                              updateHolyDayPreference(holiday.id, 'remindersEnabled', e.target.checked)
-                            }
-                          />
-                          <span className="toggle-slider" />
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </section>
 
@@ -796,6 +725,110 @@ export default function Settings() {
                 <p className="settings-help">No verse available for this selection.</p>
               )}
             </div>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <p className="section-label">Holy Days</p>
+          <div className="card settings-card-group">
+            <div className="setting-row">
+              <div className="setting-label">
+                <CalendarDays size={18} />
+                <span>Enable Holy Day Awareness</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.enableHolyDayAwareness}
+                  onChange={(e) => update('enableHolyDayAwareness', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Bell size={18} />
+                <span>Reminder Lead Time</span>
+              </div>
+              <select
+                value={settings.holyDayReminderLeadDays}
+                onChange={(e) => update('holyDayReminderLeadDays', Number.parseInt(e.target.value, 10))}
+                disabled={!settings.enableHolyDayAwareness}
+              >
+                {HOLY_DAY_REMINDER_OPTIONS.map((days) => (
+                  <option key={days} value={days}>
+                    {days === 0 ? 'Same day only' : `${days} day${days === 1 ? '' : 's'} before`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <p className="settings-help">
+              Hidden observances stay out of banners and reminders. Silent observances still appear
+              in the holiday manager but will not trigger reminder toasts.
+            </p>
+
+            <div className="setting-divider" />
+
+            {settings.enableHolyDayAwareness ? (
+              <div className="holy-day-settings-list">
+                {HOLY_DAY_OPTIONS.map((holiday) => {
+                  const preference = settings.holyDayPreferences[holiday.id];
+                  const dayLabel = holidayDayLabels[holiday.id];
+
+                  return (
+                    <div key={holiday.id} className="holy-day-setting-item">
+                      <div className="holy-day-setting-copy">
+                        <strong>{holiday.name}</strong>
+                        <span>{holiday.isHighHolyDay ? 'High holy day' : 'Optional observance'}</span>
+                      </div>
+
+                      <div className="holy-day-setting-controls">
+                        <div className="holy-day-setting-toggle">
+                          <span>Shown</span>
+                          <label className="toggle">
+                            <input
+                              type="checkbox"
+                              checked={preference?.enabled !== false}
+                              disabled={!settings.enableHolyDayAwareness}
+                              onChange={(e) =>
+                                updateHolyDayPreference(holiday.id, 'enabled', e.target.checked)
+                              }
+                            />
+                            <span className="toggle-slider" />
+                          </label>
+                        </div>
+
+                        <div className="holy-day-setting-toggle">
+                          <span>Alert</span>
+                          <label className="toggle">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(preference?.remindersEnabled)}
+                              disabled={!settings.enableHolyDayAwareness || preference?.enabled === false}
+                              onChange={(e) =>
+                                updateHolyDayPreference(holiday.id, 'remindersEnabled', e.target.checked)
+                              }
+                            />
+                            <span className="toggle-slider" />
+                          </label>
+                        </div>
+                      </div>
+
+                      {dayLabel && <p className="holy-day-setting-day-label">{dayLabel}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="holy-day-settings-collapsed-note">
+                Holy day awareness is disabled, so the holiday list is folded. Enable it to manage
+                individual observances.
+              </p>
+            )}
           </div>
         </section>
 

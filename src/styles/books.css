@@ -50,6 +50,35 @@
   font-size: 0.88rem;
 }
 
+.books-collection-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.books-collection-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.books-stat-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.books-actions {
+  flex-shrink: 0;
+}
+
+.books-progress {
+  max-width: 360px;
+}
+
 .books-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -129,6 +158,21 @@
   gap: 0.9rem;
 }
 
+.book-reader-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.book-reader-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .book-reader-title {
   margin-bottom: 0;
 }
@@ -136,12 +180,6 @@
 .book-reader-subtitle {
   color: var(--text-secondary);
   font-size: 0.94rem;
-}
-
-.book-reader-subtitle span {
-  color: var(--accent);
-  font-weight: 600;
-  margin-left: 0.45rem;
 }
 
 .book-reader-description {
@@ -170,11 +208,49 @@
   padding-top: 1rem;
 }
 
+.book-reader-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+}
+
+.book-reader-banner strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.book-reader-banner p {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.book-reader-banner-ready {
+  border-color: color-mix(in srgb, var(--success) 26%, var(--border) 74%);
+}
+
+.book-reader-banner-progress {
+  min-width: 220px;
+}
+
+.book-reader-banner-pending {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border) 72%);
+}
+
+.book-reader-banner-unavailable {
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border) 76%);
+}
+
 @media (max-width: 640px) {
   .books-section-header {
     flex-direction: column;
   }
 
+  .books-collection-card,
   .book-resource-card {
     flex-direction: column;
   }
@@ -182,5 +258,15 @@
   .book-reader-picker-group {
     flex-direction: column;
     justify-content: stretch;
+  }
+
+  .book-reader-banner,
+  .book-reader-header {
+    flex-direction: column;
+  }
+
+  .book-reader-banner-progress {
+    width: 100%;
+    min-width: 0;
   }
 }

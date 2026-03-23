@@ -14,6 +14,7 @@ import { TTS_RATE_OPTIONS } from './tts';
 
 const SETTINGS_KEY = 'yeshua-settings';
 const LAST_READ_KEY = 'yeshua-last-read';
+const LAST_BOOKS_READ_KEY = 'yeshua-last-books-read';
 const PROFILE_KEY = 'yeshua-profile';
 const HOLY_DAY_REMINDER_KEY = 'yeshua-holy-day-reminders';
 const SETTINGS_EVENT = 'yeshua-settings-changed';
@@ -241,6 +242,19 @@ export function getLastRead() {
 
 export function saveLastRead(location) {
   localStorage.setItem(LAST_READ_KEY, JSON.stringify(location));
+}
+
+export function getLastBooksRead() {
+  try {
+    const stored = localStorage.getItem(LAST_BOOKS_READ_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLastBooksRead(location) {
+  localStorage.setItem(LAST_BOOKS_READ_KEY, JSON.stringify(location));
 }
 
 export function getProfile() {

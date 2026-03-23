@@ -61,7 +61,8 @@ export default function App() {
         <Route path="/read" element={<Read />} />
         <Route path="/read/:translationId/:bookId/:chapter" element={<Read />} />
         <Route path="/books" element={<Books />} />
-        <Route path="/books/:collectionId/:workId" element={<BookText />} />
+        <Route path="/books/:collectionId" element={<BookText />} />
+        <Route path="/books/:collectionId/:workId/:chapter" element={<BookText />} />
         <Route path="/search" element={<Search />} />
         <Route path="/translations" element={<Translations />} />
         <Route path="/notes" element={<Notes />} />
