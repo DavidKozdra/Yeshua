@@ -68,6 +68,12 @@ const APOCRYPHA_WORKS = [
       provider: 'bible-api',
       apiSource: `${BIBLE_API_ROOT}/en-engbrent/books`,
       bookPath: 'baruch',
+      chapterOverrides: {
+        6: {
+          bookPath: 'epistleofjeremy',
+          chapter: 1,
+        },
+      },
       sourceLabel: 'Brenton English Septuagint',
     },
   },
@@ -379,4 +385,3 @@ export function getBooksCollectionStats(collectionId, resolvedWorks = null) {
     totalChapters: collection.totalChapters || getTotalChapters(works),
   };
 }
-

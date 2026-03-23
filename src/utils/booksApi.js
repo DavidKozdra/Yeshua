@@ -130,13 +130,15 @@ async function fetchQuranChapter(work, signal) {
 
 async function fetchBibleApiChapter(work, chapter, signal) {
   const apiSource = work?.source?.apiSource;
-  const bookPath = work?.source?.bookPath;
+  const chapterOverride = work?.source?.chapterOverrides?.[chapter] || null;
+  const bookPath = chapterOverride?.bookPath || work?.source?.bookPath;
+  const sourceChapter = chapterOverride?.chapter || chapter;
   if (!apiSource || !bookPath) {
     throw new Error('This work is missing its source mapping.');
   }
 
   const data = await fetchJson(
-    `${apiSource}/${encodeURIComponent(bookPath)}/chapters/${chapter}.json`,
+    `${apiSource}/${encodeURIComponent(bookPath)}/chapters/${sourceChapter}.json`,
     signal
   );
 
@@ -624,4 +626,3 @@ export async function removeBooksCollection(collectionId) {
   await deleteLibraryCollectionData(collectionId);
   await deleteLibraryCollectionMeta(collectionId);
 }
-
