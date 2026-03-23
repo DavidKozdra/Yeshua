@@ -199,7 +199,7 @@
     padding: 2rem 3rem;
     padding-bottom: 4rem;
     width: min(100%, 780px);
-    max-width: 780px;
+    max-width: 90%;
     margin: 0 auto;
   }
 
