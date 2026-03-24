@@ -4,6 +4,7 @@ import { Home, BookOpen, LibraryBig, StickyNote, SettingsIcon } from 'lucide-rea
 import ToastHost from './ToastHost';
 import GlobalSearchBar from './GlobalSearchBar';
 import SeoManager from './SeoManager';
+import RouteAnnouncer from './RouteAnnouncer';
 import { getSettings, subscribeToSettings } from '../utils/storage';
 import '../styles/layout.css';
 
@@ -38,6 +39,9 @@ export default function Layout() {
   return (
     <div className="app-layout">
       <SeoManager />
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <nav className="sidebar" aria-label="Main navigation">
         <div className="sidebar-brand">
           <span className="brand-icon" aria-hidden="true">
@@ -88,7 +92,7 @@ export default function Layout() {
         </ul>
       </nav>
 
-      <main className="main-content">
+      <main className="main-content" id="main-content">
         {settings.showGlobalSearchBar && !isReaderRoute && <GlobalSearchBar />}
 
         <div className="content-shell">
@@ -97,6 +101,7 @@ export default function Layout() {
       </main>
 
       <ToastHost />
+      <RouteAnnouncer />
 
       <nav className="bottom-nav" aria-label="Main navigation">
         {mobileNavItems.map(({ to, icon: Icon, label }) => (

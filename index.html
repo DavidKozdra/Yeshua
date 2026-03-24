@@ -70,6 +70,42 @@
         ]
       }
     </script>
+    <script id="seo-website-jsonld" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Yeshua",
+        "url": "https://readyeshua.com/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://readyeshua.com/search?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+    <script id="seo-organization-jsonld" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Yeshua",
+        "url": "https://readyeshua.com/",
+        "logo": "https://readyeshua.com/icon-512.png"
+      }
+    </script>
+    <script id="seo-breadcrumb-jsonld" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://readyeshua.com/"
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
