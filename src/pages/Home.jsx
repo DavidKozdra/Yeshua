@@ -100,34 +100,32 @@ export default function Home() {
         </div>
       </section>
 
-      {settings.showBooksTab && (
-        <section className="home-section">
-          <p className="section-label">Library</p>
-          <div
-            className="card card-clickable continue-card"
-            onClick={() =>
-              navigate(
-                lastBooksRead?.collectionId && lastBooksRead?.workId
-                  ? `/books/${lastBooksRead.collectionId}/${lastBooksRead.workId}/${lastBooksRead.chapter || 1}`
-                  : '/books'
-              )
-            }
-          >
-            <div className="continue-info">
-              <BookOpen size={20} />
-              <div>
-                <strong>Library</strong>
-                <div className="continue-translation">
-                  {lastBooksRead?.collectionId
-                    ? `Continue ${lastBooksRead.collectionId.replace(/-/g, ' ')}`
-                    : "Bible, Qur'an, Apocrypha, Baha'i, and Zoroastrian resources"}
-                </div>
+      <section className="home-section">
+        <p className="section-label">Library</p>
+        <div
+          className="card card-clickable continue-card"
+          onClick={() =>
+            navigate(
+              lastBooksRead?.collectionId && lastBooksRead?.workId
+                ? `/books/${lastBooksRead.collectionId}/${lastBooksRead.workId}/${lastBooksRead.chapter || 1}`
+                : '/books'
+            )
+          }
+        >
+          <div className="continue-info">
+            <BookOpen size={20} />
+            <div>
+              <strong>Library</strong>
+              <div className="continue-translation">
+                {lastBooksRead?.collectionId
+                  ? `Continue ${lastBooksRead.collectionId.replace(/-/g, ' ')}`
+                  : "Bible, Qur'an, Apocrypha, Baha'i, and Zoroastrian resources"}
               </div>
             </div>
-            <ArrowRight size={18} />
           </div>
-        </section>
-      )}
+          <ArrowRight size={18} />
+        </div>
+      </section>
 
       {/* Quick Links / Research */}
       <section className="home-section">

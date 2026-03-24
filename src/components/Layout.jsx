@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Home, BookOpen, Languages, LibraryBig, StickyNote, SettingsIcon } from 'lucide-react';
+import { Home, BookOpen, LibraryBig, StickyNote, SettingsIcon } from 'lucide-react';
 import ToastHost from './ToastHost';
 import GlobalSearchBar from './GlobalSearchBar';
 import { getSettings, subscribeToSettings } from '../utils/storage';
@@ -10,7 +10,7 @@ const BASE_NAV_ITEMS = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/read', icon: BookOpen, label: 'Read' },
   { to: '/notes', icon: StickyNote, label: 'Notes' },
-  { to: '/translations', icon: Languages, label: 'Translations' },
+  { to: '/translations', icon: LibraryBig, label: 'Library' },
   { to: '/settings', icon: SettingsIcon, label: 'Settings' },
 ];
 
@@ -19,18 +19,12 @@ export default function Layout() {
   const [settings, setSettings] = useState(getSettings);
   const isReaderRoute =
     location.pathname.startsWith('/read') || location.pathname.startsWith('/books/');
-  const navItems = settings.showBooksTab
-    ? [
-        ...BASE_NAV_ITEMS.slice(0, 2),
-        { to: '/books', icon: LibraryBig, label: 'Library' },
-        ...BASE_NAV_ITEMS.slice(2),
-      ]
-    : BASE_NAV_ITEMS;
+  const navItems = BASE_NAV_ITEMS;
   const readItem = navItems.find((item) => item.to === '/read') || null;
   const mobileNavItems = (() => {
     if (!readItem) return navItems;
     const itemsWithoutRead = navItems.filter((item) => item.to !== '/read');
-    const insertIndex = Math.floor(itemsWithoutRead.length / 2);
+    const insertIndex = Math.ceil(itemsWithoutRead.length / 2);
     return [
       ...itemsWithoutRead.slice(0, insertIndex),
       readItem,

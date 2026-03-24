@@ -41,6 +41,14 @@ const CUSTOM_THEME_VARIABLES = [
   '--shadow-lg',
 ];
 
+export function getSystemThemePreference() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return 'dark';
+  }
+
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
 function clamp(value, min = 0, max = 255) {
   return Math.min(max, Math.max(min, value));
 }
@@ -232,7 +240,7 @@ export function applyTheme(settings) {
   if (typeof document === 'undefined') return;
 
   const root = document.documentElement;
-  const theme = settings?.theme || 'dark';
+  const theme = settings?.theme || getSystemThemePreference();
   const activeCustomTheme = getActiveCustomTheme(settings);
   const wordsOfChristColor =
     settings?.wordsOfChristColor || DEFAULT_WORDS_OF_CHRIST_COLOR;

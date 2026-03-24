@@ -3,6 +3,7 @@ import {
   DEFAULT_CUSTOM_THEME_NAME,
   createCustomThemeId,
   getCustomThemeById,
+  getSystemThemePreference,
   isBuiltInTheme,
   normalizeCustomTheme,
   normalizeCustomThemes,
@@ -24,11 +25,12 @@ const HOLY_DAY_REMINDER_KEY = 'yeshua-holy-day-reminders';
 const SETTINGS_EVENT = 'yeshua-settings-changed';
 const VALID_TTS_RATES = new Set(TTS_RATE_OPTIONS.map((option) => option.value));
 const DEFAULT_HOLY_DAY_REMINDER_LEAD_DAYS = 2;
+const DEFAULT_THEME = getSystemThemePreference();
 
 const defaults = {
-  fontSize: 18,
-  lineHeight: 1.8,
-  theme: 'dark',
+  fontSize: 16,
+  lineHeight: 1.6,
+  theme: DEFAULT_THEME,
   defaultTranslation: DEFAULT_TRANSLATION_ID,
   enableAnimations: true,
   enhancedFocusIndicators: true,
@@ -37,11 +39,10 @@ const defaults = {
   highContrastText: false,
   increasedLetterSpacing: false,
   increasedWordSpacing: false,
-  showBooksTab: true,
   showVerseNumbers: true,
   showWordsOfChristInRed: false,
   useVerseRedLetterFallback: false,
-  oneVersePerLine: false,
+  oneVersePerLine: true,
   showGlobalSearchBar: true,
   enableHolyDayAwareness: true,
   holyDayReminderLeadDays: DEFAULT_HOLY_DAY_REMINDER_LEAD_DAYS,
@@ -114,7 +115,7 @@ function normalizeSettings(parsedSettings = {}) {
   const normalizedCustomTheme = normalizeCustomTheme(parsedSettings.customTheme);
   const normalizedHolyDayPreferences = normalizeHolyDayPreferences(parsedSettings.holyDayPreferences);
   let customThemes = normalizeCustomThemes(parsedSettings.customThemes);
-  let theme = typeof parsedSettings.theme === 'string' ? parsedSettings.theme : defaults.theme;
+  let theme = typeof parsedSettings.theme === 'string' ? parsedSettings.theme : DEFAULT_THEME;
 
   if (theme === 'custom') {
     const migratedTheme = {
@@ -127,7 +128,7 @@ function normalizeSettings(parsedSettings = {}) {
   }
 
   if (!isBuiltInTheme(theme) && !getCustomThemeById(customThemes, theme)) {
-    theme = defaults.theme;
+    theme = DEFAULT_THEME;
   }
 
   return {
@@ -163,10 +164,6 @@ function normalizeSettings(parsedSettings = {}) {
       typeof parsedSettings.increasedWordSpacing === 'boolean'
         ? parsedSettings.increasedWordSpacing
         : defaults.increasedWordSpacing,
-    showBooksTab:
-      typeof parsedSettings.showBooksTab === 'boolean'
-        ? parsedSettings.showBooksTab
-        : defaults.showBooksTab,
     showWordsOfChristInRed:
       typeof parsedSettings.showWordsOfChristInRed === 'boolean'
         ? parsedSettings.showWordsOfChristInRed
@@ -215,7 +212,7 @@ export function saveSettings(settings) {
       typeof settings.theme === 'string' &&
       (isBuiltInTheme(settings.theme) || activeCustomTheme)
         ? settings.theme
-        : defaults.theme,
+        : DEFAULT_THEME,
     enableAnimations:
       typeof settings.enableAnimations === 'boolean'
         ? settings.enableAnimations
@@ -244,10 +241,6 @@ export function saveSettings(settings) {
       typeof settings.increasedWordSpacing === 'boolean'
         ? settings.increasedWordSpacing
         : defaults.increasedWordSpacing,
-    showBooksTab:
-      typeof settings.showBooksTab === 'boolean'
-        ? settings.showBooksTab
-        : defaults.showBooksTab,
     showWordsOfChristInRed:
       typeof settings.showWordsOfChristInRed === 'boolean'
         ? settings.showWordsOfChristInRed

@@ -1,3 +1,43 @@
+.translations-page {
+  max-width: 920px;
+}
+
+.translations-hero {
+  margin-bottom: 1.1rem;
+}
+
+.translations-tabs {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.translations-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  padding: 0.55rem 0.9rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.translations-tab:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.translations-tab.active {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .translations-intro {
   color: var(--text-secondary);
   margin-bottom: 1.5rem;
@@ -133,4 +173,15 @@
 
 .spin {
   animation: spin 1s linear infinite;
+}
+
+@media (max-width: 720px) {
+  .translations-tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .translation-card {
+    flex-direction: column;
+  }
 }
