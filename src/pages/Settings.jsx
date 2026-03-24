@@ -148,6 +148,12 @@ export default function Settings() {
   const [notificationPermission, setNotificationPermission] = useState(() =>
     getBrowserNotificationPermission()
   );
+  const [availableVoices, setAvailableVoices] = useState(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return [];
+    }
+    return window.speechSynthesis.getVoices();
+  });
 
   const translationMetaMap = new Map(downloadedTranslations.map((item) => [item.id, item]));
   const translationStatuses = AVAILABLE_TRANSLATIONS.map((translation) => ({
@@ -185,6 +191,80 @@ export default function Settings() {
   const previewHasWordsOfChristVerse =
     selectedPreviewVerse &&
     hasWordsOfChristVerse(previewBookId, previewChapter, selectedPreviewVerse.verse);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return;
+    }
+
+    const synth = window.speechSynthesis;
+    let pollTimer = null;
+    let attempts = 0;
+
+    function sortVoices(voices) {
+      return [...voices].sort((a, b) => {
+        if (Boolean(a.default) !== Boolean(b.default)) {
+          return a.default ? -1 : 1;
+        }
+        if ((a.lang || '') !== (b.lang || '')) {
+          return (a.lang || '').localeCompare(b.lang || '');
+        }
+        return (a.name || '').localeCompare(b.name || '');
+      });
+    }
+
+    function refreshVoices() {
+      const voices = synth.getVoices() || [];
+      if (!voices.length) {
+        return false;
+      }
+
+      const sorted = sortVoices(voices);
+      setAvailableVoices((current) => {
+        if (
+          current.length === sorted.length &&
+          current.every((voice, index) => voice.voiceURI === sorted[index].voiceURI)
+        ) {
+          return current;
+        }
+        return sorted;
+      });
+      return true;
+    }
+
+    function schedulePoll() {
+      if (pollTimer) {
+        window.clearTimeout(pollTimer);
+      }
+
+      if (attempts >= 8) {
+        return;
+      }
+
+      attempts += 1;
+      pollTimer = window.setTimeout(() => {
+        if (!refreshVoices()) {
+          schedulePoll();
+        }
+      }, 450);
+    }
+
+    function handleVoicesChanged() {
+      refreshVoices();
+    }
+
+    refreshVoices();
+    if (!synth.getVoices().length) {
+      schedulePoll();
+    }
+    synth.addEventListener('voiceschanged', handleVoicesChanged);
+    return () => {
+      synth.removeEventListener('voiceschanged', handleVoicesChanged);
+      if (pollTimer) {
+        window.clearTimeout(pollTimer);
+      }
+    };
+  }, []);
 
   const holidayDayLabels = useMemo(() => {
     if (!settings.enableHolyDayAwareness) {
@@ -1070,6 +1150,27 @@ export default function Settings() {
             </p>
 
             <div className="setting-divider" />
+
+            {availableVoices.length > 1 && (
+              <div className="setting-row">
+                <div className="setting-label">
+                  <Volume2 size={18} />
+                  <span>Voice</span>
+                </div>
+                <select
+                  value={settings.textToSpeechVoice}
+                  onChange={(e) => update('textToSpeechVoice', e.target.value)}
+                  disabled={!settings.showTextToSpeechTool || !textToSpeechSupported}
+                >
+                  <option value="">Default system voice</option>
+                  {availableVoices.map((voice) => (
+                    <option key={voice.voiceURI} value={voice.voiceURI}>
+                      {voice.name} ({voice.lang}) {voice.default ? '— default' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="setting-row">
               <div className="setting-label">

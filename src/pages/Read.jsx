@@ -30,12 +30,59 @@ import {
   speakChapter,
   stopTextToSpeech,
   TTS_RATE_OPTIONS,
+  isSpeechAutoplayUnlocked,
+  unlockSpeechAutoplay,
+  pauseSpeechSynthesis,
+  resumeSpeechSynthesis,
 } from '../utils/tts';
+import { createPortal } from 'react-dom';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { getWordsOfChristSegments } from '../utils/redLetters';
 import GlobalSearchBar from '../components/GlobalSearchBar';
 import '../styles/read.css';
+
+const AUTO_READ_STORAGE_KEY = 'yeshua-auto-read-state';
+const AUTOPLAY_BLOCKED_MESSAGE =
+  'Text-to-speech autoplay is blocked by your browser. Tap the read button to continue.';
+
+function readAutoReadState() {
+  if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') {
+    return { isActive: false, pendingKey: null };
+  }
+
+  try {
+    const stored = window.sessionStorage.getItem(AUTO_READ_STORAGE_KEY);
+    if (!stored) {
+      return { isActive: false, pendingKey: null };
+    }
+    const parsed = JSON.parse(stored);
+    if (typeof parsed !== 'object' || parsed === null) {
+      return { isActive: false, pendingKey: null };
+    }
+    return {
+      isActive: Boolean(parsed.isActive),
+      pendingKey: typeof parsed.pendingKey === 'string' ? parsed.pendingKey : null,
+    };
+  } catch {
+    return { isActive: false, pendingKey: null };
+  }
+}
+
+function persistAutoReadState({ isActive, pendingKey }) {
+  if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') {
+    return;
+  }
+
+  if (isActive && pendingKey) {
+    window.sessionStorage.setItem(
+      AUTO_READ_STORAGE_KEY,
+      JSON.stringify({ isActive: true, pendingKey })
+    );
+  } else {
+    window.sessionStorage.removeItem(AUTO_READ_STORAGE_KEY);
+  }
+}
 
 export default function Read() {
   const params = useParams();
@@ -76,8 +123,15 @@ export default function Read() {
     message: 'Preparing your offline Bible library...',
     progress: null,
   });
-  const [isAutoReadingBible, setIsAutoReadingBible] = useState(false);
-  const [pendingAutoStartKey, setPendingAutoStartKey] = useState(null);
+  const initialAutoState = readAutoReadState();
+  const [isAutoReadingBible, setIsAutoReadingBible] = useState(initialAutoState.isActive);
+  const [pendingAutoStartKey, setPendingAutoStartKey] = useState(initialAutoState.pendingKey);
+  const [speechAutoplayUnlocked, setSpeechAutoplayUnlocked] = useState(
+    () => isSpeechAutoplayUnlocked()
+  );
+  const [speechVolume, setSpeechVolume] = useState(1);
+  const [isSpeechPaused, setIsSpeechPaused] = useState(false);
+  const [overlayContainer, setOverlayContainer] = useState(null);
   const contentRef = useRef(null);
   const transitionTimerRef = useRef(null);
   const isMountedRef = useRef(true);
@@ -90,6 +144,7 @@ export default function Read() {
   const noteModalRef = useFocusTrap(showNoteModal);
   const bookSelectorRef = useFocusTrap(showBookSelector);
   const chapterSelectorRef = useFocusTrap(showChapterSelector);
+  const speechAutoplayUnlockedRef = useRef(speechAutoplayUnlocked);
 
   const book = resolvedBook;
   const translation = resolvedTranslation;
@@ -186,6 +241,20 @@ export default function Read() {
   ]);
 
   useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    setOverlayContainer(container);
+
+    return () => {
+      document.body.removeChild(container);
+    };
+  }, []);
+
+  useEffect(() => {
     return () => {
       isMountedRef.current = false;
       if (transitionTimerRef.current) {
@@ -193,6 +262,16 @@ export default function Read() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    speechAutoplayUnlockedRef.current = speechAutoplayUnlocked;
+  }, [speechAutoplayUnlocked]);
+
+  useEffect(() => {
+    if (!speechAutoplayUnlocked && isSpeechAutoplayUnlocked()) {
+      setSpeechAutoplayUnlocked(true);
+    }
+  }, [speechAutoplayUnlocked]);
 
   useEffect(() => {
     if (
@@ -209,29 +288,36 @@ export default function Read() {
       return;
     }
 
+    if (!speechAutoplayUnlocked) {
+      setSpeechError(AUTOPLAY_BLOCKED_MESSAGE);
+      return;
+    }
+
     const currentKey = `${bookId}:${chapter}`;
     if (pendingAutoStartKey !== currentKey) {
       return;
     }
 
     setPendingAutoStartKey(null);
+    persistAutoReadState({ isActive: true, pendingKey: null });
     handleStartTextToSpeech({ autoAdvanceBible: true });
-  }, [
-    isAutoReadingBible,
-    pendingAutoStartKey,
-    offlineState.ready,
-    loading,
-    error,
-    isSpeakingChapter,
-    verses.length,
-    textToSpeechSupported,
-    settings.showTextToSpeechTool,
-    settings.textToSpeechRate,
-    settings.announceChapterNumbers,
-    settings.announceVerseNumbers,
-    bookId,
-    chapter,
-  ]);
+    }, [
+      isAutoReadingBible,
+      pendingAutoStartKey,
+      offlineState.ready,
+      loading,
+      error,
+      isSpeakingChapter,
+      verses.length,
+      textToSpeechSupported,
+      settings.showTextToSpeechTool,
+      settings.textToSpeechRate,
+      settings.announceChapterNumbers,
+      settings.announceVerseNumbers,
+      bookId,
+      chapter,
+      speechAutoplayUnlocked,
+    ]);
 
   const loadChapter = useCallback(async () => {
     if (!offlineState.ready) {
@@ -270,6 +356,7 @@ export default function Read() {
     setIsSpeakingChapter(false);
     setSpeakingVerse(null);
     setSpeechError('');
+    setIsSpeechPaused(false);
 
     return () => {
       if (speechCleanupRef.current) {
@@ -453,6 +540,16 @@ export default function Read() {
     setShowReaderActions(false);
   }
 
+  function ensureSpeechAutoplayUnlocked() {
+    if (speechAutoplayUnlockedRef.current) {
+      return;
+    }
+
+    if (unlockSpeechAutoplay()) {
+      setSpeechAutoplayUnlocked(true);
+    }
+  }
+
   function handleStopTextToSpeech() {
     if (speechCleanupRef.current) {
       speechCleanupRef.current();
@@ -466,7 +563,34 @@ export default function Read() {
     setSpeechError('');
     setIsAutoReadingBible(false);
     setPendingAutoStartKey(null);
+    persistAutoReadState({ isActive: false, pendingKey: null });
     setShowReaderActions(false);
+    setIsSpeechPaused(false);
+  }
+
+  function handleToggleSpeechPause() {
+    if (!isSpeakingChapter) {
+      return;
+    }
+
+    if (isSpeechPaused) {
+      resumeSpeechSynthesis();
+      setIsSpeechPaused(false);
+    } else {
+      pauseSpeechSynthesis();
+      setIsSpeechPaused(true);
+    }
+  }
+
+  function handleSpeechVolumeChange(event) {
+    const value = Number.parseFloat(event.target.value);
+    if (Number.isNaN(value)) {
+      return;
+    }
+
+    const normalized = Math.max(0, Math.min(value, 1));
+    setSpeechVolume(normalized);
+    speechCleanupRef.current?.setVolume?.(normalized);
   }
 
   function handleStartTextToSpeech({ autoAdvanceBible = false } = {}) {
@@ -475,6 +599,10 @@ export default function Read() {
     if (!textToSpeechSupported) {
       setSpeechError('Text to speech is not available in this browser.');
       return;
+    }
+
+    if (!autoAdvanceBible) {
+      ensureSpeechAutoplayUnlocked();
     }
 
     if (!offlineState.ready || loading || error || !verses.length) {
@@ -491,6 +619,7 @@ export default function Read() {
     if (!autoAdvanceBible) {
       setIsAutoReadingBible(false);
       setPendingAutoStartKey(null);
+      persistAutoReadState({ isActive: false, pendingKey: null });
     }
 
     try {
@@ -501,6 +630,8 @@ export default function Read() {
         rate: settings.textToSpeechRate,
         announceChapterNumbers: settings.announceChapterNumbers,
         announceVerseNumbers: settings.announceVerseNumbers,
+        voiceUri: settings.textToSpeechVoice,
+        volume: speechVolume,
         onVerseStart: (verseNumber) => {
           setSpeakingVerse(verseNumber);
           const targetElement = contentRef.current?.querySelector(`[data-verse="${verseNumber}"]`);
@@ -508,21 +639,28 @@ export default function Read() {
         },
         onComplete: () => {
           speechCleanupRef.current = null;
+          setIsSpeechPaused(false);
           setIsSpeakingChapter(false);
           setSpeakingVerse(null);
           if (autoAdvanceBible && isAutoReadingBible) {
             const nextTarget = getNextChapterTarget(bookId, chapter);
             if (nextTarget) {
-              setPendingAutoStartKey(`${nextTarget.bookId}:${nextTarget.chapter}`);
+            setPendingAutoStartKey(`${nextTarget.bookId}:${nextTarget.chapter}`);
+            persistAutoReadState({
+              isActive: true,
+              pendingKey: `${nextTarget.bookId}:${nextTarget.chapter}`,
+            });
               goTo(nextTarget.bookId, nextTarget.chapter);
             } else {
               setIsAutoReadingBible(false);
               setPendingAutoStartKey(null);
+              persistAutoReadState({ isActive: false, pendingKey: null });
             }
           }
         },
         onError: (message) => {
           speechCleanupRef.current = null;
+          setIsSpeechPaused(false);
           setIsSpeakingChapter(false);
           setSpeakingVerse(null);
           setSpeechError(
@@ -535,6 +673,7 @@ export default function Read() {
       setIsSpeakingChapter(true);
     } catch (err) {
       speechCleanupRef.current = null;
+      setIsSpeechPaused(false);
       setIsSpeakingChapter(false);
       setSpeakingVerse(null);
       setSpeechError(err.message || 'Text to speech could not start.');
@@ -551,6 +690,8 @@ export default function Read() {
       setSpeechError('Text to speech is not available in this browser.');
       return;
     }
+
+    ensureSpeechAutoplayUnlocked();
 
     if (!offlineState.ready || loading || error) {
       setSpeechError('Load a chapter before starting text to speech.');
@@ -571,6 +712,7 @@ export default function Read() {
     setIsAutoReadingBible(true);
     const startBookId = BIBLE_BOOKS[0]?.id || bookId;
     setPendingAutoStartKey(`${startBookId}:1`);
+    persistAutoReadState({ isActive: true, pendingKey: `${startBookId}:1` });
     goTo(startBookId, 1);
   }
 
@@ -607,8 +749,55 @@ export default function Read() {
 
   const noteVerses = versesWithNotes();
 
+  const ttsOverlayElement = isSpeakingChapter || speechError ? (
+    <div className={`tts-overlay ${speechError ? 'is-error' : ''}`}>
+      <div className="read-tts-copy">
+        <Volume2 size={16} />
+        <span>
+          {isSpeakingChapter
+            ? `Reading aloud at ${textToSpeechSpeedLabel.toLowerCase()} speed.`
+            : speechError}
+        </span>
+      </div>
+      {isSpeakingChapter && (
+        <div className="read-tts-controls">
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={handleToggleSpeechPause}
+            aria-label={isSpeechPaused ? 'Resume text to speech' : 'Pause text to speech'}
+          >
+            {isSpeechPaused ? 'Resume' : 'Pause'}
+          </button>
+          <label className="read-tts-volume">
+            <span>Volume</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={speechVolume}
+              onChange={handleSpeechVolumeChange}
+              aria-label="Text to speech volume"
+            />
+          </label>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={handleStopTextToSpeech}
+            aria-label="Stop text to speech"
+          >
+            Stop
+          </button>
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  const ttsOverlayPortal =
+    overlayContainer && ttsOverlayElement ? createPortal(ttsOverlayElement, overlayContainer) : null;
+
   return (
-    <div className="read-page">
+    <>
+      <div className="read-page">
       {/* Top bar */}
       <div className="read-topbar">
         <div className="read-selectors">
@@ -766,23 +955,6 @@ export default function Read() {
           {book?.name} {chapter}
         </h2>
 
-        {(isSpeakingChapter || speechError) && (
-          <div className={`read-tts-banner ${speechError ? 'is-error' : ''}`}>
-            <div className="read-tts-copy">
-              <Volume2 size={16} />
-              <span>
-                {isSpeakingChapter
-                  ? `Reading aloud at ${textToSpeechSpeedLabel.toLowerCase()} speed.`
-                  : speechError}
-              </span>
-            </div>
-            {isSpeakingChapter && (
-              <button className="btn btn-outline btn-sm" onClick={handleStopTextToSpeech} aria-label="Stop text to speech">
-                Stop
-              </button>
-            )}
-          </div>
-        )}
 
         {loading && <div className="loading-spinner" role="status" aria-live="polite">Loading...</div>}
         {!loading && !offlineState.ready && (
@@ -953,18 +1125,6 @@ export default function Read() {
                 <span>{isSpeakingChapter ? 'Stop reading' : 'Read chapter aloud'}</span>
               </button>
             )}
-            {settings.showTextToSpeechTool && (
-              <button
-                className="fab-action"
-                onClick={handleToggleBibleReading}
-                disabled={
-                  !textToSpeechSupported || !offlineState.ready || loading || !!error
-                }
-              >
-                <BookOpen size={16} />
-                <span>{isAutoReadingBible ? 'Stop reading Bible' : 'Read Bible from start'}</span>
-              </button>
-            )}
             <button className="fab-action" onClick={openQuickNoteModal}>
               <StickyNote size={16} />
               <span>Add note</span>
@@ -984,6 +1144,8 @@ export default function Read() {
           <Plus size={22} aria-hidden="true" />
         </button>
       </div>
-    </div>
+      </div>
+      {ttsOverlayPortal}
+    </>
   );
 }

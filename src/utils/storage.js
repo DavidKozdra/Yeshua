@@ -62,6 +62,7 @@ const defaults = {
   ),
   showTextToSpeechTool: true,
   textToSpeechRate: 1,
+  textToSpeechVoice: '',
   announceChapterNumbers: true,
   announceVerseNumbers: true,
   customTheme: CUSTOM_THEME_DEFAULT,
@@ -119,12 +120,33 @@ function normalizeColorVisionMode(value) {
   return COLOR_VISION_MODES.includes(value) ? value : defaults.colorVisionMode;
 }
 
-function normalizeSettings(parsedSettings = {}) {
-  const defaultTranslation = getTranslationById(parsedSettings.defaultTranslation)
-    ? parsedSettings.defaultTranslation
-    : DEFAULT_TRANSLATION_ID;
-  const normalizedCustomTheme = normalizeCustomTheme(parsedSettings.customTheme);
-  const normalizedHolyDayPreferences = normalizeHolyDayPreferences(parsedSettings.holyDayPreferences);
+const BOOLEAN_SETTING_KEYS = [
+  'enableAnimations',
+  'enhancedFocusIndicators',
+  'underlineLinks',
+  'largeTouchTargets',
+  'highContrastText',
+  'increasedLetterSpacing',
+  'increasedWordSpacing',
+  'enableBrowserNotifications',
+  'enableWeeklyReadingReminders',
+  'showWordsOfChristInRed',
+  'useVerseRedLetterFallback',
+  'enableHolyDayAwareness',
+  'showTextToSpeechTool',
+  'announceChapterNumbers',
+  'announceVerseNumbers',
+];
+
+function normalizeBooleans(source) {
+  const result = {};
+  for (const key of BOOLEAN_SETTING_KEYS) {
+    result[key] = typeof source[key] === 'boolean' ? source[key] : defaults[key];
+  }
+  return result;
+}
+
+function resolveTheme(parsedSettings, normalizedCustomTheme) {
   let customThemes = normalizeCustomThemes(parsedSettings.customThemes);
   let theme = typeof parsedSettings.theme === 'string' ? parsedSettings.theme : DEFAULT_THEME;
 
@@ -142,75 +164,30 @@ function normalizeSettings(parsedSettings = {}) {
     theme = DEFAULT_THEME;
   }
 
+  return { theme, customThemes };
+}
+
+function normalizeSettings(parsedSettings = {}) {
+  const defaultTranslation = getTranslationById(parsedSettings.defaultTranslation)
+    ? parsedSettings.defaultTranslation
+    : DEFAULT_TRANSLATION_ID;
+  const normalizedCustomTheme = normalizeCustomTheme(parsedSettings.customTheme);
+  const { theme, customThemes } = resolveTheme(parsedSettings, normalizedCustomTheme);
+
   return {
     ...defaults,
     ...parsedSettings,
+    ...normalizeBooleans(parsedSettings),
     theme,
     defaultTranslation,
-    enableAnimations:
-      typeof parsedSettings.enableAnimations === 'boolean'
-        ? parsedSettings.enableAnimations
-        : defaults.enableAnimations,
-    enhancedFocusIndicators:
-      typeof parsedSettings.enhancedFocusIndicators === 'boolean'
-        ? parsedSettings.enhancedFocusIndicators
-        : defaults.enhancedFocusIndicators,
-    underlineLinks:
-      typeof parsedSettings.underlineLinks === 'boolean'
-        ? parsedSettings.underlineLinks
-        : defaults.underlineLinks,
-    largeTouchTargets:
-      typeof parsedSettings.largeTouchTargets === 'boolean'
-        ? parsedSettings.largeTouchTargets
-        : defaults.largeTouchTargets,
-    highContrastText:
-      typeof parsedSettings.highContrastText === 'boolean'
-        ? parsedSettings.highContrastText
-        : defaults.highContrastText,
-    increasedLetterSpacing:
-      typeof parsedSettings.increasedLetterSpacing === 'boolean'
-        ? parsedSettings.increasedLetterSpacing
-        : defaults.increasedLetterSpacing,
-    increasedWordSpacing:
-      typeof parsedSettings.increasedWordSpacing === 'boolean'
-        ? parsedSettings.increasedWordSpacing
-        : defaults.increasedWordSpacing,
     colorVisionMode: normalizeColorVisionMode(parsedSettings.colorVisionMode),
-    enableBrowserNotifications:
-      typeof parsedSettings.enableBrowserNotifications === 'boolean'
-        ? parsedSettings.enableBrowserNotifications
-        : defaults.enableBrowserNotifications,
-    enableWeeklyReadingReminders:
-      typeof parsedSettings.enableWeeklyReadingReminders === 'boolean'
-        ? parsedSettings.enableWeeklyReadingReminders
-        : defaults.enableWeeklyReadingReminders,
-    showWordsOfChristInRed:
-      typeof parsedSettings.showWordsOfChristInRed === 'boolean'
-        ? parsedSettings.showWordsOfChristInRed
-        : defaults.showWordsOfChristInRed,
-    useVerseRedLetterFallback:
-      typeof parsedSettings.useVerseRedLetterFallback === 'boolean'
-        ? parsedSettings.useVerseRedLetterFallback
-        : defaults.useVerseRedLetterFallback,
-    enableHolyDayAwareness:
-      typeof parsedSettings.enableHolyDayAwareness === 'boolean'
-        ? parsedSettings.enableHolyDayAwareness
-        : defaults.enableHolyDayAwareness,
     holyDayReminderLeadDays: normalizeHolyDayReminderLeadDays(parsedSettings.holyDayReminderLeadDays),
-    holyDayPreferences: normalizedHolyDayPreferences,
-    showTextToSpeechTool:
-      typeof parsedSettings.showTextToSpeechTool === 'boolean'
-        ? parsedSettings.showTextToSpeechTool
-        : defaults.showTextToSpeechTool,
+    holyDayPreferences: normalizeHolyDayPreferences(parsedSettings.holyDayPreferences),
     textToSpeechRate: normalizeTextToSpeechRate(parsedSettings.textToSpeechRate),
-    announceChapterNumbers:
-      typeof parsedSettings.announceChapterNumbers === 'boolean'
-        ? parsedSettings.announceChapterNumbers
-        : defaults.announceChapterNumbers,
-    announceVerseNumbers:
-      typeof parsedSettings.announceVerseNumbers === 'boolean'
-        ? parsedSettings.announceVerseNumbers
-        : defaults.announceVerseNumbers,
+    textToSpeechVoice:
+      typeof parsedSettings.textToSpeechVoice === 'string'
+        ? parsedSettings.textToSpeechVoice
+        : defaults.textToSpeechVoice,
     customTheme: normalizedCustomTheme,
     customThemes,
     wordsOfChristColor: sanitizeWordsOfChristColor(parsedSettings.wordsOfChristColor),
@@ -233,87 +210,28 @@ export function getSettings() {
 export function saveSettings(settings) {
   const customThemes = normalizeCustomThemes(settings.customThemes);
   const activeCustomTheme = getCustomThemeById(customThemes, settings.theme);
-  const normalizedHolyDayPreferences = normalizeHolyDayPreferences(settings.holyDayPreferences);
   const storedSettings = {
     ...settings,
+    ...normalizeBooleans(settings),
     theme:
       typeof settings.theme === 'string' &&
       (isBuiltInTheme(settings.theme) || activeCustomTheme)
         ? settings.theme
         : DEFAULT_THEME,
-    enableAnimations:
-      typeof settings.enableAnimations === 'boolean'
-        ? settings.enableAnimations
-        : defaults.enableAnimations,
-    enhancedFocusIndicators:
-      typeof settings.enhancedFocusIndicators === 'boolean'
-        ? settings.enhancedFocusIndicators
-        : defaults.enhancedFocusIndicators,
-    underlineLinks:
-      typeof settings.underlineLinks === 'boolean'
-        ? settings.underlineLinks
-        : defaults.underlineLinks,
-    largeTouchTargets:
-      typeof settings.largeTouchTargets === 'boolean'
-        ? settings.largeTouchTargets
-        : defaults.largeTouchTargets,
-    highContrastText:
-      typeof settings.highContrastText === 'boolean'
-        ? settings.highContrastText
-        : defaults.highContrastText,
-    increasedLetterSpacing:
-      typeof settings.increasedLetterSpacing === 'boolean'
-        ? settings.increasedLetterSpacing
-        : defaults.increasedLetterSpacing,
-    increasedWordSpacing:
-      typeof settings.increasedWordSpacing === 'boolean'
-        ? settings.increasedWordSpacing
-        : defaults.increasedWordSpacing,
     colorVisionMode: normalizeColorVisionMode(settings.colorVisionMode),
-    enableBrowserNotifications:
-      typeof settings.enableBrowserNotifications === 'boolean'
-        ? settings.enableBrowserNotifications
-        : defaults.enableBrowserNotifications,
-    enableWeeklyReadingReminders:
-      typeof settings.enableWeeklyReadingReminders === 'boolean'
-        ? settings.enableWeeklyReadingReminders
-        : defaults.enableWeeklyReadingReminders,
-    showWordsOfChristInRed:
-      typeof settings.showWordsOfChristInRed === 'boolean'
-        ? settings.showWordsOfChristInRed
-        : defaults.showWordsOfChristInRed,
-    useVerseRedLetterFallback:
-      typeof settings.useVerseRedLetterFallback === 'boolean'
-        ? settings.useVerseRedLetterFallback
-        : defaults.useVerseRedLetterFallback,
-    enableHolyDayAwareness:
-      typeof settings.enableHolyDayAwareness === 'boolean'
-        ? settings.enableHolyDayAwareness
-        : defaults.enableHolyDayAwareness,
     holyDayReminderLeadDays: normalizeHolyDayReminderLeadDays(settings.holyDayReminderLeadDays),
-    holyDayPreferences: normalizedHolyDayPreferences,
-    showTextToSpeechTool:
-      typeof settings.showTextToSpeechTool === 'boolean'
-        ? settings.showTextToSpeechTool
-        : defaults.showTextToSpeechTool,
+    holyDayPreferences: normalizeHolyDayPreferences(settings.holyDayPreferences),
     textToSpeechRate: normalizeTextToSpeechRate(settings.textToSpeechRate),
-    announceChapterNumbers:
-      typeof settings.announceChapterNumbers === 'boolean'
-        ? settings.announceChapterNumbers
-        : defaults.announceChapterNumbers,
-    announceVerseNumbers:
-      typeof settings.announceVerseNumbers === 'boolean'
-        ? settings.announceVerseNumbers
-        : defaults.announceVerseNumbers,
+    textToSpeechVoice:
+      typeof settings.textToSpeechVoice === 'string'
+        ? settings.textToSpeechVoice
+        : defaults.textToSpeechVoice,
     customTheme: activeCustomTheme?.colors || normalizeCustomTheme(settings.customTheme),
     customThemes,
     wordsOfChristColor: sanitizeWordsOfChristColor(settings.wordsOfChristColor),
   };
 
-  localStorage.setItem(
-    SETTINGS_KEY,
-    JSON.stringify(storedSettings)
-  );
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(storedSettings));
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
