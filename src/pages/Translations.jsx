@@ -150,6 +150,10 @@ export default function Translations({ preferredTab = 'translations' }) {
     cancelTranslationInstall(id);
   }
 
+  function handlePauseTranslation(id) {
+    cancelTranslationInstall(id);
+  }
+
   async function handleRemoveTranslation(id) {
     if (!confirm('Remove this translation from offline storage?')) return;
     await removeTranslation(id);
@@ -306,13 +310,23 @@ export default function Translations({ preferredTab = 'translations' }) {
 
                   <div className="translation-actions">
                     {isActive ? (
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-sm"
-                        onClick={() => handleCancelTranslation(translation.id)}
-                      >
-                        Cancel
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => handlePauseTranslation(translation.id)}
+                        >
+                          Pause
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleRemoveTranslation(translation.id)}
+                        >
+                          <Trash2 size={14} />
+                          Cancel
+                        </button>
+                      </>
                     ) : status.isQueued ? (
                       <button
                         type="button"
@@ -360,15 +374,15 @@ export default function Translations({ preferredTab = 'translations' }) {
                           disabled={!status.canInstall}
                         >
                           <Download size={14} />
-                          {getInstallActionLabel(status)}
+                          Retry
                         </button>
                         <button
                           type="button"
-                          className="btn btn-outline btn-sm"
+                          className="btn btn-danger btn-sm"
                           onClick={() => handleRemoveTranslation(translation.id)}
                         >
                           <Trash2 size={14} />
-                          Clear
+                          Cancel
                         </button>
                       </>
                     ) : (
