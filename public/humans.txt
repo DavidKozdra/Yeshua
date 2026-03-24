@@ -1,0 +1,7 @@
+/* TEAM */
+Project: Yeshua
+Site: https://readyeshua.com
+Description: Offline-first Bible, Scripture reader, notes, search, holy day awareness, and study library.
+
+/* TECHNOLOGY */
+Stack: React, Vite, React Router, IndexedDB, vite-plugin-pwa

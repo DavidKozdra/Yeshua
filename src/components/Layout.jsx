@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Home, BookOpen, LibraryBig, StickyNote, SettingsIcon } from 'lucide-react';
 import ToastHost from './ToastHost';
 import GlobalSearchBar from './GlobalSearchBar';
+import SeoManager from './SeoManager';
 import { getSettings, subscribeToSettings } from '../utils/storage';
 import '../styles/layout.css';
 
@@ -36,6 +37,7 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
+      <SeoManager />
       <nav className="sidebar" aria-label="Main navigation">
         <div className="sidebar-brand">
           <span className="brand-icon" aria-hidden="true">
