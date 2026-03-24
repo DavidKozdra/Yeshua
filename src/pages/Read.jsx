@@ -46,7 +46,7 @@ export default function Read() {
   const parsedChapter = Number.parseInt(params.chapter ?? '', 10);
   const resolvedChapter = Number.isNaN(parsedChapter) ? lastRead?.chapter || 1 : parsedChapter;
   const resolvedTranslation =
-    getTranslationById(params.translationId || lastRead?.translationId || settings.defaultTranslation) ||
+    getTranslationById(params.translationId || settings.defaultTranslation || lastRead?.translationId) ||
     getTranslationById(settings.defaultTranslation) ||
     getTranslationById(DEFAULT_TRANSLATION_ID) ||
     getTranslationById(FALLBACK_TRANSLATION_ID);

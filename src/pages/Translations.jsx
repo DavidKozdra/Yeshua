@@ -36,7 +36,7 @@ import {
 } from '../utils/db';
 import { getBooksCollectionStatus } from '../utils/booksStatus';
 import { getTranslationStatus } from '../utils/translationStatus';
-import { getLastBooksRead } from '../utils/storage';
+import { getLastBooksRead, getSettings, saveSettings, subscribeToSettings } from '../utils/storage';
 import '../styles/books.css';
 import '../styles/translations.css';
 
@@ -58,6 +58,7 @@ function getCollectionTarget(collectionId) {
 export default function Translations({ preferredTab = 'translations' }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(preferredTab);
+  const [settings, setSettings] = useState(getSettings);
   const [downloadedTranslations, setDownloadedTranslations] = useState([]);
   const [translationInstallState, setTranslationInstallState] = useState(() =>
     getTranslationInstallQueueSnapshot()
@@ -68,6 +69,8 @@ export default function Translations({ preferredTab = 'translations' }) {
   useEffect(() => {
     setActiveTab(preferredTab);
   }, [preferredTab]);
+
+  useEffect(() => subscribeToSettings(setSettings), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,6 +155,13 @@ export default function Translations({ preferredTab = 'translations' }) {
     await removeTranslation(id);
   }
 
+  function handleSetDefaultTranslation(translationId) {
+    saveSettings({
+      ...settings,
+      defaultTranslation: translationId,
+    });
+  }
+
   function handleBooksDownload(collectionId) {
     void queueBooksCollectionInstall(collectionId).catch((err) => {
       if (err.message !== 'Download cancelled') {
@@ -219,6 +229,7 @@ export default function Translations({ preferredTab = 'translations' }) {
               const status = getTranslationStatus(translation.id, downloadMeta, queueJob);
               const isActive = queueJob?.phase === 'active';
               const isInProgress = isActive || status.isInstalling;
+              const isDefaultTranslation = settings.defaultTranslation === translation.id;
               const progressDone = isActive
                 ? queueJob.progress.done
                 : downloadMeta?.completedChapters ?? 0;
@@ -252,6 +263,11 @@ export default function Translations({ preferredTab = 'translations' }) {
                           {badge}
                         </span>
                       ))}
+                      {isDefaultTranslation && (
+                        <span className="chip translation-chip translation-chip-default">
+                          Default
+                        </span>
+                      )}
                     </div>
 
                     {!isInProgress && (
@@ -301,14 +317,31 @@ export default function Translations({ preferredTab = 'translations' }) {
                         {status.actionLabel}
                       </button>
                     ) : status.isSavedOnDevice ? (
-                      <button
-                        type="button"
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleRemoveTranslation(translation.id)}
-                      >
-                        <Trash2 size={14} />
-                        {status.removeLabel}
-                      </button>
+                      <>
+                        {isDefaultTranslation ? (
+                          <button type="button" className="btn btn-outline btn-sm" disabled>
+                            <Check size={14} />
+                            Default Translation
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            onClick={() => handleSetDefaultTranslation(translation.id)}
+                          >
+                            <Check size={14} />
+                            Set Default
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleRemoveTranslation(translation.id)}
+                        >
+                          <Trash2 size={14} />
+                          {status.removeLabel}
+                        </button>
+                      </>
                     ) : status.isPartial ? (
                       <>
                         <button
