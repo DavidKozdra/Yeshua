@@ -9,6 +9,7 @@ import Search from './pages/Search';
 import Translations from './pages/Translations';
 import Notes from './pages/Notes';
 import Settings from './pages/Settings';
+import WeeklyReadingReminderManager from './components/WeeklyReadingReminderManager';
 import { getTranslationById } from './utils/bibleData';
 import { getAllDownloadedTranslations, getTranslationMeta } from './utils/db';
 import { queueTranslationInstall, resolveInstallableTranslationId } from './utils/api';
@@ -63,19 +64,22 @@ export default function App() {
   }, [settings]);
 
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/read" element={<Read />} />
-        <Route path="/read/:translationId/:bookId/:chapter" element={<Read />} />
-        <Route path="/books" element={<Books />} />
-        <Route path="/books/:collectionId" element={<BookText />} />
-        <Route path="/books/:collectionId/:workId/:chapter" element={<BookText />} />
-        <Route path="/search" element={<Search />} />
-        <Route path="/translations" element={<Translations />} />
-        <Route path="/notes" element={<Notes />} />
-        <Route path="/settings" element={<Settings />} />
-      </Route>
-    </Routes>
+    <>
+      <WeeklyReadingReminderManager />
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/read" element={<Read />} />
+          <Route path="/read/:translationId/:bookId/:chapter" element={<Read />} />
+          <Route path="/books" element={<Books />} />
+          <Route path="/books/:collectionId" element={<BookText />} />
+          <Route path="/books/:collectionId/:workId/:chapter" element={<BookText />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/translations" element={<Translations />} />
+          <Route path="/notes" element={<Notes />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
+      </Routes>
+    </>
   );
 }

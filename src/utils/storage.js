@@ -20,6 +20,7 @@ import {
 const SETTINGS_KEY = 'yeshua-settings';
 const LAST_READ_KEY = 'yeshua-last-read';
 const LAST_BOOKS_READ_KEY = 'yeshua-last-books-read';
+const LAST_APP_OPENED_AT_KEY = 'yeshua-last-app-opened-at';
 const PROFILE_KEY = 'yeshua-profile';
 const HOLY_DAY_REMINDER_KEY = 'yeshua-holy-day-reminders';
 const SETTINGS_EVENT = 'yeshua-settings-changed';
@@ -40,6 +41,7 @@ const defaults = {
   increasedLetterSpacing: false,
   increasedWordSpacing: false,
   enableBrowserNotifications: false,
+  enableWeeklyReadingReminders: false,
   showVerseNumbers: true,
   showWordsOfChristInRed: false,
   useVerseRedLetterFallback: false,
@@ -169,6 +171,10 @@ function normalizeSettings(parsedSettings = {}) {
       typeof parsedSettings.enableBrowserNotifications === 'boolean'
         ? parsedSettings.enableBrowserNotifications
         : defaults.enableBrowserNotifications,
+    enableWeeklyReadingReminders:
+      typeof parsedSettings.enableWeeklyReadingReminders === 'boolean'
+        ? parsedSettings.enableWeeklyReadingReminders
+        : defaults.enableWeeklyReadingReminders,
     showWordsOfChristInRed:
       typeof parsedSettings.showWordsOfChristInRed === 'boolean'
         ? parsedSettings.showWordsOfChristInRed
@@ -250,6 +256,10 @@ export function saveSettings(settings) {
       typeof settings.enableBrowserNotifications === 'boolean'
         ? settings.enableBrowserNotifications
         : defaults.enableBrowserNotifications,
+    enableWeeklyReadingReminders:
+      typeof settings.enableWeeklyReadingReminders === 'boolean'
+        ? settings.enableWeeklyReadingReminders
+        : defaults.enableWeeklyReadingReminders,
     showWordsOfChristInRed:
       typeof settings.showWordsOfChristInRed === 'boolean'
         ? settings.showWordsOfChristInRed
@@ -329,6 +339,18 @@ export function saveLastBooksRead(location) {
   localStorage.setItem(LAST_BOOKS_READ_KEY, JSON.stringify(location));
 }
 
+export function getLastAppOpenedAt() {
+  try {
+    return localStorage.getItem(LAST_APP_OPENED_AT_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLastAppOpenedAt(value = new Date().toISOString()) {
+  localStorage.setItem(LAST_APP_OPENED_AT_KEY, value);
+}
+
 export function getProfile() {
   try {
     const stored = localStorage.getItem(PROFILE_KEY);
@@ -347,6 +369,7 @@ export function exportAppStorageData() {
     settings: getSettings(),
     lastRead: getLastRead(),
     lastBooksRead: getLastBooksRead(),
+    lastAppOpenedAt: getLastAppOpenedAt(),
     profile: getProfile(),
     holyDayReminders: getHolyDayReminderStore(),
   };
@@ -367,6 +390,12 @@ export function importAppStorageData(snapshot = {}) {
     localStorage.removeItem(LAST_BOOKS_READ_KEY);
   }
 
+  if (snapshot.lastAppOpenedAt) {
+    localStorage.setItem(LAST_APP_OPENED_AT_KEY, snapshot.lastAppOpenedAt);
+  } else {
+    localStorage.removeItem(LAST_APP_OPENED_AT_KEY);
+  }
+
   saveProfile(snapshot.profile || { name: '' });
 
   if (snapshot.holyDayReminders && typeof snapshot.holyDayReminders === 'object') {
@@ -380,6 +409,7 @@ export function clearAppStorageData() {
   localStorage.removeItem(SETTINGS_KEY);
   localStorage.removeItem(LAST_READ_KEY);
   localStorage.removeItem(LAST_BOOKS_READ_KEY);
+  localStorage.removeItem(LAST_APP_OPENED_AT_KEY);
   localStorage.removeItem(PROFILE_KEY);
   localStorage.removeItem(HOLY_DAY_REMINDER_KEY);
 }

@@ -82,10 +82,10 @@ const BUILT_IN_THEME_LABELS = {
 const HOLY_DAY_REMINDER_OPTIONS = [0, 1, 2, 3, 5, 7, 14];
 const HOLY_DAY_DATE_LOOKAHEAD_DAYS = 400;
 const SETTINGS_TABS = [
-  { id: 'profile', label: 'Profile' },
-  { id: 'reader', label: 'Reader' },
-  { id: 'accessibility', label: 'Accessibility' },
-  { id: 'holy-days', label: 'Holy Days' },
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'reader', label: 'Reader', icon: BookOpen },
+  { id: 'accessibility', label: 'Accessibility', icon: Eye },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
 ];
 
 function formatPreviewReference(bookId, chapter, verse) {
@@ -487,20 +487,24 @@ export default function Settings() {
       />
 
       <div className="settings-tabs" role="tablist" aria-label="Settings sections">
-        {SETTINGS_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            id={`tab-${tab.id}`}
-            aria-selected={activeTab === tab.id}
-            aria-controls={`tabpanel-${tab.id}`}
-            className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {SETTINGS_TABS.map((tab) => {
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              id={`tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`tabpanel-${tab.id}`}
+              className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <TabIcon size={16} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="settings-sections" role="tabpanel" id={`tabpanel-${activeTab}`} aria-labelledby={`tab-${activeTab}`}>
@@ -1134,31 +1138,15 @@ export default function Settings() {
         </>
         )}
 
-        {activeTab === 'holy-days' && (
+        {activeTab === 'notifications' && (
+        <>
         <section className="settings-section">
-          <p className="section-label">Holy Days</p>
+          <p className="section-label">Notifications</p>
           <div className="card settings-card-group">
             <div className="setting-row">
               <div className="setting-label">
-                <CalendarDays size={18} />
-                <span>Enable Holy Day Awareness</span>
-              </div>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={settings.enableHolyDayAwareness}
-                  onChange={(e) => update('enableHolyDayAwareness', e.target.checked)}
-                />
-                <span className="toggle-slider" />
-              </label>
-            </div>
-
-            <div className="setting-divider" />
-
-            <div className="setting-row">
-              <div className="setting-label">
                 <Bell size={18} />
-                <span>Browser Notifications</span>
+                <span>Enable Browser Notifications</span>
               </div>
               <label className="toggle">
                 <input
@@ -1175,10 +1163,10 @@ export default function Settings() {
               {!areBrowserNotificationsSupported()
                 ? 'This browser does not support notifications.'
                 : notificationPermission === 'granted'
-                  ? 'Browser notifications are allowed. Holy day reminders can appear outside the app while it is open.'
+                  ? 'Browser notifications are allowed. Reminders can appear outside the app while it is open.'
                   : notificationPermission === 'denied'
                     ? 'Browser notifications are blocked in this browser. Re-enable them in browser site settings to use them here.'
-                    : 'Allow browser notifications to send holy day reminders outside the in-app toast system.'}
+                    : 'Allow browser notifications to enable reminder alerts beyond in-app toasts.'}
             </p>
 
             <div className="theme-actions">
@@ -1210,7 +1198,47 @@ export default function Settings() {
             <div className="setting-row">
               <div className="setting-label">
                 <Bell size={18} />
-                <span>Reminder Lead Time</span>
+                <span>Weekly Reading Reminders</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.enableWeeklyReadingReminders}
+                  onChange={(e) => update('enableWeeklyReadingReminders', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <p className="settings-help">
+              Sends a weekly reminder when Yeshua has not been opened for about 7 days. If browser
+              notifications are off or unavailable, the reminder falls back to an in-app toast when
+              you return.
+            </p>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <CalendarDays size={18} />
+                <span>Enable Holy Day Awareness</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.enableHolyDayAwareness}
+                  onChange={(e) => update('enableHolyDayAwareness', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Bell size={18} />
+                <span>Holy Day Reminder Lead Time</span>
               </div>
               <select
                 value={settings.holyDayReminderLeadDays}
@@ -1291,6 +1319,7 @@ export default function Settings() {
             )}
           </div>
         </section>
+        </>
         )}
 
         <p className="settings-footer">

@@ -16,6 +16,10 @@
 }
 
 .settings-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--bg-secondary);
