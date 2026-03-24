@@ -1,4 +1,5 @@
 import {
+  COLOR_VISION_MODES,
   CUSTOM_THEME_DEFAULT,
   DEFAULT_CUSTOM_THEME_NAME,
   createCustomThemeId,
@@ -40,6 +41,7 @@ const defaults = {
   highContrastText: false,
   increasedLetterSpacing: false,
   increasedWordSpacing: false,
+  colorVisionMode: 'default',
   enableBrowserNotifications: false,
   enableWeeklyReadingReminders: false,
   showVerseNumbers: true,
@@ -111,6 +113,10 @@ function normalizeHolyDayPreferences(parsedPreferences = {}) {
   );
 }
 
+function normalizeColorVisionMode(value) {
+  return COLOR_VISION_MODES.includes(value) ? value : defaults.colorVisionMode;
+}
+
 function normalizeSettings(parsedSettings = {}) {
   const defaultTranslation = getTranslationById(parsedSettings.defaultTranslation)
     ? parsedSettings.defaultTranslation
@@ -167,6 +173,7 @@ function normalizeSettings(parsedSettings = {}) {
       typeof parsedSettings.increasedWordSpacing === 'boolean'
         ? parsedSettings.increasedWordSpacing
         : defaults.increasedWordSpacing,
+    colorVisionMode: normalizeColorVisionMode(parsedSettings.colorVisionMode),
     enableBrowserNotifications:
       typeof parsedSettings.enableBrowserNotifications === 'boolean'
         ? parsedSettings.enableBrowserNotifications
@@ -252,6 +259,7 @@ export function saveSettings(settings) {
       typeof settings.increasedWordSpacing === 'boolean'
         ? settings.increasedWordSpacing
         : defaults.increasedWordSpacing,
+    colorVisionMode: normalizeColorVisionMode(settings.colorVisionMode),
     enableBrowserNotifications:
       typeof settings.enableBrowserNotifications === 'boolean'
         ? settings.enableBrowserNotifications

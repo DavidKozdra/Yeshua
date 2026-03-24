@@ -413,6 +413,70 @@
   border: 1px solid var(--border);
 }
 
+.theme-warning-banner {
+  margin-top: 1rem;
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border) 70%);
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg-input) 90%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.theme-warning-banner.is-critical {
+  border-color: color-mix(in srgb, var(--danger) 52%, var(--border) 48%);
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg-input) 86%);
+}
+
+.theme-warning-banner strong {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+
+.theme-warning-banner p {
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+}
+
+.theme-warning-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.theme-warning-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.theme-warning-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.theme-warning-pill.high {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+
+.theme-warning-pill.medium {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
 .theme-modal-card {
   padding: 1.1rem;
   border-radius: var(--radius);

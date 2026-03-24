@@ -27,8 +27,10 @@ import { fetchChapter, subscribeToTranslationInstallEvents } from '../utils/api'
 import { getTranslationSelectLabel, getTranslationStatus } from '../utils/translationStatus';
 import { parseReferenceInput } from '../utils/reference';
 import {
+  analyzeCustomTheme,
   applyTheme,
   BUILT_IN_THEMES,
+  COLOR_VISION_MODES,
   CUSTOM_THEME_DEFAULT,
   buildCustomThemeVariables,
   createCustomThemeId,
@@ -78,9 +80,32 @@ const BUILT_IN_THEME_LABELS = {
   dark: 'Dark',
   light: 'Light',
   sepia: 'Sepia',
+  cool: 'Cool',
 };
 const HOLY_DAY_REMINDER_OPTIONS = [0, 1, 2, 3, 5, 7, 14];
 const HOLY_DAY_DATE_LOOKAHEAD_DAYS = 400;
+const COLOR_VISION_OPTIONS = [
+  {
+    value: 'default',
+    label: 'Default Colors',
+    description: 'Keep the app palette unchanged.',
+  },
+  {
+    value: 'deuteranopia',
+    label: 'Deuteranopia Assist',
+    description: 'Shifts red and green states farther apart for green-weak vision.',
+  },
+  {
+    value: 'protanopia',
+    label: 'Protanopia Assist',
+    description: 'Adjusts warm hues that often blur together for red-weak vision.',
+  },
+  {
+    value: 'tritanopia',
+    label: 'Tritanopia Assist',
+    description: 'Makes blue-yellow differences clearer.',
+  },
+];
 const SETTINGS_TABS = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'reader', label: 'Reader', icon: BookOpen },
@@ -371,6 +396,43 @@ export default function Settings() {
     setShowThemeModal(false);
   }
 
+  function handleDeleteCustomTheme(themeId) {
+    const themeToDelete = settings.customThemes.find((theme) => theme.id === themeId);
+    if (!themeToDelete) return false;
+
+    const confirmed = confirm(
+      `Remove the "${themeToDelete.name}" custom theme? This cannot be undone.`
+    );
+    if (!confirmed) {
+      return false;
+    }
+
+    const remainingThemes = settings.customThemes.filter((theme) => theme.id !== themeId);
+    const wasActive = settings.theme === themeId;
+    const updated = {
+      ...settings,
+      theme: wasActive ? BUILT_IN_THEMES[0] : settings.theme,
+      customTheme: wasActive ? CUSTOM_THEME_DEFAULT : settings.customTheme,
+      customThemes: remainingThemes,
+    };
+
+    setSettings(updated);
+    saveSettings(updated);
+    return true;
+  }
+
+  function handleDeleteThemeFromModal() {
+    if (!editingThemeId) return;
+    const deleted = handleDeleteCustomTheme(editingThemeId);
+    if (deleted) {
+      setShowThemeModal(false);
+      setEditingThemeId(null);
+      setThemeDraftName('');
+      setThemeDraft(normalizeCustomTheme(CUSTOM_THEME_DEFAULT));
+      setThemeNameError('');
+    }
+  }
+
   function updateHolyDayPreference(holidayId, key, value) {
     const updated = {
       ...settings,
@@ -473,6 +535,7 @@ export default function Settings() {
       Number(b.status.isSavedOnDevice) - Number(a.status.isSavedOnDevice)
   );
   const customPreviewStyle = buildCustomThemeVariables(themeDraft);
+  const themeDraftAnalysis = useMemo(() => analyzeCustomTheme(themeDraft), [themeDraft]);
 
   return (
     <div className="page">
@@ -736,6 +799,32 @@ export default function Settings() {
 
             <div className="setting-divider" />
 
+            <div className="setting-row setting-row-stack">
+              <div className="setting-label">
+                <Palette size={18} />
+                <span>Color Vision Support</span>
+              </div>
+              <select
+                value={COLOR_VISION_MODES.includes(settings.colorVisionMode) ? settings.colorVisionMode : 'default'}
+                aria-label="Color vision support"
+                onChange={(e) => update('colorVisionMode', e.target.value)}
+              >
+                {COLOR_VISION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="settings-help">
+                {
+                  COLOR_VISION_OPTIONS.find((option) => option.value === settings.colorVisionMode)
+                    ?.description
+                }
+              </p>
+            </div>
+
+            <div className="setting-divider" />
+
             <div className="setting-row">
               <div className="setting-label">
                 <Eye size={18} />
@@ -788,7 +877,8 @@ export default function Settings() {
             <p className="settings-help">
               Adds stronger keyboard focus outlines, optional link underlines, and roomier buttons
               and controls for easier tapping. You can also increase text contrast and add spacing
-              between letters and words for easier scanning.
+              between letters and words for easier scanning. Color vision support remaps status
+              colors for different forms of color blindness.
             </p>
           </div>
         </section>
@@ -1380,6 +1470,37 @@ export default function Settings() {
               ))}
             </div>
 
+            {themeDraftAnalysis.hasIssues && (
+              <div
+                className={`theme-warning-banner ${
+                  themeDraftAnalysis.hasHighSeverityIssues ? 'is-critical' : ''
+                }`}
+                role="alert"
+              >
+                <strong>
+                  {themeDraftAnalysis.hasHighSeverityIssues
+                    ? 'Accessibility warning'
+                    : 'Accessibility review'}
+                </strong>
+                <p>
+                  This custom theme has readability or color-vision risks that may make text and
+                  status states harder to distinguish.
+                </p>
+                <ul className="theme-warning-list">
+                  {themeDraftAnalysis.issues.map((issue) => (
+                    <li key={issue.id}>
+                      <span className={`theme-warning-pill ${issue.severity}`}>
+                        {issue.severity === 'high' ? 'High' : 'Watch'}
+                      </span>
+                      <span>
+                        {issue.title}. {issue.detail}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="theme-modal-preview" style={customPreviewStyle}>
               <div className="theme-modal-card">
                 <div className="theme-modal-topline">
@@ -1396,13 +1517,23 @@ export default function Settings() {
             </div>
 
             <div className="modal-actions">
+              {editingThemeId && (
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={handleDeleteThemeFromModal}
+                >
+                  Delete Theme
+                </button>
+              )}
               <button
+                type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() => setThemeDraft({ ...CUSTOM_THEME_DEFAULT })}
               >
                 Reset
               </button>
-              <button className="btn btn-outline btn-sm" onClick={() => setShowThemeModal(false)}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowThemeModal(false)}>
                 Cancel
               </button>
               <button className="btn btn-primary btn-sm" onClick={handleSaveCustomTheme}>

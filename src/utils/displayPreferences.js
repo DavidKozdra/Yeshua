@@ -13,4 +13,5 @@ export function applyDisplayPreferences(settings = {}) {
   root.dataset.accessibilityLetterSpacing =
     settings.increasedLetterSpacing === true ? 'on' : 'off';
   root.dataset.accessibilityWordSpacing = settings.increasedWordSpacing === true ? 'on' : 'off';
+  root.dataset.accessibilityColorVision = settings.colorVisionMode || 'default';
 }
