@@ -25,6 +25,8 @@ export function speakChapter({
   chapter,
   verses,
   rate = 1,
+  announceChapterNumbers = true,
+  announceVerseNumbers = true,
   onVerseStart,
   onComplete,
   onError,
@@ -66,9 +68,15 @@ export function speakChapter({
 
     onVerseStart?.(verse.verse);
 
-    const utterance = new window.SpeechSynthesisUtterance(
-      `${bookName} ${chapter}, verse ${verse.verse}. ${verse.text}`
-    );
+    const prefixParts = [];
+    if (announceChapterNumbers && bookName) {
+      prefixParts.push(`${bookName} ${chapter}`);
+    }
+    if (announceVerseNumbers) {
+      prefixParts.push(`verse ${verse.verse}`);
+    }
+    const prefix = prefixParts.length ? `${prefixParts.join(', ')}. ` : '';
+    const utterance = new window.SpeechSynthesisUtterance(`${prefix}${verse.text}`);
     utterance.rate = rate;
     activeUtterance = utterance;
 

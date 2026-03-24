@@ -1068,6 +1068,40 @@ export default function Settings() {
                   : 'Turn this on to show a read-aloud control in the reader tools menu.'
                 : 'This browser does not support text to speech right now.'}
             </p>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Volume2 size={18} />
+                <span>Announce chapter numbers</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.announceChapterNumbers}
+                  disabled={!settings.showTextToSpeechTool || !textToSpeechSupported}
+                  onChange={(e) => update('announceChapterNumbers', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Volume2 size={18} />
+                <span>Announce verse numbers</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.announceVerseNumbers}
+                  disabled={!settings.showTextToSpeechTool || !textToSpeechSupported}
+                  onChange={(e) => update('announceVerseNumbers', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
           </div>
         </section>
 

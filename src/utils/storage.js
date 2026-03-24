@@ -62,6 +62,8 @@ const defaults = {
   ),
   showTextToSpeechTool: true,
   textToSpeechRate: 1,
+  announceChapterNumbers: true,
+  announceVerseNumbers: true,
   customTheme: CUSTOM_THEME_DEFAULT,
   customThemes: [],
   wordsOfChristColor: DEFAULT_WORDS_OF_CHRIST_COLOR,
@@ -201,6 +203,14 @@ function normalizeSettings(parsedSettings = {}) {
         ? parsedSettings.showTextToSpeechTool
         : defaults.showTextToSpeechTool,
     textToSpeechRate: normalizeTextToSpeechRate(parsedSettings.textToSpeechRate),
+    announceChapterNumbers:
+      typeof parsedSettings.announceChapterNumbers === 'boolean'
+        ? parsedSettings.announceChapterNumbers
+        : defaults.announceChapterNumbers,
+    announceVerseNumbers:
+      typeof parsedSettings.announceVerseNumbers === 'boolean'
+        ? parsedSettings.announceVerseNumbers
+        : defaults.announceVerseNumbers,
     customTheme: normalizedCustomTheme,
     customThemes,
     wordsOfChristColor: sanitizeWordsOfChristColor(parsedSettings.wordsOfChristColor),
@@ -287,6 +297,14 @@ export function saveSettings(settings) {
         ? settings.showTextToSpeechTool
         : defaults.showTextToSpeechTool,
     textToSpeechRate: normalizeTextToSpeechRate(settings.textToSpeechRate),
+    announceChapterNumbers:
+      typeof settings.announceChapterNumbers === 'boolean'
+        ? settings.announceChapterNumbers
+        : defaults.announceChapterNumbers,
+    announceVerseNumbers:
+      typeof settings.announceVerseNumbers === 'boolean'
+        ? settings.announceVerseNumbers
+        : defaults.announceVerseNumbers,
     customTheme: activeCustomTheme?.colors || normalizeCustomTheme(settings.customTheme),
     customThemes,
     wordsOfChristColor: sanitizeWordsOfChristColor(settings.wordsOfChristColor),

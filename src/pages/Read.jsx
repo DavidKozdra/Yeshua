@@ -76,7 +76,15 @@ export default function Read() {
     message: 'Preparing your offline Bible library...',
     progress: null,
   });
+  const [isAutoReadingBible, setIsAutoReadingBible] = useState(false);
+  const [pendingAutoStartKey, setPendingAutoStartKey] = useState(null);
   const contentRef = useRef(null);
+  const transitionTimerRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const [chapterTransition, setChapterTransition] = useState({
+    direction: null,
+    animating: false,
+  });
   const speechCleanupRef = useRef(null);
   const touchGestureRef = useRef(null);
   const noteModalRef = useFocusTrap(showNoteModal);
@@ -177,6 +185,54 @@ export default function Read() {
     translation.abbreviation,
   ]);
 
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (transitionTimerRef.current) {
+        window.clearTimeout(transitionTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      !isAutoReadingBible ||
+      !pendingAutoStartKey ||
+      !offlineState.ready ||
+      loading ||
+      error ||
+      isSpeakingChapter ||
+      !verses.length ||
+      !textToSpeechSupported ||
+      !settings.showTextToSpeechTool
+    ) {
+      return;
+    }
+
+    const currentKey = `${bookId}:${chapter}`;
+    if (pendingAutoStartKey !== currentKey) {
+      return;
+    }
+
+    setPendingAutoStartKey(null);
+    handleStartTextToSpeech({ autoAdvanceBible: true });
+  }, [
+    isAutoReadingBible,
+    pendingAutoStartKey,
+    offlineState.ready,
+    loading,
+    error,
+    isSpeakingChapter,
+    verses.length,
+    textToSpeechSupported,
+    settings.showTextToSpeechTool,
+    settings.textToSpeechRate,
+    settings.announceChapterNumbers,
+    settings.announceVerseNumbers,
+    bookId,
+    chapter,
+  ]);
+
   const loadChapter = useCallback(async () => {
     if (!offlineState.ready) {
       setVerses([]);
@@ -256,26 +312,62 @@ export default function Read() {
     navigate(`/read/${newTranslation}/${newBook}/${newChapter}`, { replace: true });
   }
 
-  function prevChapter() {
-    if (chapter > 1) {
-      goTo(bookId, chapter - 1);
-    } else {
-      const idx = BIBLE_BOOKS.findIndex((b) => b.id === bookId);
-      if (idx > 0) {
-        const prevBook = BIBLE_BOOKS[idx - 1];
-        goTo(prevBook.id, prevBook.chapters);
+  function getBookIndex(bookIdToFind) {
+    return BIBLE_BOOKS.findIndex((book) => book.id === bookIdToFind);
+  }
+
+  function getNextChapterTarget(currentBookId, currentChapter) {
+    const index = getBookIndex(currentBookId);
+    if (index === -1) return null;
+    if (currentChapter < BIBLE_BOOKS[index].chapters) {
+      return { bookId: currentBookId, chapter: currentChapter + 1 };
+    }
+    if (index < BIBLE_BOOKS.length - 1) {
+      const nextBook = BIBLE_BOOKS[index + 1];
+      return { bookId: nextBook.id, chapter: 1 };
+    }
+    return null;
+  }
+
+  function getPrevChapterTarget(currentBookId, currentChapter) {
+    const index = getBookIndex(currentBookId);
+    if (index === -1) return null;
+    if (currentChapter > 1) {
+      return { bookId: currentBookId, chapter: currentChapter - 1 };
+    }
+    if (index > 0) {
+      const prevBook = BIBLE_BOOKS[index - 1];
+      return { bookId: prevBook.id, chapter: prevBook.chapters };
+    }
+    return null;
+  }
+
+  function navigateWithTransition(direction, navigateFn) {
+    if (transitionTimerRef.current) {
+      window.clearTimeout(transitionTimerRef.current);
+    }
+
+    setChapterTransition({ direction, animating: true });
+    transitionTimerRef.current = window.setTimeout(() => {
+      transitionTimerRef.current = null;
+      navigateFn();
+      if (isMountedRef.current) {
+        setChapterTransition({ direction: null, animating: false });
       }
+    }, 220);
+  }
+
+  function prevChapter() {
+    const target = getPrevChapterTarget(bookId, chapter);
+    if (target) {
+      navigateWithTransition('prev', () => goTo(target.bookId, target.chapter));
     }
   }
 
   function nextChapter() {
-    if (chapter < book.chapters) {
-      goTo(bookId, chapter + 1);
-    } else {
-      const idx = BIBLE_BOOKS.findIndex((b) => b.id === bookId);
-      if (idx < BIBLE_BOOKS.length - 1) {
-        goTo(BIBLE_BOOKS[idx + 1].id, 1);
-      }
+    const target = getNextChapterTarget(bookId, chapter);
+    if (target) {
+      navigateWithTransition('next', () => goTo(target.bookId, target.chapter));
     }
   }
 
@@ -372,10 +464,12 @@ export default function Read() {
     setIsSpeakingChapter(false);
     setSpeakingVerse(null);
     setSpeechError('');
+    setIsAutoReadingBible(false);
+    setPendingAutoStartKey(null);
     setShowReaderActions(false);
   }
 
-  function handleStartTextToSpeech() {
+  function handleStartTextToSpeech({ autoAdvanceBible = false } = {}) {
     setShowReaderActions(false);
 
     if (!textToSpeechSupported) {
@@ -394,6 +488,10 @@ export default function Read() {
     }
 
     setSpeechError('');
+    if (!autoAdvanceBible) {
+      setIsAutoReadingBible(false);
+      setPendingAutoStartKey(null);
+    }
 
     try {
       speechCleanupRef.current = speakChapter({
@@ -401,6 +499,8 @@ export default function Read() {
         chapter,
         verses,
         rate: settings.textToSpeechRate,
+        announceChapterNumbers: settings.announceChapterNumbers,
+        announceVerseNumbers: settings.announceVerseNumbers,
         onVerseStart: (verseNumber) => {
           setSpeakingVerse(verseNumber);
           const targetElement = contentRef.current?.querySelector(`[data-verse="${verseNumber}"]`);
@@ -410,6 +510,16 @@ export default function Read() {
           speechCleanupRef.current = null;
           setIsSpeakingChapter(false);
           setSpeakingVerse(null);
+          if (autoAdvanceBible && isAutoReadingBible) {
+            const nextTarget = getNextChapterTarget(bookId, chapter);
+            if (nextTarget) {
+              setPendingAutoStartKey(`${nextTarget.bookId}:${nextTarget.chapter}`);
+              goTo(nextTarget.bookId, nextTarget.chapter);
+            } else {
+              setIsAutoReadingBible(false);
+              setPendingAutoStartKey(null);
+            }
+          }
         },
         onError: (message) => {
           speechCleanupRef.current = null;
@@ -429,6 +539,39 @@ export default function Read() {
       setSpeakingVerse(null);
       setSpeechError(err.message || 'Text to speech could not start.');
     }
+  }
+
+  function handleToggleBibleReading() {
+    if (isAutoReadingBible) {
+      handleStopTextToSpeech();
+      return;
+    }
+
+    if (!textToSpeechSupported) {
+      setSpeechError('Text to speech is not available in this browser.');
+      return;
+    }
+
+    if (!offlineState.ready || loading || error) {
+      setSpeechError('Load a chapter before starting text to speech.');
+      return;
+    }
+
+    if (!settings.showTextToSpeechTool) {
+      setSpeechError('Enable the text-to-speech tool in settings to read the entire Bible.');
+      return;
+    }
+
+    if (speechCleanupRef.current) {
+      speechCleanupRef.current();
+      speechCleanupRef.current = null;
+    }
+
+    setSpeechError('');
+    setIsAutoReadingBible(true);
+    const startBookId = BIBLE_BOOKS[0]?.id || bookId;
+    setPendingAutoStartKey(`${startBookId}:1`);
+    goTo(startBookId, 1);
   }
 
   async function handleSaveNote() {
@@ -611,7 +754,7 @@ export default function Read() {
 
       {/* Bible text */}
       <div
-        className="read-content"
+        className={`read-content${chapterTransition.animating ? ` is-turning-${chapterTransition.direction}` : ''}`}
         ref={contentRef}
         onTouchStart={handleContentTouchStart}
         onTouchEnd={handleContentTouchEnd}
@@ -808,6 +951,18 @@ export default function Read() {
               >
                 {isSpeakingChapter ? <Square size={16} /> : <Volume2 size={16} />}
                 <span>{isSpeakingChapter ? 'Stop reading' : 'Read chapter aloud'}</span>
+              </button>
+            )}
+            {settings.showTextToSpeechTool && (
+              <button
+                className="fab-action"
+                onClick={handleToggleBibleReading}
+                disabled={
+                  !textToSpeechSupported || !offlineState.ready || loading || !!error
+                }
+              >
+                <BookOpen size={16} />
+                <span>{isAutoReadingBible ? 'Stop reading Bible' : 'Read Bible from start'}</span>
               </button>
             )}
             <button className="fab-action" onClick={openQuickNoteModal}>
