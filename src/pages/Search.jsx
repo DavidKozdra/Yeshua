@@ -200,7 +200,7 @@ export default function Search() {
         </div>
       ) : (
         <>
-          <div className="search-summary card">
+          <div className="search-summary card" role="status" aria-live="polite">
             <div className="search-summary-copy">
               <span className="chip">
                 <SearchIcon size={12} />
@@ -220,7 +220,7 @@ export default function Search() {
           </div>
 
           {loading ? (
-            <div className="loading-spinner">Searching...</div>
+            <div className="loading-spinner" role="status" aria-live="polite">Searching...</div>
           ) : results.length === 0 ? (
             <div className="empty-state">
               <h3>No matches found</h3>

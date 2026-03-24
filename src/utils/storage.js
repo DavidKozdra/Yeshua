@@ -39,6 +39,7 @@ const defaults = {
   highContrastText: false,
   increasedLetterSpacing: false,
   increasedWordSpacing: false,
+  enableBrowserNotifications: false,
   showVerseNumbers: true,
   showWordsOfChristInRed: false,
   useVerseRedLetterFallback: false,
@@ -164,6 +165,10 @@ function normalizeSettings(parsedSettings = {}) {
       typeof parsedSettings.increasedWordSpacing === 'boolean'
         ? parsedSettings.increasedWordSpacing
         : defaults.increasedWordSpacing,
+    enableBrowserNotifications:
+      typeof parsedSettings.enableBrowserNotifications === 'boolean'
+        ? parsedSettings.enableBrowserNotifications
+        : defaults.enableBrowserNotifications,
     showWordsOfChristInRed:
       typeof parsedSettings.showWordsOfChristInRed === 'boolean'
         ? parsedSettings.showWordsOfChristInRed
@@ -241,6 +246,10 @@ export function saveSettings(settings) {
       typeof settings.increasedWordSpacing === 'boolean'
         ? settings.increasedWordSpacing
         : defaults.increasedWordSpacing,
+    enableBrowserNotifications:
+      typeof settings.enableBrowserNotifications === 'boolean'
+        ? settings.enableBrowserNotifications
+        : defaults.enableBrowserNotifications,
     showWordsOfChristInRed:
       typeof settings.showWordsOfChristInRed === 'boolean'
         ? settings.showWordsOfChristInRed

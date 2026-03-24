@@ -32,6 +32,7 @@ import {
   TTS_RATE_OPTIONS,
 } from '../utils/tts';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { getWordsOfChristSegments } from '../utils/redLetters';
 import GlobalSearchBar from '../components/GlobalSearchBar';
 import '../styles/read.css';
@@ -78,6 +79,9 @@ export default function Read() {
   const contentRef = useRef(null);
   const speechCleanupRef = useRef(null);
   const touchGestureRef = useRef(null);
+  const noteModalRef = useFocusTrap(showNoteModal);
+  const bookSelectorRef = useFocusTrap(showBookSelector);
+  const chapterSelectorRef = useFocusTrap(showChapterSelector);
 
   const book = resolvedBook;
   const translation = resolvedTranslation;
@@ -488,6 +492,7 @@ export default function Read() {
           <select
             className="translation-select"
             value={translationId}
+            aria-label="Bible translation"
             onChange={(e) => {
               goTo(bookId, chapter, e.target.value);
             }}
@@ -514,17 +519,25 @@ export default function Read() {
           rel="noopener noreferrer"
           className="research-link"
           title="View commentaries on Bible Hub"
+          aria-label="View commentaries on Bible Hub (opens in new tab)"
         >
-          <ExternalLink size={16} />
+          <ExternalLink size={16} aria-hidden="true" />
         </a>
       </div>
 
       {/* Book selector panel */}
       {showBookSelector && (
-        <div className="selector-panel">
+        <div
+          className="selector-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Select Book"
+          ref={bookSelectorRef}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowBookSelector(false); }}
+        >
           <div className="selector-panel-header">
             <h3>Select Book</h3>
-            <button onClick={() => setShowBookSelector(false)}>
+            <button aria-label="Close book selector" onClick={() => setShowBookSelector(false)}>
               <X size={18} />
             </button>
           </div>
@@ -565,10 +578,17 @@ export default function Read() {
 
       {/* Chapter selector panel */}
       {showChapterSelector && (
-        <div className="selector-panel">
+        <div
+          className="selector-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Select Chapter for ${book?.name}`}
+          ref={chapterSelectorRef}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowChapterSelector(false); }}
+        >
           <div className="selector-panel-header">
             <h3>{book?.name} - Select Chapter</h3>
-            <button onClick={() => setShowChapterSelector(false)}>
+            <button aria-label="Close chapter selector" onClick={() => setShowChapterSelector(false)}>
               <X size={18} />
             </button>
           </div>
@@ -614,20 +634,27 @@ export default function Read() {
               </span>
             </div>
             {isSpeakingChapter && (
-              <button className="btn btn-outline btn-sm" onClick={handleStopTextToSpeech}>
+              <button className="btn btn-outline btn-sm" onClick={handleStopTextToSpeech} aria-label="Stop text to speech">
                 Stop
               </button>
             )}
           </div>
         )}
 
-        {loading && <div className="loading-spinner">Loading...</div>}
+        {loading && <div className="loading-spinner" role="status" aria-live="polite">Loading...</div>}
         {!loading && !offlineState.ready && (
-          <div className="read-empty-state">
+          <div className="read-empty-state" role="status" aria-live="polite">
             <p>{offlineState.message}</p>
             {offlineState.progress && (
               <div className="download-progress read-progress">
-                <div className="progress-bar">
+                <div
+                  className="progress-bar"
+                  role="progressbar"
+                  aria-valuenow={offlineState.progress.done}
+                  aria-valuemin={0}
+                  aria-valuemax={offlineState.progress.total}
+                  aria-label={`Download progress: ${offlineState.progress.done} of ${offlineState.progress.total} chapters saved`}
+                >
                   <div
                     className="progress-bar-fill"
                     style={{
@@ -652,7 +679,7 @@ export default function Read() {
           </div>
         )}
         {error && (
-          <div className="read-error">
+          <div className="read-error" role="alert">
             <p>{error}</p>
             <button className="btn btn-outline btn-sm" onClick={loadChapter}>
               Retry
@@ -711,28 +738,41 @@ export default function Read() {
 
         {/* Chapter navigation */}
         {offlineState.ready && !error && (
-          <div className="chapter-nav">
-            <button className="btn btn-outline" onClick={prevChapter}>
-              <ChevronLeft size={18} />
+          <nav className="chapter-nav" aria-label="Chapter navigation">
+            <button className="btn btn-outline" onClick={prevChapter} aria-label="Previous chapter">
+              <ChevronLeft size={18} aria-hidden="true" />
               Previous
             </button>
-            <button className="btn btn-outline" onClick={nextChapter}>
+            <button className="btn btn-outline" onClick={nextChapter} aria-label="Next chapter">
               Next
-              <ChevronRight size={18} />
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
-          </div>
+          </nav>
         )}
       </div>
 
       {/* Note modal */}
       {showNoteModal && (
-        <div className="modal-overlay" onClick={() => setShowNoteModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowNoteModal(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowNoteModal(false); }}
+        >
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Note for ${book?.name} ${chapter}:${selectedVerse}`}
+            ref={noteModalRef}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2>
-              <StickyNote size={18} style={{ verticalAlign: 'middle', marginRight: 8 }} />
+              <StickyNote size={18} style={{ verticalAlign: 'middle', marginRight: 8 }} aria-hidden="true" />
               {book?.name} {chapter}:{selectedVerse}
             </h2>
+            <label htmlFor="note-text" className="sr-only">Note text</label>
             <textarea
+              id="note-text"
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
               placeholder="Write your note..."
@@ -783,9 +823,10 @@ export default function Read() {
         <button
           className={`fab ${showReaderActions ? 'fab-open' : ''}`}
           onClick={() => setShowReaderActions((current) => !current)}
-          title="Reader tools"
+          aria-label={showReaderActions ? 'Close reader tools' : 'Open reader tools'}
+          aria-expanded={showReaderActions}
         >
-          <Plus size={22} />
+          <Plus size={22} aria-hidden="true" />
         </button>
       </div>
     </div>

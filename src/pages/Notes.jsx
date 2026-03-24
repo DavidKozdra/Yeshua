@@ -208,12 +208,14 @@ export default function Notes() {
           value={newNote.title}
           onChange={(e) => setNewNote((current) => ({ ...current, title: e.target.value }))}
           placeholder="Title (optional)"
+          aria-label="New note title"
         />
         <textarea
           value={newNote.text}
           onChange={(e) => setNewNote((current) => ({ ...current, text: e.target.value }))}
           placeholder="Write a note without attaching it to a verse..."
           rows={4}
+          aria-label="New note text"
         />
         <div className="note-compose-actions">
           <button
@@ -235,9 +237,10 @@ export default function Notes() {
               placeholder="Search notes, references, or translations..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search notes"
             />
           </div>
-          <div className="notes-filters" aria-label="Filter notes">
+          <div className="notes-filters" role="group" aria-label="Filter notes">
             <span className="notes-filter-label">
               <Filter size={14} />
               View
@@ -293,6 +296,7 @@ export default function Notes() {
                         setEditDraft((current) => ({ ...current, title: e.target.value }))
                       }
                       placeholder="Title (optional)"
+                      aria-label="Edit note title"
                     />
                     <textarea
                       value={editDraft.text}
@@ -300,6 +304,7 @@ export default function Notes() {
                         setEditDraft((current) => ({ ...current, text: e.target.value }))
                       }
                       autoFocus
+                      aria-label="Edit note text"
                     />
                     <div className="note-edit-actions">
                       <button

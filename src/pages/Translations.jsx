@@ -204,18 +204,20 @@ export default function Translations({ preferredTab = 'translations' }) {
             key={id}
             type="button"
             role="tab"
+            id={`lib-tab-${id}`}
             aria-selected={activeTab === id}
+            aria-controls={`lib-tabpanel-${id}`}
             className={`translations-tab ${activeTab === id ? 'active' : ''}`}
             onClick={() => setActiveTab(id)}
           >
-            <Icon size={16} />
+            <Icon size={16} aria-hidden="true" />
             <span>{label}</span>
           </button>
         ))}
       </div>
 
       {activeTab === 'translations' && (
-        <>
+        <div role="tabpanel" id="lib-tabpanel-translations" aria-labelledby="lib-tab-translations">
           <p className="translations-intro">
             Ready now means you can open the translation immediately. Included with app means the
             text ships in this build. Saved on device means every chapter is cached in local
@@ -279,8 +281,15 @@ export default function Translations({ preferredTab = 'translations' }) {
                     <p className="translation-detail">{status.detailLabel}</p>
 
                     {isInProgress && (
-                      <div className="download-progress">
-                        <div className="progress-bar">
+                      <div className="download-progress" aria-live="polite">
+                        <div
+                          className="progress-bar"
+                          role="progressbar"
+                          aria-valuenow={progressDone}
+                          aria-valuemin={0}
+                          aria-valuemax={progressTotal}
+                          aria-label={`${translation.abbreviation} download: ${progressDone} of ${progressTotal} chapters`}
+                        >
                           <div
                             className="progress-bar-fill"
                             style={{
@@ -378,11 +387,11 @@ export default function Translations({ preferredTab = 'translations' }) {
               );
             })}
           </div>
-        </>
+        </div>
       )}
 
       {activeTab === 'library' && (
-        <>
+        <div role="tabpanel" id="lib-tabpanel-library" aria-labelledby="lib-tab-library">
           <p className="translations-intro">
             Reader canons can stream online, download for offline reading, and keep their own queue
             and cache separate from Bible translations.
@@ -430,8 +439,15 @@ export default function Translations({ preferredTab = 'translations' }) {
                     <p className="translation-detail">{status.detailLabel}</p>
 
                     {(status.isInstalling || status.isPartial) && progressTotal > 0 && (
-                      <div className="download-progress books-progress">
-                        <div className="progress-bar">
+                      <div className="download-progress books-progress" aria-live="polite">
+                        <div
+                          className="progress-bar"
+                          role="progressbar"
+                          aria-valuenow={progressDone}
+                          aria-valuemin={0}
+                          aria-valuemax={progressTotal}
+                          aria-label={`${collection.name} download: ${progressDone} of ${progressTotal} chapters`}
+                        >
                           <div
                             className="progress-bar-fill"
                             style={{ width: `${(progressDone / progressTotal) * 100}%` }}
@@ -495,11 +511,11 @@ export default function Translations({ preferredTab = 'translations' }) {
               </section>
             );
           })}
-        </>
+        </div>
       )}
 
       {activeTab === 'external' && (
-        <>
+        <div role="tabpanel" id="lib-tabpanel-external" aria-labelledby="lib-tab-external">
           <p className="translations-intro">
             These sources stay linked out to official or archival libraries rather than being saved
             locally in this build.
@@ -551,7 +567,7 @@ export default function Translations({ preferredTab = 'translations' }) {
               </div>
             </section>
           ))}
-        </>
+        </div>
       )}
     </div>
   );

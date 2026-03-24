@@ -103,7 +103,7 @@ export default function Layout() {
       <ToastHost />
       <RouteAnnouncer />
 
-      <nav className="bottom-nav" aria-label="Main navigation">
+      <nav className="bottom-nav" aria-label="Mobile navigation">
         {mobileNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}

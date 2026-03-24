@@ -101,7 +101,7 @@ export default function GlobalSearchBar({
           Go
         </button>
       </form>
-      {searchError && <p className={errorClassName}>{searchError}</p>}
+      {searchError && <p className={errorClassName} role="alert">{searchError}</p>}
     </div>
   );
 }

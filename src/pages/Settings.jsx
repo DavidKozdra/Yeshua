@@ -47,6 +47,13 @@ import {
   exportAppDataSnapshot,
   importAppDataSnapshot,
 } from '../utils/appData';
+import { useFocusTrap } from '../hooks/useFocusTrap';
+import {
+  areBrowserNotificationsSupported,
+  getBrowserNotificationPermission,
+  requestBrowserNotificationPermission,
+  showBrowserNotification,
+} from '../utils/notifications';
 import '../styles/settings.css';
 import '../styles/translations.css';
 
@@ -98,6 +105,7 @@ export default function Settings() {
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [downloadedTranslations, setDownloadedTranslations] = useState([]);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const themeModalRef = useFocusTrap(showThemeModal);
   const [themeDraft, setThemeDraft] = useState(() => normalizeCustomTheme(CUSTOM_THEME_DEFAULT));
   const [themeDraftName, setThemeDraftName] = useState('');
   const [themeNameError, setThemeNameError] = useState('');
@@ -112,6 +120,9 @@ export default function Settings() {
   const [previewVerses, setPreviewVerses] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState('');
+  const [notificationPermission, setNotificationPermission] = useState(() =>
+    getBrowserNotificationPermission()
+  );
 
   const translationMetaMap = new Map(downloadedTranslations.map((item) => [item.id, item]));
   const translationStatuses = AVAILABLE_TRANSLATIONS.map((translation) => ({
@@ -173,6 +184,19 @@ export default function Settings() {
   useEffect(() => {
     applyTheme(settings);
   }, [settings]);
+
+  useEffect(() => {
+    function syncNotificationPermission() {
+      setNotificationPermission(getBrowserNotificationPermission());
+    }
+
+    syncNotificationPermission();
+    window.addEventListener('focus', syncNotificationPermission);
+
+    return () => {
+      window.removeEventListener('focus', syncNotificationPermission);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,6 +286,33 @@ export default function Settings() {
     }
     setSettings(updated);
     saveSettings(updated);
+  }
+
+  async function handleEnableBrowserNotifications() {
+    if (!areBrowserNotificationsSupported()) {
+      return;
+    }
+
+    const permission = await requestBrowserNotificationPermission();
+    setNotificationPermission(permission);
+
+    update('enableBrowserNotifications', permission === 'granted');
+  }
+
+  async function handleSendTestNotification() {
+    const sent = await showBrowserNotification({
+      title: 'Yeshua notifications are on',
+      body: 'Holy day reminders can now appear as browser notifications on this device.',
+      tag: 'yeshua-notification-test',
+    });
+
+    if (!sent) {
+      setDataError('Browser notifications are not available right now.');
+      return;
+    }
+
+    setDataError('');
+    setDataMessage('Test notification sent.');
   }
 
   function openThemeModal(themeToEdit = null) {
@@ -431,6 +482,7 @@ export default function Settings() {
         type="file"
         accept="application/json"
         className="settings-import-input"
+        aria-label="Import Yeshua data backup"
         onChange={handleImportData}
       />
 
@@ -440,7 +492,9 @@ export default function Settings() {
             key={tab.id}
             type="button"
             role="tab"
+            id={`tab-${tab.id}`}
             aria-selected={activeTab === tab.id}
+            aria-controls={`tabpanel-${tab.id}`}
             className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
@@ -449,7 +503,7 @@ export default function Settings() {
         ))}
       </div>
 
-      <div className="settings-sections">
+      <div className="settings-sections" role="tabpanel" id={`tabpanel-${activeTab}`} aria-labelledby={`tab-${activeTab}`}>
         {activeTab === 'profile' && (
         <section className="settings-section">
           <p className="section-label">Profile</p>
@@ -461,6 +515,7 @@ export default function Settings() {
               </div>
               <div className="settings-name-field">
                 <input
+                  id="profile-name"
                   type="text"
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
@@ -471,6 +526,7 @@ export default function Settings() {
                     }
                   }}
                   placeholder="Your name"
+                  aria-label="Profile name"
                 />
                 <button className="btn btn-primary btn-sm" onClick={handleSaveName}>
                   Save
@@ -512,8 +568,8 @@ export default function Settings() {
                   {isDeletingData ? 'Deleting...' : 'Delete All Data'}
                 </button>
               </div>
-              {dataMessage && <p className="settings-help">{dataMessage}</p>}
-              {dataError && <p className="settings-help error">{dataError}</p>}
+              {dataMessage && <p className="settings-help" role="status" aria-live="polite">{dataMessage}</p>}
+              {dataError && <p className="settings-help error" role="alert">{dataError}</p>}
             </div>
           </div>
         </section>
@@ -745,16 +801,18 @@ export default function Settings() {
                 <Type size={18} />
                 <span>Font Size</span>
               </div>
-              <div className="font-size-control">
+              <div className="font-size-control" role="group" aria-label="Font size controls">
                 <button
                   className="btn btn-outline btn-sm"
+                  aria-label="Decrease font size"
                   onClick={() => update('fontSize', Math.max(14, settings.fontSize - 1))}
                 >
                   A-
                 </button>
-                <span className="font-size-value">{settings.fontSize}px</span>
+                <span className="font-size-value" aria-live="polite">{settings.fontSize}px</span>
                 <button
                   className="btn btn-outline btn-sm"
+                  aria-label="Increase font size"
                   onClick={() => update('fontSize', Math.min(28, settings.fontSize + 1))}
                 >
                   A+
@@ -771,6 +829,7 @@ export default function Settings() {
               </div>
               <select
                 value={settings.lineHeight}
+                aria-label="Line height"
                 onChange={(e) => update('lineHeight', parseFloat(e.target.value))}
               >
                 <option value={1.4}>Compact (1.4)</option>
@@ -823,6 +882,7 @@ export default function Settings() {
                 type="color"
                 value={settings.wordsOfChristColor}
                 disabled={!settings.showWordsOfChristInRed}
+                aria-label="Words of Christ color"
                 onChange={(e) => update('wordsOfChristColor', e.target.value)}
               />
             </div>
@@ -895,6 +955,7 @@ export default function Settings() {
               </div>
               <select
                 value={settings.textToSpeechRate}
+                aria-label="Text to speech speed"
                 onChange={(e) => update('textToSpeechRate', Number.parseFloat(e.target.value))}
                 disabled={!settings.showTextToSpeechTool || !textToSpeechSupported}
               >
@@ -926,6 +987,7 @@ export default function Settings() {
               </div>
               <select
                 value={settings.defaultTranslation}
+                aria-label="Default translation"
                 onChange={(e) => update('defaultTranslation', e.target.value)}
               >
                 {translationOptions.map(({ translation, status }) => (
@@ -946,6 +1008,7 @@ export default function Settings() {
                 <input
                   type="text"
                   value={referenceInput}
+                  aria-label="Preview verse reference"
                   onChange={(e) => setReferenceInput(e.target.value)}
                   onBlur={handleReferenceSubmit}
                   onKeyDown={(e) => {
@@ -966,6 +1029,7 @@ export default function Settings() {
             <div className="preview-selectors">
               <select
                 value={previewBookId}
+                aria-label="Preview book"
                 onChange={(e) => setPreviewBookId(e.target.value)}
               >
                 {BIBLE_BOOKS.map((book) => (
@@ -976,6 +1040,7 @@ export default function Settings() {
               </select>
               <select
                 value={previewChapter}
+                aria-label="Preview chapter"
                 onChange={(e) => setPreviewChapter(Number.parseInt(e.target.value, 10))}
               >
                 {Array.from(
@@ -989,6 +1054,7 @@ export default function Settings() {
               </select>
               <select
                 value={previewVerse}
+                aria-label="Preview verse"
                 onChange={(e) => setPreviewVerse(Number.parseInt(e.target.value, 10))}
                 disabled={!previewVerses.length}
               >
@@ -1092,10 +1158,63 @@ export default function Settings() {
             <div className="setting-row">
               <div className="setting-label">
                 <Bell size={18} />
+                <span>Browser Notifications</span>
+              </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.enableBrowserNotifications}
+                  disabled={!areBrowserNotificationsSupported() || notificationPermission !== 'granted'}
+                  onChange={(e) => update('enableBrowserNotifications', e.target.checked)}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <p className={`settings-help ${!areBrowserNotificationsSupported() ? 'error' : ''}`}>
+              {!areBrowserNotificationsSupported()
+                ? 'This browser does not support notifications.'
+                : notificationPermission === 'granted'
+                  ? 'Browser notifications are allowed. Holy day reminders can appear outside the app while it is open.'
+                  : notificationPermission === 'denied'
+                    ? 'Browser notifications are blocked in this browser. Re-enable them in browser site settings to use them here.'
+                    : 'Allow browser notifications to send holy day reminders outside the in-app toast system.'}
+            </p>
+
+            <div className="theme-actions">
+              {notificationPermission !== 'granted' && areBrowserNotificationsSupported() && (
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={handleEnableBrowserNotifications}
+                >
+                  <Bell size={14} />
+                  Allow Notifications
+                </button>
+              )}
+
+              {notificationPermission === 'granted' && (
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={handleSendTestNotification}
+                >
+                  <Bell size={14} />
+                  Send Test Notification
+                </button>
+              )}
+            </div>
+
+            <div className="setting-divider" />
+
+            <div className="setting-row">
+              <div className="setting-label">
+                <Bell size={18} />
                 <span>Reminder Lead Time</span>
               </div>
               <select
                 value={settings.holyDayReminderLeadDays}
+                aria-label="Reminder lead time"
                 onChange={(e) => update('holyDayReminderLeadDays', Number.parseInt(e.target.value, 10))}
                 disabled={!settings.enableHolyDayAwareness}
               >
@@ -1180,8 +1299,19 @@ export default function Settings() {
       </div>
 
       {showThemeModal && (
-        <div className="modal-overlay" onClick={() => setShowThemeModal(false)}>
-          <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowThemeModal(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowThemeModal(false); }}
+        >
+          <div
+            className="modal theme-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={editingThemeId ? 'Edit Custom Theme' : 'Create Custom Theme'}
+            ref={themeModalRef}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2>{editingThemeId ? 'Edit Custom Theme' : 'Create Custom Theme'}</h2>
             <div className="theme-name-field">
               <label htmlFor="custom-theme-name">Theme Name</label>

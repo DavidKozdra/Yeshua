@@ -402,13 +402,13 @@ export default function BookText() {
         )}
 
         {worksError && !works.length ? (
-          <div className="read-error">
+          <div className="read-error" role="alert">
             <p>{worksError}</p>
           </div>
         ) : loading || worksLoading ? (
-          <div className="loading-spinner">Loading text...</div>
+          <div className="loading-spinner" role="status" aria-live="polite">Loading text...</div>
         ) : error ? (
-          <div className="read-error">
+          <div className="read-error" role="alert">
             <p>{error}</p>
           </div>
         ) : (
@@ -425,9 +425,9 @@ export default function BookText() {
           </div>
         )}
 
-        <div className="chapter-nav">
+        <nav className="chapter-nav" aria-label="Chapter navigation">
           <button type="button" className="btn btn-outline" onClick={goPrevious}>
-            <ChevronLeft size={16} />
+            <ChevronLeft size={16} aria-hidden="true" />
             {chapter > 1
               ? `Chapter ${chapter - 1}`
               : previousWork
@@ -441,9 +441,9 @@ export default function BookText() {
               : nextWork
                 ? nextWork.title
                 : 'Start over'}
-            <ChevronRight size={16} />
+            <ChevronRight size={16} aria-hidden="true" />
           </button>
-        </div>
+        </nav>
       </div>
     </div>
   );

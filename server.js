@@ -22,6 +22,30 @@ const contentTypes = {
   '.woff2': 'font/woff2',
 };
 
+const securityHeaders = {
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: https:",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "connect-src 'self' https://raw.githubusercontent.com",
+    "manifest-src 'self'",
+    "worker-src 'self'",
+    'upgrade-insecure-requests',
+  ].join('; '),
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+};
+
 function resolveRequestPath(url) {
   const pathname = new URL(url, `http://${host}:${port}`).pathname;
   const candidate = resolve(distDir, `.${pathname}`);
@@ -61,7 +85,10 @@ createServer((request, response) => {
   const extension = extname(filePath);
   const contentType = contentTypes[extension] || 'application/octet-stream';
 
-  response.writeHead(200, { 'Content-Type': contentType });
+  response.writeHead(200, {
+    ...securityHeaders,
+    'Content-Type': contentType,
+  });
 
   if (request.method === 'HEAD') {
     response.end();

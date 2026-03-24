@@ -53,6 +53,9 @@ export default function Home() {
           <p className="section-label">Continue Reading</p>
           <div
             className="card card-clickable continue-card"
+            role="button"
+            tabIndex={0}
+            aria-label={`Continue reading ${getBookById(lastRead.bookId)?.name} Chapter ${lastRead.chapter}`}
             onClick={() =>
               goToReading(
                 lastRead.bookId,
@@ -60,6 +63,16 @@ export default function Home() {
                 lastRead.translationId || settings.defaultTranslation
               )
             }
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                goToReading(
+                  lastRead.bookId,
+                  lastRead.chapter,
+                  lastRead.translationId || settings.defaultTranslation
+                );
+              }
+            }}
           >
             <div className="continue-info">
               <BookOpen size={20} />
@@ -88,7 +101,16 @@ export default function Home() {
             <div
               key={i}
               className="card card-clickable reading-card"
+              role="button"
+              tabIndex={0}
+              aria-label={`${r.title} — ${getBookById(r.book)?.name} ${r.chapter}`}
               onClick={() => goToReading(r.book, r.chapter)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  goToReading(r.book, r.chapter);
+                }
+              }}
             >
               <h3>{r.title}</h3>
               <p className="reading-ref">
@@ -104,6 +126,9 @@ export default function Home() {
         <p className="section-label">Library</p>
         <div
           className="card card-clickable continue-card"
+          role="button"
+          tabIndex={0}
+          aria-label="Open library"
           onClick={() =>
             navigate(
               lastBooksRead?.collectionId && lastBooksRead?.workId
@@ -111,6 +136,16 @@ export default function Home() {
                 : '/books'
             )
           }
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              navigate(
+                lastBooksRead?.collectionId && lastBooksRead?.workId
+                  ? `/books/${lastBooksRead.collectionId}/${lastBooksRead.workId}/${lastBooksRead.chapter || 1}`
+                  : '/books'
+              );
+            }
+          }}
         >
           <div className="continue-info">
             <BookOpen size={20} />
