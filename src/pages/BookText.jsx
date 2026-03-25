@@ -265,6 +265,7 @@ export default function BookText() {
 
         <div className="book-reader-picker-group">
           <select
+            aria-label="Collection"
             value={collection.id}
             onChange={(event) => navigate(getBooksCollectionDefaultRoute(event.target.value))}
           >
@@ -276,6 +277,7 @@ export default function BookText() {
           </select>
 
           <select
+            aria-label="Work"
             value={work?.id || ''}
             onChange={(event) => navigateToWork(collection.id, event.target.value, 1)}
             disabled={worksLoading || works.length === 0}
@@ -289,6 +291,7 @@ export default function BookText() {
 
           {(work?.chapters || 1) > 1 && (
             <select
+              aria-label="Chapter"
               value={chapter}
               onChange={(event) =>
                 navigateToWork(collection.id, work.id, Number.parseInt(event.target.value, 10))
@@ -334,7 +337,7 @@ export default function BookText() {
                   className="btn btn-danger btn-sm"
                   onClick={handleRemoveSavedCopy}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={14} aria-hidden="true" />
                   Remove saved copy
                 </button>
               ) : (
@@ -350,7 +353,7 @@ export default function BookText() {
                   }}
                   disabled={!status.canInstall || status.isQueued}
                 >
-                  <Download size={14} />
+                  <Download size={14} aria-hidden="true" />
                   {status.isQueued ? 'Queued' : status.actionLabel}
                 </button>
               )}
@@ -370,7 +373,14 @@ export default function BookText() {
             </div>
             {(status.isInstalling || status.isPartial) && (queueJob?.progress.total || collectionMeta?.totalChapters) ? (
               <div className="book-reader-banner-progress">
-                <div className="progress-bar">
+                <div
+                  className="progress-bar"
+                  role="progressbar"
+                  aria-valuenow={queueJob?.phase === 'active' ? queueJob.progress.done : collectionMeta?.completedChapters ?? 0}
+                  aria-valuemin={0}
+                  aria-valuemax={queueJob?.phase === 'active' ? queueJob.progress.total : collectionMeta?.totalChapters ?? 1}
+                  aria-label={`${collection.name} download progress`}
+                >
                   <div
                     className="progress-bar-fill"
                     style={{

@@ -174,7 +174,7 @@ export default function Notes() {
       <div className="notes-overview card">
         <div className="notes-overview-copy">
           <div className="notes-overview-topline">
-            <NotebookPen size={18} />
+            <NotebookPen size={18} aria-hidden="true" />
             <span>Your study notes</span>
           </div>
           <p>
@@ -200,7 +200,7 @@ export default function Notes() {
 
       <div className="card note-compose">
         <div className="note-compose-header">
-          <StickyNote size={18} />
+          <StickyNote size={18} aria-hidden="true" />
           <span>New Note</span>
         </div>
         <input
@@ -231,7 +231,7 @@ export default function Notes() {
       {notes.length > 0 && (
         <div className="notes-toolbar">
           <div className="notes-search">
-            <Search size={16} />
+            <Search size={16} aria-hidden="true" />
             <input
               type="text"
               placeholder="Search notes, references, or translations..."
@@ -242,12 +242,13 @@ export default function Notes() {
           </div>
           <div className="notes-filters" role="group" aria-label="Filter notes">
             <span className="notes-filter-label">
-              <Filter size={14} />
+              <Filter size={14} aria-hidden="true" />
               View
             </span>
             <button
               type="button"
               className={`notes-filter-chip ${filter === 'all' ? 'active' : ''}`}
+              aria-pressed={filter === 'all'}
               onClick={() => setFilter('all')}
             >
               All
@@ -255,6 +256,7 @@ export default function Notes() {
             <button
               type="button"
               className={`notes-filter-chip ${filter === 'linked' ? 'active' : ''}`}
+              aria-pressed={filter === 'linked'}
               onClick={() => setFilter('linked')}
             >
               Scripture-linked
@@ -262,6 +264,7 @@ export default function Notes() {
             <button
               type="button"
               className={`notes-filter-chip ${filter === 'general' ? 'active' : ''}`}
+              aria-pressed={filter === 'general'}
               onClick={() => setFilter('general')}
             >
               General
@@ -272,7 +275,7 @@ export default function Notes() {
 
       {notes.length === 0 ? (
         <div className="empty-state">
-          <StickyNote size={48} strokeWidth={1} />
+          <StickyNote size={48} strokeWidth={1} aria-hidden="true" />
           <h3>No notes yet</h3>
           <p>Add a note here or tap any verse while reading.</p>
         </div>
@@ -329,7 +332,7 @@ export default function Notes() {
                         <div className="note-meta-row">
                           {ref ? (
                             <button className="note-ref" onClick={() => goToVerse(note)}>
-                              <BookOpen size={14} />
+                              <BookOpen size={14} aria-hidden="true" />
                               <span>{ref}</span>
                             </button>
                           ) : (
@@ -361,14 +364,14 @@ export default function Notes() {
                           setEditDraft({ title: note.title || '', text: note.text || '' });
                         }}
                       >
-                        <Edit3 size={14} />
+                        <Edit3 size={14} aria-hidden="true" />
                         Edit
                       </button>
                       <button
                         className="note-action-btn danger"
                         onClick={() => handleDelete(note.id)}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={14} aria-hidden="true" />
                         Delete
                       </button>
                     </div>

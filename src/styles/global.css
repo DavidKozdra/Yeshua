@@ -8,7 +8,7 @@
   --bg-input: #182039;
   --text-primary: #f3efe6;
   --text-secondary: #b6c1cd;
-  --text-muted: #8c95a5;
+  --text-muted: #9ba3b3;
   --accent: #917b55;
   --accent-hover: #a88d65;
   --accent-subtle: rgba(145, 123, 85, 0.15);
@@ -38,7 +38,7 @@
   --bg-input: #f0ede8;
   --text-primary: #1a1a2e;
   --text-secondary: #555566;
-  --text-muted: #888899;
+  --text-muted: #70707f;
   --accent: #8b6914;
   --accent-hover: #a07a1a;
   --accent-subtle: rgba(139, 105, 20, 0.1);
@@ -56,8 +56,8 @@
   --bg-hover: #ede4cd;
   --bg-input: #ede4cd;
   --text-primary: #3d3225;
-  --text-secondary: #6b5c4a;
-  --text-muted: #998a78;
+  --text-secondary: #5c4d3b;
+  --text-muted: #7d6f5e;
   --accent: #8b6914;
   --accent-hover: #a07a1a;
   --accent-subtle: rgba(139, 105, 20, 0.12);
@@ -76,7 +76,7 @@
   --bg-input: #16213e;
   --text-primary: #e8e8f0;
   --text-secondary: #a0a0b8;
-  --text-muted: #6a6a82;
+  --text-muted: #8080a0;
   --accent: #c9a96e;
   --accent-hover: #dab97e;
   --accent-subtle: rgba(201, 169, 110, 0.15);
@@ -256,10 +256,12 @@ select {
   transition: border-color 0.2s;
 }
 
-input:focus,
-textarea:focus,
-select:focus {
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
   border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, white 22%);
+  outline-offset: 2px;
 }
 
 textarea {
@@ -348,6 +350,7 @@ textarea {
 .btn-sm {
   padding: 0.4rem 0.8rem;
   font-size: 0.82rem;
+  min-height: 44px;
 }
 
 [data-accessibility-targets='on'] .btn,

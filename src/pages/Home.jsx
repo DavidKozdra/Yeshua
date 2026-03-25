@@ -35,7 +35,7 @@ export default function Home() {
       <div className="home-header">
         <div className="profile-section">
           <div className="profile-avatar">
-            <User size={24} />
+            <User size={24} aria-hidden="true" />
           </div>
           <div>
             <h1 className="greeting">
@@ -51,10 +51,9 @@ export default function Home() {
       {lastRead && (
         <section className="home-section">
           <p className="section-label">Continue Reading</p>
-          <div
+          <button
+            type="button"
             className="card card-clickable continue-card"
-            role="button"
-            tabIndex={0}
             aria-label={`Continue reading ${getBookById(lastRead.bookId)?.name} Chapter ${lastRead.chapter}`}
             onClick={() =>
               goToReading(
@@ -63,26 +62,16 @@ export default function Home() {
                 lastRead.translationId || settings.defaultTranslation
               )
             }
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                goToReading(
-                  lastRead.bookId,
-                  lastRead.chapter,
-                  lastRead.translationId || settings.defaultTranslation
-                );
-              }
-            }}
           >
             <div className="continue-info">
-              <BookOpen size={20} />
+              <BookOpen size={20} aria-hidden="true" />
               <div>
                 <strong>{getBookById(lastRead.bookId)?.name}</strong> Chapter {lastRead.chapter}
                 <div className="continue-translation">{lastRead.translationId?.toUpperCase()}</div>
               </div>
             </div>
-            <ArrowRight size={18} />
-          </div>
+            <ArrowRight size={18} aria-hidden="true" />
+          </button>
         </section>
       )}
 
@@ -98,36 +87,28 @@ export default function Home() {
         <p className="section-label">Recommended for Today</p>
         <div className="readings-grid">
           {readings.map((r, i) => (
-            <div
+            <button
               key={i}
+              type="button"
               className="card card-clickable reading-card"
-              role="button"
-              tabIndex={0}
               aria-label={`${r.title} — ${getBookById(r.book)?.name} ${r.chapter}`}
               onClick={() => goToReading(r.book, r.chapter)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  goToReading(r.book, r.chapter);
-                }
-              }}
             >
               <h3>{r.title}</h3>
               <p className="reading-ref">
                 {getBookById(r.book)?.name} {r.chapter}
               </p>
               <p className="reading-desc">{r.description}</p>
-            </div>
+            </button>
           ))}
         </div>
       </section>
 
       <section className="home-section">
         <p className="section-label">Library</p>
-        <div
+        <button
+          type="button"
           className="card card-clickable continue-card"
-          role="button"
-          tabIndex={0}
           aria-label="Open library"
           onClick={() =>
             navigate(
@@ -136,19 +117,9 @@ export default function Home() {
                 : '/books'
             )
           }
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              navigate(
-                lastBooksRead?.collectionId && lastBooksRead?.workId
-                  ? `/books/${lastBooksRead.collectionId}/${lastBooksRead.workId}/${lastBooksRead.chapter || 1}`
-                  : '/books'
-              );
-            }
-          }}
         >
           <div className="continue-info">
-            <BookOpen size={20} />
+            <BookOpen size={20} aria-hidden="true" />
             <div>
               <strong>Library</strong>
               <div className="continue-translation">
@@ -158,8 +129,8 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <ArrowRight size={18} />
-        </div>
+          <ArrowRight size={18} aria-hidden="true" />
+        </button>
       </section>
 
       {/* Quick Links / Research */}
@@ -182,7 +153,7 @@ export default function Home() {
             >
               <div className="link-card-header">
                 <strong>{link.name}</strong>
-                <ExternalLink size={14} />
+                <ExternalLink size={14} aria-hidden="true" />
               </div>
               <p>{link.desc}</p>
             </a>

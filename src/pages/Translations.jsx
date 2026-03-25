@@ -191,7 +191,7 @@ export default function Translations({ preferredTab = 'translations' }) {
       <div className="card books-hero translations-hero">
         <div className="books-hero-copy">
           <span className="chip">
-            <BookOpen size={12} />
+            <BookOpen size={12} aria-hidden="true" />
             Scripture shelf
           </span>
           <h1 className="page-title books-title">Library & Translations</h1>
@@ -254,7 +254,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                     <div className="translation-header">
                       <h3>{translation.name}</h3>
                       <span className="chip">
-                        <Globe size={12} />
+                        <Globe size={12} aria-hidden="true" />
                         {translation.language}
                       </span>
                     </div>
@@ -278,7 +278,7 @@ export default function Translations({ preferredTab = 'translations' }) {
 
                     {!isInProgress && (
                       <div className={`translation-status translation-status-${status.tone}`}>
-                        <StatusIcon size={14} />
+                        <StatusIcon size={14} aria-hidden="true" />
                         <span>{status.statusLabel}</span>
                       </div>
                     )}
@@ -323,7 +323,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                           className="btn btn-danger btn-sm"
                           onClick={() => handleRemoveTranslation(translation.id)}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={14} aria-hidden="true" />
                           Cancel
                         </button>
                       </>
@@ -343,7 +343,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                       <>
                         {isDefaultTranslation ? (
                           <button type="button" className="btn btn-outline btn-sm" disabled>
-                            <Check size={14} />
+                            <Check size={14} aria-hidden="true" />
                             Default Translation
                           </button>
                         ) : (
@@ -352,7 +352,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                             className="btn btn-outline btn-sm"
                             onClick={() => handleSetDefaultTranslation(translation.id)}
                           >
-                            <Check size={14} />
+                            <Check size={14} aria-hidden="true" />
                             Set Default
                           </button>
                         )}
@@ -361,7 +361,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                           className="btn btn-danger btn-sm"
                           onClick={() => handleRemoveTranslation(translation.id)}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={14} aria-hidden="true" />
                           {status.removeLabel}
                         </button>
                       </>
@@ -373,7 +373,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                           onClick={() => handleTranslationDownload(translation.id)}
                           disabled={!status.canInstall}
                         >
-                          <Download size={14} />
+                          <Download size={14} aria-hidden="true" />
                           Retry
                         </button>
                         <button
@@ -381,7 +381,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                           className="btn btn-danger btn-sm"
                           onClick={() => handleRemoveTranslation(translation.id)}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={14} aria-hidden="true" />
                           Cancel
                         </button>
                       </>
@@ -392,7 +392,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                         onClick={() => handleTranslationDownload(translation.id)}
                         disabled={!status.canInstall}
                       >
-                        <Download size={14} />
+                        <Download size={14} aria-hidden="true" />
                         {getInstallActionLabel(status)}
                       </button>
                     )}
@@ -429,7 +429,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                     <h2>{collection.name}</h2>
                   </div>
                   <span className="chip">
-                    <Globe size={12} />
+                    <Globe size={12} aria-hidden="true" />
                     Reader canon
                   </span>
                 </div>
@@ -480,7 +480,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                       className="btn btn-outline btn-sm"
                       onClick={() => navigate(getCollectionTarget(collection.id))}
                     >
-                      <BookOpen size={14} />
+                      <BookOpen size={14} aria-hidden="true" />
                       Open
                     </button>
 
@@ -506,7 +506,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                         className="btn btn-danger btn-sm"
                         onClick={() => handleRemoveCollection(collection.id)}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={14} aria-hidden="true" />
                         {status.removeLabel}
                       </button>
                     ) : (
@@ -516,7 +516,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                         onClick={() => handleBooksDownload(collection.id)}
                         disabled={!status.canInstall}
                       >
-                        <Download size={14} />
+                        <Download size={14} aria-hidden="true" />
                         {status.actionLabel}
                       </button>
                     )}
@@ -543,7 +543,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                   <h2>{collection.name}</h2>
                 </div>
                 <span className="chip">
-                  <ExternalLink size={12} />
+                  <ExternalLink size={12} aria-hidden="true" />
                   External library
                 </span>
               </div>
@@ -574,7 +574,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                     </div>
                     <span className="book-resource-link">
                       Open
-                      <ArrowRight size={14} />
+                      <ArrowRight size={14} aria-hidden="true" />
                     </span>
                   </a>
                 ))}

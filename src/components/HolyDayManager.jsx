@@ -11,7 +11,7 @@ function formatReadingLabel(reading) {
 
 function HolyDayListItem({ occurrence, translationId, onRead }) {
   return (
-    <article className="holy-day-list-item">
+    <article className="holy-day-list-item" role="listitem">
       <div className="holy-day-list-copy">
         <div className="holy-day-list-topline">
           <strong>{occurrence.name}</strong>
@@ -32,7 +32,7 @@ function HolyDayListItem({ occurrence, translationId, onRead }) {
           className="btn btn-outline btn-sm"
           onClick={() => onRead(translationId, occurrence.primaryReading.bookId, occurrence.primaryReading.chapter)}
         >
-          <BookOpen size={14} />
+          <BookOpen size={14} aria-hidden="true" />
           {formatReadingLabel(occurrence.primaryReading)}
         </button>
       )}
@@ -64,11 +64,11 @@ export default function HolyDayManager() {
         <div>
           <div className="holy-day-manager-topline">
             <span className="chip">
-              <Sparkles size={14} />
+              <Sparkles size={14} aria-hidden="true" />
               Holy Day Watch
             </span>
             <span className="chip">
-              <CalendarDays size={14} />
+              <CalendarDays size={14} aria-hidden="true" />
               {holyDays.hebrewDateLabel}
             </span>
           </div>
@@ -94,7 +94,7 @@ export default function HolyDayManager() {
               )
             }
           >
-            <BookOpen size={14} />
+            <BookOpen size={14} aria-hidden="true" />
             {featuredOccurrence.primaryReading.label}
           </button>
         )}
@@ -135,7 +135,7 @@ export default function HolyDayManager() {
           }
         >
           Continue with {formatReadingLabel(featuredOccurrence.secondaryReading)}
-          <ArrowRight size={14} />
+          <ArrowRight size={14} aria-hidden="true" />
         </button>
       )}
 

@@ -116,6 +116,7 @@
   justify-content: center;
   gap: 0.2rem;
   padding: 0.4rem 0.6rem;
+  min-height: 44px;
   color: var(--text-muted);
   font-size: 0.68rem;
   font-weight: 500;
@@ -234,6 +235,12 @@
 
 .global-search-form input:focus {
   border: none;
+  outline: none;
+}
+
+.global-search-form:has(input:focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, white 22%);
+  outline-offset: 2px;
 }
 
 .global-search-error {
@@ -342,6 +349,11 @@
   padding: 0.1rem;
   border-radius: 999px;
   flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .toast-close:hover {

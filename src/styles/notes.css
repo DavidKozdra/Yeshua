@@ -156,6 +156,11 @@
   outline: none;
 }
 
+.notes-search:has(input:focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, white 22%);
+  outline-offset: 2px;
+}
+
 .notes-list {
   display: flex;
   flex-direction: column;

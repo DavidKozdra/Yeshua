@@ -88,6 +88,11 @@
   cursor: pointer;
 }
 
+.setting-row-color input[type='color']:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, white 22%);
+  outline-offset: 2px;
+}
+
 .setting-row-color input[type='color']:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -216,6 +221,11 @@
 .toggle input:checked + .toggle-slider::before {
   background: var(--accent);
   transform: translateX(20px);
+}
+
+.toggle input:focus-visible + .toggle-slider {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, white 22%);
+  outline-offset: 2px;
 }
 
 .toggle input:disabled + .toggle-slider {

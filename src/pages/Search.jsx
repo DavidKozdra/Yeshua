@@ -186,7 +186,7 @@ export default function Search() {
         )}
       </div>
 
-      {fallbackNotice && <p className="search-note">{fallbackNotice}</p>}
+      {fallbackNotice && <p className="search-note" role="status">{fallbackNotice}</p>}
 
       {!query ? (
         <div className="empty-state">
@@ -203,7 +203,7 @@ export default function Search() {
           <div className="search-summary card" role="status" aria-live="polite">
             <div className="search-summary-copy">
               <span className="chip">
-                <SearchIcon size={12} />
+                <SearchIcon size={12} aria-hidden="true" />
                 {activeTranslation?.abbreviation || 'Offline search'}
               </span>
               <p>
@@ -241,7 +241,7 @@ export default function Search() {
                     </strong>
                     <span className="search-result-link">
                       Open
-                      <ArrowRight size={14} />
+                      <ArrowRight size={14} aria-hidden="true" />
                     </span>
                   </div>
                   <p className="search-result-text">{highlightText(result.text, query)}</p>
