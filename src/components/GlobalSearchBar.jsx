@@ -84,7 +84,7 @@ export default function GlobalSearchBar({
   return (
     <div className={shellClassName}>
       <form className={formClassName} onSubmit={handleSearchSubmit}>
-        <Search size={16} />
+        <Search size={16} aria-hidden="true" />
         <input
           type="text"
           value={searchValue}

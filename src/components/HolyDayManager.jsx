@@ -60,7 +60,7 @@ export default function HolyDayManager() {
 
   return (
     <div className="card holy-day-manager">
-      <div className="holy-day-manager-header">
+      <header className="holy-day-manager-header">
         <div>
           <div className="holy-day-manager-topline">
             <span className="chip">
@@ -98,7 +98,7 @@ export default function HolyDayManager() {
             {featuredOccurrence.primaryReading.label}
           </button>
         )}
-      </div>
+      </header>
 
       {holyDays.week.length > 0 ? (
         <div className="holy-day-week-list" role="list" aria-label="Holy days this week">

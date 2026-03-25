@@ -196,7 +196,9 @@
 .note-title {
   color: var(--text-primary);
   font-size: 0.95rem;
+  font-weight: 700;
   line-height: 1.3;
+  margin: 0;
 }
 
 .note-ref {

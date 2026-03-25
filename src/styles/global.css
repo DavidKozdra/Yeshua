@@ -419,6 +419,7 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+  margin-top: 0;
   margin-bottom: 0.75rem;
 }
 

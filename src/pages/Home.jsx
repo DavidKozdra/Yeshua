@@ -32,7 +32,7 @@ export default function Home() {
       <HolyDayReminderManager />
 
       {/* Profile greeting */}
-      <div className="home-header">
+      <header className="home-header">
         <div className="profile-section">
           <div className="profile-avatar">
             <User size={24} aria-hidden="true" />
@@ -43,14 +43,14 @@ export default function Home() {
             </h1>
           </div>
         </div>
-      </div>
+      </header>
 
       <HolyDayBanner />
 
       {/* Continue Reading */}
       {lastRead && (
         <section className="home-section">
-          <p className="section-label">Continue Reading</p>
+          <h2 className="section-label">Continue Reading</h2>
           <button
             type="button"
             className="card card-clickable continue-card"
@@ -77,14 +77,14 @@ export default function Home() {
 
       {settings.enableHolyDayAwareness && (
         <section className="home-section">
-          <p className="section-label">Holy Days</p>
+          <h2 className="section-label">Holy Days</h2>
           <HolyDayManager />
         </section>
       )}
 
       {/* Recommended Readings */}
       <section className="home-section">
-        <p className="section-label">Recommended for Today</p>
+        <h2 className="section-label">Recommended for Today</h2>
         <div className="readings-grid">
           {readings.map((r, i) => (
             <button
@@ -105,7 +105,7 @@ export default function Home() {
       </section>
 
       <section className="home-section">
-        <p className="section-label">Library</p>
+        <h2 className="section-label">Library</h2>
         <button
           type="button"
           className="card card-clickable continue-card"
@@ -135,7 +135,7 @@ export default function Home() {
 
       {/* Quick Links / Research */}
       <section className="home-section">
-        <p className="section-label">Study & Research</p>
+        <h2 className="section-label">Study & Research</h2>
         <div className="links-grid">
           {[
             { name: 'Bible Project', url: 'https://bibleproject.com/', desc: 'Videos, podcasts, and guides for every book' },

@@ -24,7 +24,7 @@ export default function HolyDayBanner() {
     >
       <div className="holy-day-banner-topline">
         <span className="chip">
-          <CalendarDays size={14} />
+          <CalendarDays size={14} aria-hidden="true" />
           {holyDays.hebrewDateLabel}
         </span>
         <span className="chip">{occurrence.isActive ? 'Holy day now' : 'This week'}</span>
@@ -48,7 +48,7 @@ export default function HolyDayBanner() {
               )
             }
           >
-            <BookOpen size={14} />
+            <BookOpen size={14} aria-hidden="true" />
             {occurrence.primaryReading.label}
           </button>
         )}

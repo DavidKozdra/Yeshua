@@ -199,10 +199,10 @@ export default function Notes() {
       </div>
 
       <div className="card note-compose">
-        <div className="note-compose-header">
+        <header className="note-compose-header">
           <StickyNote size={18} aria-hidden="true" />
           <span>New Note</span>
-        </div>
+        </header>
         <input
           type="text"
           value={newNote.title}
@@ -328,7 +328,7 @@ export default function Notes() {
                   <>
                     <div className="note-header">
                       <div className="note-meta">
-                        <strong className="note-title">{note.title || ref || 'Untitled note'}</strong>
+                        <h3 className="note-title">{note.title || ref || 'Untitled note'}</h3>
                         <div className="note-meta-row">
                           {ref ? (
                             <button className="note-ref" onClick={() => goToVerse(note)}>

@@ -653,7 +653,7 @@ export default function Settings() {
       <div className="settings-sections" role="tabpanel" id={`tabpanel-${activeTab}`} aria-labelledby={`tab-${activeTab}`}>
         {activeTab === 'profile' && (
         <section className="settings-section">
-          <p className="section-label">Profile</p>
+          <h2 className="section-label">Profile</h2>
           <div className="card settings-card-group">
             <div className="setting-row setting-row-stack">
               <div className="setting-label">
@@ -725,7 +725,7 @@ export default function Settings() {
         {activeTab === 'reader' && (
         <>
         <section className="settings-section">
-          <p className="section-label">Appearance</p>
+          <h2 className="section-label">Appearance</h2>
           <div className="card settings-card-group">
             <div className="setting-row setting-row-stack">
               <div className="setting-label">
@@ -801,7 +801,7 @@ export default function Settings() {
         {activeTab === 'accessibility' && (
         <>
         <section className="settings-section">
-          <p className="section-label">Motion</p>
+          <h2 className="section-label">Motion</h2>
           <div className="card settings-card-group">
             <div className="setting-row">
               <div className="setting-label">
@@ -826,7 +826,7 @@ export default function Settings() {
         </section>
 
         <section className="settings-section">
-          <p className="section-label">Accessibility</p>
+          <h2 className="section-label">Accessibility</h2>
           <div className="card settings-card-group">
             <div className="setting-row">
               <div className="setting-label">
@@ -968,7 +968,7 @@ export default function Settings() {
         {activeTab === 'reader' && (
         <>
         <section className="settings-section">
-          <p className="section-label">Reading</p>
+          <h2 className="section-label">Reading</h2>
           <div className="card settings-card-group">
             <div className="setting-row">
               <div className="setting-label">
@@ -1207,7 +1207,7 @@ export default function Settings() {
         </section>
 
         <section className="settings-section">
-          <p className="section-label">Default Translation</p>
+          <h2 className="section-label">Default Translation</h2>
           <div className="card">
             <div className="setting-row">
               <div className="setting-label">
@@ -1230,7 +1230,7 @@ export default function Settings() {
         </section>
 
         <section className="settings-section">
-          <p className="section-label">Preview</p>
+          <h2 className="section-label">Preview</h2>
           <div className="card settings-card-group">
             <div className="preview-toolbar">
               <div className="preview-reference">
@@ -1366,7 +1366,7 @@ export default function Settings() {
         {activeTab === 'notifications' && (
         <>
         <section className="settings-section">
-          <p className="section-label">Notifications</p>
+          <h2 className="section-label">Notifications</h2>
           <div className="card settings-card-group">
             <div className="setting-row">
               <div className="setting-label">

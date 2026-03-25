@@ -757,7 +757,7 @@ export default function Read() {
   const ttsOverlayElement = isSpeakingChapter || speechError ? (
     <div className={`tts-overlay ${speechError ? 'is-error' : ''}`}>
       <div className="read-tts-copy">
-        <Volume2 size={16} />
+        <Volume2 size={16} aria-hidden="true" />
         <span>
           {isSpeakingChapter
             ? `Reading aloud at ${textToSpeechSpeedLabel.toLowerCase()} speed.`
@@ -813,7 +813,7 @@ export default function Read() {
               setShowChapterSelector(false);
             }}
           >
-            <BookOpen size={16} />
+            <BookOpen size={16} aria-hidden="true" />
             <span>{book?.name || bookId}</span>
           </button>
           <button
@@ -823,7 +823,7 @@ export default function Read() {
               setShowBookSelector(false);
             }}
           >
-            <List size={16} />
+            <List size={16} aria-hidden="true" />
             <span>Ch. {chapter}</span>
           </button>
           <select
@@ -879,7 +879,7 @@ export default function Read() {
             </button>
           </div>
           <div className="selector-panel-content">
-            <p className="section-label">Old Testament</p>
+            <h3 className="section-label">Old Testament</h3>
             <div className="book-grid">
               {BIBLE_BOOKS.filter((b) => b.testament === 'OT').map((b) => (
                 <button
@@ -894,7 +894,7 @@ export default function Read() {
                 </button>
               ))}
             </div>
-            <p className="section-label" style={{ marginTop: '1rem' }}>New Testament</p>
+            <h3 className="section-label" style={{ marginTop: '1rem' }}>New Testament</h3>
             <div className="book-grid">
               {BIBLE_BOOKS.filter((b) => b.testament === 'NT').map((b) => (
                 <button
@@ -1126,16 +1126,16 @@ export default function Read() {
                 className="fab-action"
                 onClick={isSpeakingChapter ? handleStopTextToSpeech : handleStartTextToSpeech}
               >
-                {isSpeakingChapter ? <Square size={16} /> : <Volume2 size={16} />}
+                {isSpeakingChapter ? <Square size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />}
                 <span>{isSpeakingChapter ? 'Stop reading' : 'Read chapter aloud'}</span>
               </button>
             )}
             <button className="fab-action" onClick={openQuickNoteModal}>
-              <StickyNote size={16} />
+              <StickyNote size={16} aria-hidden="true" />
               <span>Add note</span>
             </button>
             <button className="fab-action" onClick={handleSearchBarToggle}>
-              <Search size={16} />
+              <Search size={16} aria-hidden="true" />
               <span>{settings.showGlobalSearchBar ? 'Hide search bar' : 'Show search bar'}</span>
             </button>
           </div>
