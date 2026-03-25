@@ -649,7 +649,7 @@ export function cancelBooksCollectionInstall(collectionId) {
     if (queueIndex >= 0) {
       queuedInstalls.splice(queueIndex, 1);
     }
-    queuedInstallRecords.delete(collectionId);
+    finalizeInstallRecord(record);
     record.reject(new Error('Download cancelled'));
     emitInstallEvent('cancelled', {
       collectionId,
@@ -668,7 +668,11 @@ export function cancelBooksCollectionInstall(collectionId) {
 }
 
 export async function removeBooksCollection(collectionId) {
+  const record = queuedInstallRecords.get(collectionId);
   cancelBooksCollectionInstall(collectionId);
+  if (record?.promise) {
+    await record.promise.catch(() => {});
+  }
   collectionWorksCache.delete(collectionId);
   await deleteLibraryCollectionData(collectionId);
   await deleteLibraryCollectionMeta(collectionId);

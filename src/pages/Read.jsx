@@ -140,6 +140,7 @@ export default function Read() {
     animating: false,
   });
   const speechCleanupRef = useRef(null);
+  const isAutoReadingBibleRef = useRef(isAutoReadingBible);
   const touchGestureRef = useRef(null);
   const noteModalRef = useFocusTrap(showNoteModal);
   const bookSelectorRef = useFocusTrap(showBookSelector);
@@ -266,6 +267,10 @@ export default function Read() {
   useEffect(() => {
     speechAutoplayUnlockedRef.current = speechAutoplayUnlocked;
   }, [speechAutoplayUnlocked]);
+
+  useEffect(() => {
+    isAutoReadingBibleRef.current = isAutoReadingBible;
+  }, [isAutoReadingBible]);
 
   useEffect(() => {
     if (!speechAutoplayUnlocked && isSpeechAutoplayUnlocked()) {
@@ -642,7 +647,7 @@ export default function Read() {
           setIsSpeechPaused(false);
           setIsSpeakingChapter(false);
           setSpeakingVerse(null);
-          if (autoAdvanceBible && isAutoReadingBible) {
+          if (autoAdvanceBible && isAutoReadingBibleRef.current) {
             const nextTarget = getNextChapterTarget(bookId, chapter);
             if (nextTarget) {
             setPendingAutoStartKey(`${nextTarget.bookId}:${nextTarget.chapter}`);
