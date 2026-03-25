@@ -5,8 +5,8 @@ import { AVAILABLE_TRANSLATIONS, getTranslationById } from '../utils/bibleData';
 import { getAllDownloadedTranslations } from '../utils/db';
 import { subscribeToTranslationInstallEvents } from '../utils/api';
 import { getTranslationStatus } from '../utils/translationStatus';
-import { getSettings } from '../utils/storage';
 import { searchTranslationText } from '../utils/search';
+import { useAppSettings } from '../hooks/useAppSettings';
 import '../styles/search.css';
 
 function escapeRegExp(value) {
@@ -34,7 +34,7 @@ export default function Search() {
   const [truncated, setTruncated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
-  const settings = getSettings();
+  const settings = useAppSettings();
   const query = searchParams.get('q')?.trim() || '';
   const requestedTranslationId = searchParams.get('translation') || settings.defaultTranslation;
 

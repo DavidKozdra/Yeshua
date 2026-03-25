@@ -5,6 +5,7 @@ import ToastHost from './ToastHost';
 import GlobalSearchBar from './GlobalSearchBar';
 import SeoManager from './SeoManager';
 import RouteAnnouncer from './RouteAnnouncer';
+import ErrorBoundary from './ErrorBoundary';
 import { getSettings, subscribeToSettings } from '../utils/storage';
 import '../styles/layout.css';
 
@@ -96,7 +97,9 @@ export default function Layout() {
         {settings.showGlobalSearchBar && !isReaderRoute && <GlobalSearchBar />}
 
         <div className="content-shell">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
 

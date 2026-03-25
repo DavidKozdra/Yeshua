@@ -84,10 +84,18 @@ createServer((request, response) => {
 
   const extension = extname(filePath);
   const contentType = contentTypes[extension] || 'application/octet-stream';
+  const isHashed = /\.[a-f0-9]{8,}\.(js|css)$/.test(filePath);
+  const cacheControl =
+    isHashed || extension === '.woff2'
+      ? 'public, max-age=31536000, immutable'
+      : extension === '.html' || filePath === indexFile
+        ? 'no-cache'
+        : 'public, max-age=3600';
 
   response.writeHead(200, {
     ...securityHeaders,
     'Content-Type': contentType,
+    'Cache-Control': cacheControl,
   });
 
   if (request.method === 'HEAD') {
