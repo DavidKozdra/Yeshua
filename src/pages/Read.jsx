@@ -419,6 +419,20 @@ export default function Read() {
     navigate(`/read/${newTranslation}/${newBook}/${newChapter}`, { replace: true });
   }
 
+  function handleTranslationNavigation(event) {
+    const nextTranslationId = event.target.value;
+    if (!nextTranslationId || nextTranslationId === translationId) {
+      return;
+    }
+
+    saveSettings({
+      ...settings,
+      defaultTranslation: nextTranslationId,
+    });
+
+    goTo(bookId, chapter, nextTranslationId);
+  }
+
   function getBookIndex(bookIdToFind) {
     return BIBLE_BOOKS.findIndex((book) => book.id === bookIdToFind);
   }
@@ -845,9 +859,7 @@ export default function Read() {
             className="translation-select"
             value={translationId}
             aria-label="Bible translation"
-            onChange={(e) => {
-              goTo(bookId, chapter, e.target.value);
-            }}
+            onChange={handleTranslationNavigation}
           >
             {/* Always show current translation */}
             {translation && (
