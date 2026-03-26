@@ -474,6 +474,24 @@
   color: var(--text-secondary);
 }
 
+.read-inline-state {
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+
+.read-inline-state p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.read-inline-state .download-progress {
+  margin-top: 0.5rem;
+}
+
 .read-progress {
   max-width: 320px;
   margin: 1rem auto 0;

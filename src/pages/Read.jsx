@@ -14,7 +14,7 @@ import {
   Square,
 } from 'lucide-react';
 import { BIBLE_BOOKS, getBookById, getTranslationById } from '../utils/bibleData';
-import { fetchChapter, resolveInstallableTranslationId } from '../utils/api';
+import { fetchChapter, resolveInstallableTranslationId, getTranslationInstallSource } from '../utils/api';
 import {
   getNotesForChapter,
   saveNote,
@@ -168,7 +168,10 @@ export default function Read() {
       const cachedChapter = await getChapter(translationId, bookId, chapter);
       if (cancelled) return false;
 
-      if (!translationReady && downloadedTranslations.length > 0 && !cachedChapter) {
+      const installSource = getTranslationInstallSource(translationId);
+      const isBundled = installSource === 'bundle';
+
+      if (!translationReady && !isBundled && downloadedTranslations.length > 0 && !cachedChapter) {
         const fallbackTranslation =
           downloadedTranslations.find((item) => item.id === settings.defaultTranslation) ||
           downloadedTranslations[0];
@@ -177,11 +180,6 @@ export default function Read() {
           navigate(`/read/${fallbackTranslation.id}/${bookId}/${chapter}`, { replace: true });
           return false;
         }
-      }
-
-      if (translationReady || cachedChapter) {
-        setOfflineState({ ready: true, message: '', progress: null });
-        return false;
       }
 
       const startupTranslationId = resolveInstallableTranslationId();
@@ -193,6 +191,28 @@ export default function Read() {
         : null;
       if (cancelled) return false;
 
+      const progress = startupMeta?.totalChapters
+        ? {
+            done: startupMeta.completedChapters ?? 0,
+            total: startupMeta.totalChapters,
+          }
+        : null;
+
+      if (translationReady || cachedChapter || isBundled) {
+        const readyMessage =
+          isBundled && !translationReady && !cachedChapter
+            ? `${translation.abbreviation || translationId.toUpperCase()} is included with this build and ready to read.`
+            : '';
+
+        setOfflineState({
+          ready: true,
+          message: readyMessage,
+          progress,
+        });
+
+        return Boolean(startupMeta?.inProgress);
+      }
+
       setOfflineState({
         ready: false,
         message: startupMeta?.inProgress
@@ -202,12 +222,7 @@ export default function Read() {
               ? `${startupTranslation.abbreviation} is installed by default in this build.`
               : 'Download a translation to start reading offline.'
             : `${translation.abbreviation} is not downloaded yet.`,
-        progress: startupMeta?.totalChapters
-          ? {
-              done: startupMeta.completedChapters ?? 0,
-              total: startupMeta.totalChapters,
-            }
-          : null,
+        progress,
       });
 
       return Boolean(startupMeta?.inProgress);
@@ -959,6 +974,38 @@ export default function Read() {
         <h2 className="chapter-heading">
           {book?.name} {chapter}
         </h2>
+
+        {offlineState.ready && offlineState.message && (
+          <div className="read-inline-state" role="status" aria-live="polite">
+            <p>{offlineState.message}</p>
+            {offlineState.progress && (
+              <div className="download-progress read-progress">
+                <div
+                  className="progress-bar"
+                  role="progressbar"
+                  aria-valuenow={offlineState.progress.done}
+                  aria-valuemin={0}
+                  aria-valuemax={offlineState.progress.total}
+                  aria-label={`Download progress: ${offlineState.progress.done} of ${offlineState.progress.total} chapters saved`}
+                >
+                  <div
+                    className="progress-bar-fill"
+                    style={{
+                      width: `${
+                        offlineState.progress.total
+                          ? (offlineState.progress.done / offlineState.progress.total) * 100
+                          : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+                <span className="progress-text">
+                  {offlineState.progress.done} / {offlineState.progress.total} chapters saved
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
 
         {loading && <div className="loading-spinner" role="status" aria-live="polite">Loading...</div>}
