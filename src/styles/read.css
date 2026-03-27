@@ -97,6 +97,11 @@
   flex-shrink: 0;
 }
 
+.read-inline-search {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
 .research-link:hover {
   color: var(--accent);
 }
@@ -713,6 +718,10 @@
     grid-column: 1 / -1;
     width: 100%;
     max-width: 100%;
+  }
+
+  .read-inline-search {
+    display: none;
   }
 
   .selector-btn {

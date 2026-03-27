@@ -89,6 +89,12 @@ const HOLY_DAY_DEFINITIONS = [
     practice: 'Remember the Exodus, remove leaven, and revisit Yeshua\'s final meal and sacrifice.',
     primaryReading: { bookId: 'EXO', chapter: 12, label: 'Read Exodus 12' },
     secondaryReading: { bookId: 'LUK', chapter: 22, label: 'Read Luke 22' },
+    relatedReadings: [
+      { bookId: 'MAT', chapter: 26, label: 'Read Matthew 26' },
+      { bookId: 'MRK', chapter: 14, label: 'Read Mark 14' },
+      { bookId: 'JHN', chapter: 13, label: 'Read John 13' },
+      { bookId: '1CO', chapter: 5, label: 'Read 1 Corinthians 5' },
+    ],
     matchesStart({ monthKey, day }) {
       return monthKey === 'nisan' && day === 15;
     },
@@ -104,6 +110,7 @@ const HOLY_DAY_DEFINITIONS = [
     practice: 'Give thanks for God\'s provision and the promise of new life.',
     primaryReading: { bookId: 'LEV', chapter: 23, label: 'Read Leviticus 23' },
     secondaryReading: { bookId: '1CO', chapter: 15, label: 'Read 1 Corinthians 15' },
+    relatedReadings: [{ bookId: 'MAT', chapter: 28, label: 'Read Matthew 28' }],
     matchesStart({ monthKey, day }) {
       return monthKey === 'nisan' && day === 16;
     },
@@ -149,6 +156,10 @@ const HOLY_DAY_DEFINITIONS = [
     practice: 'Pause, examine your heart, and prepare for the fall holy days.',
     primaryReading: { bookId: 'LEV', chapter: 23, label: 'Read Leviticus 23' },
     secondaryReading: { bookId: 'NUM', chapter: 29, label: 'Read Numbers 29' },
+    relatedReadings: [
+      { bookId: '1TH', chapter: 4, label: 'Read 1 Thessalonians 4' },
+      { bookId: '1CO', chapter: 15, label: 'Read 1 Corinthians 15' },
+    ],
     matchesStart({ monthKey, day }) {
       return monthKey === 'tishri' && day === 1;
     },
@@ -164,6 +175,7 @@ const HOLY_DAY_DEFINITIONS = [
     practice: 'Fast or simplify where appropriate, confess sin, and meditate on cleansing and intercession.',
     primaryReading: { bookId: 'LEV', chapter: 16, label: 'Read Leviticus 16' },
     secondaryReading: { bookId: 'HEB', chapter: 9, label: 'Read Hebrews 9' },
+    relatedReadings: [{ bookId: 'HEB', chapter: 10, label: 'Read Hebrews 10' }],
     matchesStart({ monthKey, day }) {
       return monthKey === 'tishri' && day === 10;
     },
@@ -179,6 +191,7 @@ const HOLY_DAY_DEFINITIONS = [
     practice: 'Celebrate with gratitude and revisit the wilderness story and John 7.',
     primaryReading: { bookId: 'LEV', chapter: 23, label: 'Read Leviticus 23' },
     secondaryReading: { bookId: 'JHN', chapter: 7, label: 'Read John 7' },
+    relatedReadings: [{ bookId: 'REV', chapter: 21, label: 'Read Revelation 21' }],
     matchesStart({ monthKey, day }) {
       return monthKey === 'tishri' && day === 15;
     },

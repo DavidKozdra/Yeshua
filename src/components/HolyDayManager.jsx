@@ -9,6 +9,17 @@ function formatReadingLabel(reading) {
   return `${getBookById(reading.bookId)?.name || reading.bookId} ${reading.chapter}`;
 }
 
+function getFeaturedOccurrence(holyDays) {
+  // Let upcoming high holy days surface in the main card even during longer seasons like Lent.
+  return (
+    holyDays.active.find((occurrence) => occurrence.isHighHolyDay) ||
+    holyDays.week.find((occurrence) => occurrence.isHighHolyDay && !occurrence.isActive) ||
+    holyDays.active[0] ||
+    holyDays.week[0] ||
+    holyDays.next
+  );
+}
+
 function HolyDayListItem({ occurrence, translationId, onRead }) {
   return (
     <article className="holy-day-list-item" role="listitem">
@@ -49,10 +60,14 @@ export default function HolyDayManager() {
     return null;
   }
 
-  const featuredOccurrence = holyDays.active[0] || holyDays.week[0] || holyDays.next;
+  const featuredOccurrence = getFeaturedOccurrence(holyDays);
   if (!featuredOccurrence) {
     return null;
   }
+  const supplementalReadings = [
+    featuredOccurrence.secondaryReading,
+    ...(featuredOccurrence.relatedReadings || []),
+  ].filter(Boolean);
 
   function handleRead(translationId, bookId, chapter) {
     navigate(`/read/${translationId}/${bookId}/${chapter}`);
@@ -122,21 +137,32 @@ export default function HolyDayManager() {
         </div>
       )}
 
-      {featuredOccurrence.secondaryReading && (
-        <button
-          type="button"
-          className="holy-day-secondary-link"
-          onClick={() =>
-            handleRead(
-              settings.defaultTranslation,
-              featuredOccurrence.secondaryReading.bookId,
-              featuredOccurrence.secondaryReading.chapter
-            )
-          }
-        >
-          Continue with {formatReadingLabel(featuredOccurrence.secondaryReading)}
-          <ArrowRight size={14} aria-hidden="true" />
-        </button>
+      {supplementalReadings.length > 0 && (
+        <section className="holy-day-reading-group" aria-label="Further reading">
+          <div className="holy-day-reading-group-header">
+            <strong>Further reading</strong>
+            <span>
+              {featuredOccurrence.id === 'passover'
+                ? 'Torah, Gospel, and epistle passages that connect with this feast.'
+                : 'Companion passages connected to this observance.'}
+            </span>
+          </div>
+          <div className="holy-day-reading-links">
+            {supplementalReadings.map((reading) => (
+              <button
+                key={`${featuredOccurrence.reminderId}:${reading.bookId}:${reading.chapter}`}
+                type="button"
+                className="holy-day-secondary-link"
+                onClick={() =>
+                  handleRead(settings.defaultTranslation, reading.bookId, reading.chapter)
+                }
+              >
+                <span>{formatReadingLabel(reading)}</span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </section>
       )}
 
       <p className="holy-day-disclaimer">

@@ -934,7 +934,9 @@ export default function Read() {
           </select>
         </div>
         {settings.showGlobalSearchBar && (
-          <GlobalSearchBar translationId={translationId} variant="inline" />
+          <div className="read-inline-search">
+            <GlobalSearchBar translationId={translationId} variant="inline" />
+          </div>
         )}
         <a
           href={`https://biblehub.com/${book?.name?.toLowerCase().replace(/\s+/g, '_') || bookId}/${chapter}.htm`}
