@@ -39,12 +39,14 @@ import { createPortal } from 'react-dom';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { getWordsOfChristSegments } from '../utils/redLetters';
+import { dispatchAppToast } from '../utils/appToasts';
 import GlobalSearchBar from '../components/GlobalSearchBar';
 import '../styles/read.css';
 
 const AUTO_READ_STORAGE_KEY = 'yeshua-auto-read-state';
 const AUTOPLAY_BLOCKED_MESSAGE =
   'Text-to-speech autoplay is blocked by your browser. Tap the read button to continue.';
+const TRANSLATION_FEEDBACK_DURATION_MS = 900;
 
 function readAutoReadState() {
   if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') {
@@ -134,11 +136,13 @@ export default function Read() {
   const [overlayContainer, setOverlayContainer] = useState(null);
   const contentRef = useRef(null);
   const transitionTimerRef = useRef(null);
+  const translationFeedbackTimerRef = useRef(null);
   const isMountedRef = useRef(true);
   const [chapterTransition, setChapterTransition] = useState({
     direction: null,
     animating: false,
   });
+  const [translationFeedbackActive, setTranslationFeedbackActive] = useState(false);
   const speechCleanupRef = useRef(null);
   const isAutoReadingBibleRef = useRef(isAutoReadingBible);
   const touchGestureRef = useRef(null);
@@ -276,6 +280,9 @@ export default function Read() {
       if (transitionTimerRef.current) {
         window.clearTimeout(transitionTimerRef.current);
       }
+      if (translationFeedbackTimerRef.current) {
+        window.clearTimeout(translationFeedbackTimerRef.current);
+      }
     };
   }, []);
 
@@ -373,6 +380,47 @@ export default function Read() {
   }, [bookId, chapter]);
 
   useEffect(() => {
+    const translationFeedback = location.state?.translationFeedback;
+    if (!translationFeedback || translationFeedback.nextTranslationId !== translationId) {
+      return;
+    }
+
+    const previousTranslation = getTranslationById(translationFeedback.previousTranslationId);
+    setTranslationFeedbackActive(true);
+    if (translationFeedbackTimerRef.current) {
+      window.clearTimeout(translationFeedbackTimerRef.current);
+    }
+    translationFeedbackTimerRef.current = window.setTimeout(() => {
+      setTranslationFeedbackActive(false);
+      translationFeedbackTimerRef.current = null;
+    }, TRANSLATION_FEEDBACK_DURATION_MS);
+
+    dispatchAppToast({
+      tone: 'info',
+      title: `Switched to ${translation.abbreviation}`,
+      message: previousTranslation?.abbreviation
+        ? `${previousTranslation.abbreviation} to ${translation.abbreviation} in ${book.name} ${chapter}.`
+        : `${translation.name} is now open in ${book.name} ${chapter}.`,
+    });
+    navigate(
+      {
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+      },
+      { replace: true, state: null }
+    );
+  }, [
+    location,
+    navigate,
+    translationId,
+    translation.abbreviation,
+    translation.name,
+    book.name,
+    chapter,
+  ]);
+
+  useEffect(() => {
     setIsSpeakingChapter(false);
     setSpeakingVerse(null);
     setSpeechError('');
@@ -415,8 +463,11 @@ export default function Read() {
     };
   }, [location.hash, verses, loading, error, offlineState.ready]);
 
-  function goTo(newBook, newChapter, newTranslation = translationId) {
-    navigate(`/read/${newTranslation}/${newBook}/${newChapter}`, { replace: true });
+  function goTo(newBook, newChapter, newTranslation = translationId, options = {}) {
+    navigate(`/read/${newTranslation}/${newBook}/${newChapter}`, {
+      replace: options.replace ?? true,
+      state: options.state,
+    });
   }
 
   function handleTranslationNavigation(event) {
@@ -430,7 +481,15 @@ export default function Read() {
       defaultTranslation: nextTranslationId,
     });
 
-    goTo(bookId, chapter, nextTranslationId);
+    goTo(bookId, chapter, nextTranslationId, {
+      state: {
+        translationFeedback: {
+          previousTranslationId: translationId,
+          nextTranslationId,
+          timestamp: Date.now(),
+        },
+      },
+    });
   }
 
   function getBookIndex(bookIdToFind) {
@@ -856,7 +915,7 @@ export default function Read() {
             <span>Ch. {chapter}</span>
           </button>
           <select
-            className="translation-select"
+            className={`translation-select${translationFeedbackActive ? ' translation-select-confirm' : ''}`}
             value={translationId}
             aria-label="Bible translation"
             onChange={handleTranslationNavigation}
@@ -975,7 +1034,9 @@ export default function Read() {
 
       {/* Bible text */}
       <div
-        className={`read-content${chapterTransition.animating ? ` is-turning-${chapterTransition.direction}` : ''}`}
+        className={`read-content${chapterTransition.animating ? ` is-turning-${chapterTransition.direction}` : ''}${
+          translationFeedbackActive ? ' is-switching-translation' : ''
+        }`}
         ref={contentRef}
         onTouchStart={handleContentTouchStart}
         onTouchEnd={handleContentTouchEnd}
