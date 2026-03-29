@@ -1082,8 +1082,8 @@ export default function Settings() {
             </div>
 
             <p className="settings-help">
-              Colors any verse that matches the KJV red-letter verse map, even when the current
-              translation does not have word-level markup.
+              Uses the KJV red-letter verse map to highlight quoted speech in other translations
+              when quotation marks are present, and falls back to the full verse otherwise.
             </p>
 
             <div className="setting-divider" />
@@ -1321,7 +1321,7 @@ export default function Settings() {
                 !previewSupportsPreciseWordsOfChrist &&
                 previewHasWordsOfChristVerse && (
                   <span className="settings-help">
-                    This preview is using verse-level red-letter matching from the KJV verse map.
+                    This preview is using quote-aware red-letter matching from the KJV verse map.
                   </span>
                 )}
             </div>
