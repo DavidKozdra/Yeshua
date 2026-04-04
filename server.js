@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getSeoState, renderSeoHtml } from './src/utils/seo.js';
+import { getServerVerseSeoOverride } from './src/utils/serverVerseSeo.js';
 
 const distDir = resolve(fileURLToPath(new URL('./dist', import.meta.url)));
 const indexFile = resolve(distDir, 'index.html');
@@ -133,10 +134,20 @@ createServer(async (request, response) => {
 
   if (extension === '.html') {
     const requestUrl = new URL(request.url || '/', getRequestOrigin(request));
-    const seo = getSeoState({
+    let seo = getSeoState({
       pathname: requestUrl.pathname,
       search: requestUrl.search,
     });
+    const verseSeoOverride = await getServerVerseSeoOverride({
+      pathname: requestUrl.pathname,
+      searchParams: requestUrl.searchParams,
+    });
+    if (verseSeoOverride) {
+      seo = {
+        ...seo,
+        ...verseSeoOverride,
+      };
+    }
     const template = await getHtmlTemplate(filePath);
     response.end(renderSeoHtml(template, seo));
     return;

@@ -1,6 +1,7 @@
 import { getBookById, getTranslationById } from './bibleData.js';
 import { BOOKS_TAB_COLLECTIONS, getBooksCollectionById, getBooksWorkById } from './booksData.js';
 import {
+  buildVerseReference,
   getSharedVerseMetadataFromSearchParams,
   getVerseTargetFromSearchParams,
 } from './verseSharing.js';
@@ -296,11 +297,25 @@ export function getSeoState({ pathname, search = '' }) {
     const verse = getVerseTargetFromSearchParams(searchParams);
     const sharedVerse = getSharedVerseMetadataFromSearchParams(searchParams);
     const computedReference = `${book?.name || segments[2]} ${chapter}${verse ? `:${verse}` : ''}`;
+    const titledReference = verse
+      ? buildVerseReference({
+          bookName: book?.name || segments[2],
+          chapter,
+          verse,
+          translationLabel: translation?.abbreviation || '',
+        })
+      : computedReference;
     const reference = sharedVerse.reference || computedReference;
     canonicalSearch = verse ? `?verse=${verse}` : '';
-    title = formatTitle(sharedVerse.reference ? reference : `${reference}${translation ? ` in ${translation.abbreviation}` : ''}`);
+    title = formatTitle(
+      sharedVerse.reference
+        ? reference
+        : verse
+          ? titledReference
+          : `${reference}${translation ? ` in ${translation.abbreviation}` : ''}`
+    );
     description = sharedVerse.text || (verse
-      ? `Read ${reference}${translation ? ` in the ${translation.name}` : ''} with offline access, notes, and study tools in Yeshua.`
+      ? `Read ${titledReference} with offline access, notes, and study tools in Yeshua.`
       : `Read ${book?.name || segments[2]} chapter ${chapter}${
           translation ? ` in the ${translation.name}` : ''
         } with offline access, notes, and study tools in Yeshua.`);

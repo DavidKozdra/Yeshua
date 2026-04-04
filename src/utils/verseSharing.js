@@ -94,8 +94,6 @@ export function buildVerseUrl({
   bookId,
   chapter,
   verse,
-  shareReference,
-  shareText,
 }) {
   const resolvedOrigin =
     typeof origin === 'string' && origin.trim()
@@ -109,20 +107,6 @@ export function buildVerseUrl({
   if (normalizedVerse) {
     url.searchParams.set('verse', String(normalizedVerse));
     url.hash = `v${normalizedVerse}`;
-  }
-
-  const normalizedShareReference = normalizeShareValue(
-    shareReference,
-    MAX_SHARE_REFERENCE_LENGTH
-  );
-  const normalizedShareText = normalizeShareValue(shareText, MAX_SHARE_TEXT_LENGTH);
-
-  if (normalizedShareReference) {
-    url.searchParams.set(SHARE_REFERENCE_QUERY_PARAM, normalizedShareReference);
-  }
-
-  if (normalizedShareText) {
-    url.searchParams.set(SHARE_TEXT_QUERY_PARAM, normalizedShareText);
   }
 
   return url.toString();
@@ -178,8 +162,6 @@ export function createVerseSharePayload({
     bookId,
     chapter,
     verse,
-    shareReference: reference,
-    shareText: verseText,
   });
 
   return {
