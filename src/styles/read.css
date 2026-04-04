@@ -618,6 +618,30 @@
   vertical-align: top;
 }
 
+.read-note-verse-preview {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border) 82%);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-subtle) 52%, var(--bg-tertiary) 48%);
+}
+
+.read-note-verse-meta {
+  margin-bottom: 0.45rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.read-note-verse-preview blockquote {
+  font-family: var(--font-reading);
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
 /* Chapter nav */
 .chapter-nav {
   display: flex;

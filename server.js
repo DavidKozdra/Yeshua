@@ -1,12 +1,15 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getSeoState, renderSeoHtml } from './src/utils/seo.js';
 
 const distDir = resolve(fileURLToPath(new URL('./dist', import.meta.url)));
 const indexFile = resolve(distDir, 'index.html');
 const host = '0.0.0.0';
 const port = Number(process.env.PORT || 8080);
+const htmlTemplateCache = new Map();
 
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -73,7 +76,32 @@ function resolveRequestPath(url) {
   return indexFile;
 }
 
-createServer((request, response) => {
+async function getHtmlTemplate(filePath) {
+  if (!htmlTemplateCache.has(filePath)) {
+    htmlTemplateCache.set(filePath, await readFile(filePath, 'utf8'));
+  }
+
+  return htmlTemplateCache.get(filePath);
+}
+
+function getRequestOrigin(request) {
+  const forwardedProto = request.headers['x-forwarded-proto'];
+  const forwardedHost = request.headers['x-forwarded-host'];
+  const protocol =
+    typeof forwardedProto === 'string' && forwardedProto.trim()
+      ? forwardedProto.split(',')[0].trim()
+      : request.socket.encrypted
+        ? 'https'
+        : 'http';
+  const requestHost =
+    typeof forwardedHost === 'string' && forwardedHost.trim()
+      ? forwardedHost.split(',')[0].trim()
+      : request.headers.host || `${host}:${port}`;
+
+  return `${protocol}://${requestHost}`;
+}
+
+createServer(async (request, response) => {
   const filePath = resolveRequestPath(request.url || '/');
 
   if (!filePath) {
@@ -100,6 +128,17 @@ createServer((request, response) => {
 
   if (request.method === 'HEAD') {
     response.end();
+    return;
+  }
+
+  if (extension === '.html') {
+    const requestUrl = new URL(request.url || '/', getRequestOrigin(request));
+    const seo = getSeoState({
+      pathname: requestUrl.pathname,
+      search: requestUrl.search,
+    });
+    const template = await getHtmlTemplate(filePath);
+    response.end(renderSeoHtml(template, seo));
     return;
   }
 

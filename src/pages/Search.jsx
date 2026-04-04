@@ -7,6 +7,7 @@ import { subscribeToTranslationInstallEvents } from '../utils/api';
 import { getTranslationStatus } from '../utils/translationStatus';
 import { searchTranslationText } from '../utils/search';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { buildVerseLocation } from '../utils/verseSharing';
 import '../styles/search.css';
 
 function escapeRegExp(value) {
@@ -148,10 +149,14 @@ export default function Search() {
   }
 
   function openResult(result) {
-    navigate({
-      pathname: `/read/${activeTranslationId}/${result.bookId}/${result.chapter}`,
-      hash: `#v${result.verse}`,
-    });
+    navigate(
+      buildVerseLocation({
+        translationId: activeTranslationId,
+        bookId: result.bookId,
+        chapter: result.chapter,
+        verse: result.verse,
+      })
+    );
   }
 
   const fallbackNotice =

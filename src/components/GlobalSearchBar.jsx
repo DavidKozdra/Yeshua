@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { getBookById } from '../utils/bibleData';
 import { parseReferenceInput } from '../utils/reference';
 import { getLastRead, getSettings, subscribeToSettings } from '../utils/storage';
+import { buildVerseLocation } from '../utils/verseSharing';
 
 export default function GlobalSearchBar({
   translationId,
@@ -54,18 +55,24 @@ export default function GlobalSearchBar({
     }
 
     const resolvedTranslationId = resolveSearchTranslationId();
-    const hash = parsedReference.verse > 1 ? `#v${parsedReference.verse}` : '';
+    const destination = parsedReference.hasExplicitVerse
+      ? buildVerseLocation({
+          translationId: resolvedTranslationId,
+          bookId: parsedReference.bookId,
+          chapter: parsedReference.chapter,
+          verse: parsedReference.verse,
+        })
+      : {
+          pathname: `/read/${resolvedTranslationId}/${parsedReference.bookId}/${parsedReference.chapter}`,
+        };
 
     setSearchError('');
     setSearchValue(
       `${getBookById(parsedReference.bookId)?.name || parsedReference.bookId} ${parsedReference.chapter}${
-        parsedReference.verse > 1 ? `:${parsedReference.verse}` : ''
+        parsedReference.hasExplicitVerse ? `:${parsedReference.verse}` : ''
       }`
     );
-    navigate({
-      pathname: `/read/${resolvedTranslationId}/${parsedReference.bookId}/${parsedReference.chapter}`,
-      hash,
-    });
+    navigate(destination);
   }
 
   const shellClassName =
