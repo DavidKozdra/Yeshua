@@ -6,6 +6,7 @@ import {
   BookOpen,
   List,
   StickyNote,
+  Share2,
   ExternalLink,
   X,
   Plus,
@@ -40,6 +41,12 @@ import { useAppSettings } from '../hooks/useAppSettings';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { getWordsOfChristSegments } from '../utils/redLetters';
 import { dispatchAppToast } from '../utils/appToasts';
+import {
+  buildVerseLocation,
+  createVerseSharePayload,
+  getVerseTargetFromLocation,
+  shareVersePayload,
+} from '../utils/verseSharing';
 import GlobalSearchBar from '../components/GlobalSearchBar';
 import '../styles/read.css';
 
@@ -113,6 +120,7 @@ export default function Read() {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showReaderActions, setShowReaderActions] = useState(false);
   const [selectedVerse, setSelectedVerse] = useState(null);
+  const [noteModalContext, setNoteModalContext] = useState('verse');
   const [noteText, setNoteText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [availableTranslations, setAvailableTranslations] = useState([]);
@@ -181,7 +189,15 @@ export default function Read() {
           downloadedTranslations[0];
 
         if (fallbackTranslation && fallbackTranslation.id !== translationId) {
-          navigate(`/read/${fallbackTranslation.id}/${bookId}/${chapter}`, { replace: true });
+          navigate(
+            buildVerseLocation({
+              translationId: fallbackTranslation.id,
+              bookId,
+              chapter,
+              verse: getVerseTargetFromLocation(location),
+            }),
+            { replace: true }
+          );
           return false;
         }
       }
@@ -257,6 +273,8 @@ export default function Read() {
     chapter,
     settings.defaultTranslation,
     navigate,
+    location.hash,
+    location.search,
     translation.abbreviation,
   ]);
 
@@ -437,19 +455,19 @@ export default function Read() {
   }, [translationId, bookId, chapter]);
 
   useEffect(() => {
-    const verseMatch = location.hash.match(/^#v(\d+)$/i);
-    if (!verseMatch || loading || error || !offlineState.ready || !verses.length) {
-      if (!verseMatch) {
+    const targetVerse = getVerseTargetFromLocation(location);
+    if (!targetVerse || loading || error || !offlineState.ready || !verses.length) {
+      if (!targetVerse) {
         setHighlightedVerse(null);
       }
       return;
     }
 
-    const targetVerse = Number.parseInt(verseMatch[1], 10);
-    if (Number.isNaN(targetVerse)) return;
-
     const targetElement = contentRef.current?.querySelector(`[data-verse="${targetVerse}"]`);
-    if (!targetElement) return;
+    if (!targetElement) {
+      setHighlightedVerse(null);
+      return;
+    }
 
     targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setHighlightedVerse(targetVerse);
@@ -461,10 +479,22 @@ export default function Read() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [location.hash, verses, loading, error, offlineState.ready]);
+  }, [location.hash, location.search, verses, loading, error, offlineState.ready]);
 
   function goTo(newBook, newChapter, newTranslation = translationId, options = {}) {
-    navigate(`/read/${newTranslation}/${newBook}/${newChapter}`, {
+    const destination =
+      options.verse == null
+        ? {
+            pathname: `/read/${newTranslation}/${newBook}/${newChapter}`,
+          }
+        : buildVerseLocation({
+            translationId: newTranslation,
+            bookId: newBook,
+            chapter: newChapter,
+            verse: options.verse,
+          });
+
+    navigate(destination, {
       replace: options.replace ?? true,
       state: options.state,
     });
@@ -482,6 +512,7 @@ export default function Read() {
     });
 
     goTo(bookId, chapter, nextTranslationId, {
+      verse: getVerseTargetFromLocation(location),
       state: {
         translationFeedback: {
           previousTranslationId: translationId,
@@ -605,6 +636,7 @@ export default function Read() {
 
   function openNoteForVerse(verse) {
     setShowReaderActions(false);
+    setNoteModalContext('verse');
     const existing = chapterNotes.find((n) => n.verse === verse);
     if (existing) {
       setNoteText(existing.text);
@@ -618,6 +650,7 @@ export default function Read() {
   }
 
   function openQuickNoteModal() {
+    setNoteModalContext('quick');
     setSelectedVerse(1);
     setNoteText('');
     setEditingNoteId(null);
@@ -841,6 +874,42 @@ export default function Read() {
   }
 
   const noteVerses = versesWithNotes();
+  const selectedVerseData = verses.find((item) => item.verse === selectedVerse) || null;
+  const canShareSelectedVerse = noteModalContext === 'verse' && Boolean(selectedVerseData?.text);
+
+  async function handleShareVerse() {
+    if (!selectedVerseData) {
+      return;
+    }
+
+    try {
+      const payload = createVerseSharePayload({
+        origin: window.location.origin,
+        translationId,
+        bookId,
+        chapter,
+        verse: selectedVerseData.verse,
+        verseText: selectedVerseData.text,
+        bookName: book.name,
+        translationLabel: translation.abbreviation,
+      });
+      const result = await shareVersePayload(payload);
+
+      if (result.outcome === 'copied') {
+        dispatchAppToast({
+          tone: 'success',
+          title: 'Verse copied',
+          message: 'The verse text and link are ready to paste.',
+        });
+      }
+    } catch (shareError) {
+      dispatchAppToast({
+        tone: 'danger',
+        title: 'Unable to share verse',
+        message: shareError.message || 'The verse could not be shared from this browser.',
+      });
+    }
+  }
 
   const ttsOverlayElement = isSpeakingChapter || speechError ? (
     <div className={`tts-overlay ${speechError ? 'is-error' : ''}`}>
@@ -1212,6 +1281,12 @@ export default function Read() {
               <StickyNote size={18} style={{ verticalAlign: 'middle', marginRight: 8 }} aria-hidden="true" />
               {book?.name} {chapter}:{selectedVerse}
             </h2>
+            {noteModalContext === 'verse' && selectedVerseData && (
+              <div className="read-note-verse-preview">
+                <p className="read-note-verse-meta">{translation.abbreviation}</p>
+                <blockquote>{selectedVerseData.text}</blockquote>
+              </div>
+            )}
             <label htmlFor="note-text" className="sr-only">Note text</label>
             <textarea
               id="note-text"
@@ -1223,6 +1298,12 @@ export default function Read() {
               style={{ width: '100%' }}
             />
             <div className="modal-actions">
+              {canShareSelectedVerse && (
+                <button className="btn btn-outline btn-sm" onClick={handleShareVerse}>
+                  <Share2 size={14} aria-hidden="true" />
+                  Share verse
+                </button>
+              )}
               {editingNoteId && (
                 <button className="btn btn-danger btn-sm" onClick={handleDeleteNote}>
                   Delete

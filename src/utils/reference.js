@@ -36,5 +36,10 @@ export function parseReferenceInput(input) {
   if (Number.isNaN(chapter) || chapter < 1 || chapter > book.chapters) return null;
   if (Number.isNaN(verse) || verse < 1) return null;
 
-  return { bookId: book.id, chapter, verse };
+  return {
+    bookId: book.id,
+    chapter,
+    verse,
+    hasExplicitVerse: Boolean(rawVerse),
+  };
 }

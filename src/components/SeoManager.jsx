@@ -66,6 +66,10 @@ export default function SeoManager() {
     });
     upsertMeta("meta[property='og:url']", { property: 'og:url', content: seo.canonicalUrl });
     upsertMeta("meta[property='og:image']", { property: 'og:image', content: DEFAULT_IMAGE });
+    upsertMeta("meta[property='og:image:alt']", {
+      property: 'og:image:alt',
+      content: seo.imageAlt || 'Yeshua app icon',
+    });
     upsertMeta("meta[name='twitter:title']", { name: 'twitter:title', content: seo.title });
     upsertMeta("meta[name='twitter:description']", {
       name: 'twitter:description',
