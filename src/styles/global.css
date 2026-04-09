@@ -231,16 +231,7 @@ button {
   font-size: inherit;
 }
 
-:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 78%, white 22%);
-  outline-offset: 2px;
-}
 
-[data-accessibility-focus='on'] :focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--accent) 86%, white 14%);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
-}
 
 input,
 textarea,
