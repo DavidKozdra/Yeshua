@@ -11,6 +11,7 @@ const indexFile = resolve(distDir, 'index.html');
 const host = '0.0.0.0';
 const port = Number(process.env.PORT || 8080);
 const htmlTemplateCache = new Map();
+const frameAncestorsDirective = (process.env.FRAME_ANCESTORS || "'self' https://davidkozdra.com").trim();
 
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -26,29 +27,30 @@ const contentTypes = {
   '.woff2': 'font/woff2',
 };
 
-const securityHeaders = {
-  'Content-Security-Policy': [
-    "default-src 'self'",
-    "base-uri 'self'",
-    "object-src 'none'",
-    "frame-ancestors 'none'",
-    "form-action 'self'",
-    "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: https:",
-    "font-src 'self' https://fonts.gstatic.com data:",
-    "connect-src 'self' https://raw.githubusercontent.com",
-    "manifest-src 'self'",
-    "worker-src 'self'",
-    'upgrade-insecure-requests',
-  ].join('; '),
-  'Cross-Origin-Opener-Policy': 'same-origin',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-};
+function getSecurityHeaders() {
+  return {
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      `frame-ancestors ${frameAncestorsDirective}`,
+      "form-action 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: https:",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "connect-src 'self' https://raw.githubusercontent.com",
+      "manifest-src 'self'",
+      "worker-src 'self'",
+      'upgrade-insecure-requests',
+    ].join('; '),
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+    'X-Content-Type-Options': 'nosniff',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  };
+}
 
 function resolveRequestPath(url) {
   const pathname = new URL(url, `http://${host}:${port}`).pathname;
@@ -122,7 +124,7 @@ createServer(async (request, response) => {
         : 'public, max-age=3600';
 
   response.writeHead(200, {
-    ...securityHeaders,
+    ...getSecurityHeaders(),
     'Content-Type': contentType,
     'Cache-Control': cacheControl,
   });
