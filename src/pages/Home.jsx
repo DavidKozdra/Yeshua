@@ -7,6 +7,7 @@ import HolyDayManager from '../components/HolyDayManager';
 import HolyDayReminderManager from '../components/HolyDayReminderManager';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { getLastBooksRead, getLastRead, getProfile } from '../utils/storage';
+import { getExternalNavigationProps } from '../utils/externalLinks';
 import '../styles/home.css';
 
 export default function Home() {
@@ -16,6 +17,7 @@ export default function Home() {
   const [lastBooksRead, setLastBooksRead] = useState(null);
   const [profile, setProfile] = useState(getProfile);
   const settings = useAppSettings();
+  const externalNavigationProps = getExternalNavigationProps();
 
   useEffect(() => {
     setLastRead(getLastRead());
@@ -147,8 +149,7 @@ export default function Home() {
             <a
               key={link.name}
               href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...externalNavigationProps}
               className="card card-clickable link-card"
             >
               <div className="link-card-header">

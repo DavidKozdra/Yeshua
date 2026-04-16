@@ -41,6 +41,7 @@ import { useAppSettings } from '../hooks/useAppSettings';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { getWordsOfChristSegments } from '../utils/redLetters';
 import { dispatchAppToast } from '../utils/appToasts';
+import { getExternalNavigationProps } from '../utils/externalLinks';
 import {
   buildVerseLocation,
   createVerseSharePayload,
@@ -98,6 +99,7 @@ export default function Read() {
   const navigate = useNavigate();
   const location = useLocation();
   const settings = useAppSettings();
+  const externalNavigationProps = getExternalNavigationProps();
   const lastRead = getLastRead();
   const resolvedBook = getBookById(params.bookId || lastRead?.bookId || 'JHN') || getBookById('JHN');
   const parsedChapter = Number.parseInt(params.chapter ?? '', 10);
@@ -1009,11 +1011,10 @@ export default function Read() {
         )}
         <a
           href={`https://biblehub.com/${book?.name?.toLowerCase().replace(/\s+/g, '_') || bookId}/${chapter}.htm`}
-          target="_blank"
-          rel="noopener noreferrer"
+          {...externalNavigationProps}
           className="research-link"
           title="View commentaries on Bible Hub"
-          aria-label="View commentaries on Bible Hub (opens in new tab)"
+          aria-label="View commentaries on Bible Hub"
         >
           <ExternalLink size={16} aria-hidden="true" />
         </a>

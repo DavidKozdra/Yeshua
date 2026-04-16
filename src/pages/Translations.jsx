@@ -36,6 +36,7 @@ import {
 } from '../utils/db';
 import { getBooksCollectionStatus } from '../utils/booksStatus';
 import { getTranslationStatus } from '../utils/translationStatus';
+import { getExternalNavigationProps } from '../utils/externalLinks';
 import { getLastBooksRead, getSettings, saveSettings, subscribeToSettings } from '../utils/storage';
 import '../styles/books.css';
 import '../styles/translations.css';
@@ -57,6 +58,7 @@ function getCollectionTarget(collectionId) {
 
 export default function Translations({ preferredTab = 'translations' }) {
   const navigate = useNavigate();
+  const externalNavigationProps = getExternalNavigationProps();
   const [activeTab, setActiveTab] = useState(preferredTab);
   const [settings, setSettings] = useState(getSettings);
   const [downloadedTranslations, setDownloadedTranslations] = useState([]);
@@ -564,8 +566,7 @@ export default function Translations({ preferredTab = 'translations' }) {
                     key={work.id}
                     className="card book-resource-card"
                     href={work.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    {...externalNavigationProps}
                   >
                     <div className="book-resource-copy">
                       <strong>{work.title}</strong>
