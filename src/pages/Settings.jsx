@@ -81,6 +81,7 @@ const BUILT_IN_THEME_LABELS = {
   light: 'Light',
   sepia: 'Sepia',
   cool: 'Cool',
+  princess: 'Princess',
 };
 const HOLY_DAY_REMINDER_OPTIONS = [0, 1, 2, 3, 5, 7, 14];
 const HOLY_DAY_DATE_LOOKAHEAD_DAYS = 400;

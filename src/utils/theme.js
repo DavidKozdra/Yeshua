@@ -2,7 +2,7 @@ const FALLBACK_SHADOW = '0 2px 12px rgba(0, 0, 0, 0.3)';
 const FALLBACK_SHADOW_LG = '0 8px 32px rgba(0, 0, 0, 0.4)';
 import { DEFAULT_WORDS_OF_CHRIST_COLOR } from './wordsOfChrist';
 
-export const BUILT_IN_THEMES = ['dark', 'light', 'sepia', 'cool'];
+export const BUILT_IN_THEMES = ['dark', 'light', 'sepia', 'cool', 'princess'];
 export const CUSTOM_THEME_PREFIX = 'custom:';
 export const DEFAULT_CUSTOM_THEME_NAME = 'Custom Theme';
 export const COLOR_VISION_MODES = ['default', 'deuteranopia', 'protanopia', 'tritanopia'];

@@ -150,6 +150,36 @@ html[data-theme='sepia'][data-accessibility-contrast='on'] {
   --text-muted: #5a4937;
 }
 
+[data-theme='princess'] {
+  --bg-primary: #fdf0f5;
+  --bg-secondary: #fff5f9;
+  --bg-tertiary: #f8e5ef;
+  --bg-card: #fff5f9;
+  --bg-hover: #f8e5ef;
+  --bg-input: #f8e5ef;
+  --text-primary: #3a1a2e;
+  --text-secondary: #7a3a5a;
+  --text-muted: #a06080;
+  --accent: #c0507a;
+  --accent-hover: #d4607a;
+  --accent-subtle: rgba(192, 80, 122, 0.12);
+  --border: #f0c8da;
+  --border-light: #f5d8e6;
+  --words-of-christ-color: color-mix(in srgb, var(--danger) 78%, var(--text-primary) 22%);
+  --danger: #d63060;
+  --danger-hover: #b02050;
+  --success: #2a9a5a;
+  --note-indicator: #c0507a;
+  --shadow: 0 2px 12px rgba(192, 80, 122, 0.1);
+  --shadow-lg: 0 8px 32px rgba(192, 80, 122, 0.15);
+}
+
+html[data-theme='princess'][data-accessibility-contrast='on'] {
+  --text-primary: #1a0010;
+  --text-secondary: #4a1030;
+  --text-muted: #6a2050;
+}
+
 [data-accessibility-letter-spacing='on'] body,
 [data-accessibility-letter-spacing='on'] input,
 [data-accessibility-letter-spacing='on'] textarea,
