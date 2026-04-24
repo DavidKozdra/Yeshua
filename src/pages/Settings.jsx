@@ -83,6 +83,44 @@ const BUILT_IN_THEME_LABELS = {
   cool: 'Cool',
   princess: 'Princess',
 };
+
+const BUILT_IN_THEME_COLORS = {
+  dark: {
+    bg: '#02030b',
+    text: '#f3efe6',
+    accent: '#917b55',
+    border: '#1a2132',
+    accentSubtle: 'rgba(145, 123, 85, 0.18)',
+  },
+  light: {
+    bg: '#ffffff',
+    text: '#1a1a2e',
+    accent: '#8b6914',
+    border: '#e0ddd5',
+    accentSubtle: 'rgba(139, 105, 20, 0.12)',
+  },
+  sepia: {
+    bg: '#faf5e9',
+    text: '#3d3225',
+    accent: '#8b6914',
+    border: '#d8ceb7',
+    accentSubtle: 'rgba(139, 105, 20, 0.14)',
+  },
+  cool: {
+    bg: '#1a1a2e',
+    text: '#e8e8f0',
+    accent: '#c9a96e',
+    border: '#2a2a44',
+    accentSubtle: 'rgba(201, 169, 110, 0.18)',
+  },
+  princess: {
+    bg: '#fff5f9',
+    text: '#3a1a2e',
+    accent: '#c0507a',
+    border: '#f0c8da',
+    accentSubtle: 'rgba(192, 80, 122, 0.14)',
+  },
+};
 const HOLY_DAY_REMINDER_OPTIONS = [0, 1, 2, 3, 5, 7, 14];
 const HOLY_DAY_DATE_LOOKAHEAD_DAYS = 400;
 const COLOR_VISION_OPTIONS = [
@@ -734,17 +772,31 @@ export default function Settings() {
                 <span>Theme</span>
               </div>
               <div className="theme-options">
-                {BUILT_IN_THEMES.map((themeName) => (
-                  <button
-                    key={themeName}
-                    className={`theme-btn theme-${themeName} ${
-                      settings.theme === themeName ? 'active' : ''
-                    }`}
-                    onClick={() => update('theme', themeName)}
-                  >
-                    {BUILT_IN_THEME_LABELS[themeName]}
-                  </button>
-                ))}
+                {BUILT_IN_THEMES.map((themeName) => {
+                  const c = BUILT_IN_THEME_COLORS[themeName];
+                  const isActive = settings.theme === themeName;
+                  const cssVars = c
+                    ? {
+                        '--theme-btn-bg': c.bg,
+                        '--theme-btn-text': c.text,
+                        '--theme-btn-accent': c.accent,
+                        '--theme-btn-border': c.border,
+                        '--theme-btn-accent-subtle': c.accentSubtle,
+                      }
+                    : undefined;
+                  return (
+                    <button
+                      key={themeName}
+                      className={`theme-btn theme-preview ${isActive ? 'active' : ''}`}
+                      style={cssVars}
+                      onClick={() => update('theme', themeName)}
+                    >
+                      <span className="theme-btn-swatch" />
+                      {BUILT_IN_THEME_LABELS[themeName]}
+                      {isActive && <span className="theme-btn-check">✓</span>}
+                    </button>
+                  );
+                })}
                 {settings.customThemes.map((theme) => (
                   <button
                     key={theme.id}

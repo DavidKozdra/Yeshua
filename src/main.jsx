@@ -13,15 +13,23 @@ const initialSettings = getSettings();
 applyTheme(initialSettings);
 applyDisplayPreferences(initialSettings);
 
-registerSW({
-  immediate: true,
-  onOfflineReady() {
-    console.log('[Yeshua] Offline support is ready.');
-  },
-  onRegisterError(error) {
-    console.error('[Yeshua] Service worker registration failed:', error);
-  },
-});
+if (import.meta.env.PROD) {
+  registerSW({
+    immediate: true,
+    onOfflineReady() {
+      console.log('[Yeshua] Offline support is ready.');
+    },
+    onRegisterError(error) {
+      console.error('[Yeshua] Service worker registration failed:', error);
+    },
+  });
+} else if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister();
+    }
+  });
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
