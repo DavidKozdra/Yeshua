@@ -205,7 +205,7 @@ export default function Search() {
         </div>
       ) : (
         <>
-          <div className="search-summary card" role="status" aria-live="polite">
+          <div className="search-summary card" role="status" aria-live="polite" aria-busy={loading}>
             <div className="search-summary-copy">
               <span className="chip">
                 <SearchIcon size={12} aria-hidden="true" />
@@ -232,12 +232,13 @@ export default function Search() {
               <p>Try a different word, a shorter phrase, or another translation.</p>
             </div>
           ) : (
-            <div className="search-results">
+            <div className="search-results" aria-busy={loading}>
               {results.map((result) => (
                 <button
                   key={`${result.bookId}:${result.chapter}:${result.verse}`}
                   type="button"
                   className="card card-clickable search-result-card"
+                  aria-label={`Open ${result.bookName} ${result.chapter}:${result.verse}`}
                   onClick={() => openResult(result)}
                 >
                   <div className="search-result-header">

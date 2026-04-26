@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { getBookById } from '../utils/bibleData';
@@ -16,6 +16,9 @@ export default function GlobalSearchBar({
   const [settings, setSettings] = useState(getSettings);
   const [searchValue, setSearchValue] = useState('');
   const [searchError, setSearchError] = useState('');
+  const inputId = useId();
+  const hintId = `${inputId}-hint`;
+  const errorId = `${inputId}-error`;
 
   useEffect(() => subscribeToSettings(setSettings), []);
 
@@ -90,9 +93,13 @@ export default function GlobalSearchBar({
 
   return (
     <div className={shellClassName}>
-      <form className={formClassName} onSubmit={handleSearchSubmit}>
+      <form className={formClassName} onSubmit={handleSearchSubmit} role="search">
         <Search size={16} aria-hidden="true" />
+        <label className="sr-only" htmlFor={inputId}>
+          Search by Bible reference or full-text query
+        </label>
         <input
+          id={inputId}
           type="text"
           value={searchValue}
           onChange={(event) => {
@@ -102,13 +109,25 @@ export default function GlobalSearchBar({
             }
           }}
           placeholder={placeholder}
-          aria-label="Jump to a Bible reference or run a full-text search"
+          aria-describedby={searchError ? errorId : hintId}
+          autoCapitalize="off"
+          autoCorrect="off"
+          enterKeyHint="search"
+          inputMode="search"
+          spellCheck={false}
         />
         <button type="submit" className="btn btn-primary btn-sm">
           Go
         </button>
       </form>
-      {searchError && <p className={errorClassName} role="alert">{searchError}</p>}
+      <p className="sr-only" id={hintId}>
+        Enter a reference like John 3:16 or type at least two letters to run a full-text search.
+      </p>
+      {searchError && (
+        <p className={errorClassName} id={errorId} role="alert">
+          {searchError}
+        </p>
+      )}
     </div>
   );
 }

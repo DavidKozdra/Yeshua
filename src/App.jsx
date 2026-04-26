@@ -1,14 +1,6 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
-import Home from './pages/Home';
-import Read from './pages/Read';
-import Books from './pages/Books';
-import BookText from './pages/BookText';
-import Search from './pages/Search';
-import Translations from './pages/Translations';
-import Notes from './pages/Notes';
-import Settings from './pages/Settings';
 import WeeklyReadingReminderManager from './components/WeeklyReadingReminderManager';
 import { getTranslationById } from './utils/bibleData';
 import { getAllDownloadedTranslations, getTranslationMeta } from './utils/db';
@@ -16,6 +8,15 @@ import { queueTranslationInstall, resolveInstallableTranslationId } from './util
 import { DEFAULT_TRANSLATION_ID } from './utils/translationConfig';
 import { useAppSettings } from './hooks/useAppSettings';
 import { applyDisplayPreferences } from './utils/displayPreferences';
+
+const Home = lazy(() => import('./pages/Home'));
+const Read = lazy(() => import('./pages/Read'));
+const Books = lazy(() => import('./pages/Books'));
+const BookText = lazy(() => import('./pages/BookText'));
+const Search = lazy(() => import('./pages/Search'));
+const Translations = lazy(() => import('./pages/Translations'));
+const Notes = lazy(() => import('./pages/Notes'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 let startupDownloadPromise = null;
 
@@ -66,20 +67,30 @@ export default function App() {
   return (
     <>
       <WeeklyReadingReminderManager />
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/read" element={<Read />} />
-          <Route path="/read/:translationId/:bookId/:chapter" element={<Read />} />
-          <Route path="/books" element={<Books />} />
-          <Route path="/books/:collectionId" element={<BookText />} />
-          <Route path="/books/:collectionId/:workId/:chapter" element={<BookText />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/translations" element={<Translations />} />
-          <Route path="/notes" element={<Notes />} />
-          <Route path="/settings" element={<Settings />} />
-        </Route>
-      </Routes>
+      <Suspense fallback={<RouteLoadingFallback />}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/read" element={<Read />} />
+            <Route path="/read/:translationId/:bookId/:chapter" element={<Read />} />
+            <Route path="/books" element={<Books />} />
+            <Route path="/books/:collectionId" element={<BookText />} />
+            <Route path="/books/:collectionId/:workId/:chapter" element={<BookText />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/translations" element={<Translations />} />
+            <Route path="/notes" element={<Notes />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </>
+  );
+}
+
+function RouteLoadingFallback() {
+  return (
+    <div className="page" role="status" aria-live="polite">
+      Loading…
+    </div>
   );
 }

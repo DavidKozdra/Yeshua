@@ -93,7 +93,7 @@ export default function Layout() {
         </ul>
       </nav>
 
-      <main className="main-content" id="main-content">
+      <main className="main-content" id="main-content" tabIndex="-1">
         {settings.showGlobalSearchBar && !isReaderRoute && <GlobalSearchBar />}
 
         <div className="content-shell">
