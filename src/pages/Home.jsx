@@ -145,6 +145,7 @@ export default function Home() {
             { name: 'Bible Hub', url: 'https://biblehub.com/', desc: 'Commentaries and cross-references' },
             { name: 'Got Questions', url: 'https://www.gotquestions.org/', desc: 'Biblical Q&A resource' },
             { name: 'Bible Gateway', url: 'https://www.biblegateway.com/', desc: 'Read in 200+ translations' },
+            { name: 'Source Code', url: 'https://github.com/DavidKozdra/Yeshua', desc: 'Explore the code or contribute on GitHub' },
           ].map((link) => (
             <a
               key={link.name}
