@@ -93,8 +93,12 @@
 }
 
 .continue-info svg,
-.reading-card h3,
+.reading-card h3 {
+  transition: transform 0.2s ease;
+}
+
 .link-card-header svg {
+  color: var(--text-muted);
   transition: transform 0.2s ease;
 }
 
@@ -156,9 +160,6 @@
   gap: 0.5rem;
 }
 
-.link-card-header svg {
-  color: var(--text-muted);
-}
 
 @keyframes home-fade-up {
   from {

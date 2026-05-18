@@ -617,7 +617,15 @@ export default function Settings() {
 
     try {
       const text = await file.text();
-      const snapshot = JSON.parse(text);
+      let snapshot;
+      try {
+        snapshot = JSON.parse(text);
+      } catch {
+        throw new Error('The selected file is not valid JSON.');
+      }
+      if (typeof snapshot !== 'object' || snapshot === null || Array.isArray(snapshot)) {
+        throw new Error('The selected file does not contain a Yeshua backup.');
+      }
       await importAppDataSnapshot(snapshot);
       setDataMessage('Data import complete. Reloading the app.');
       window.setTimeout(() => window.location.reload(), 300);

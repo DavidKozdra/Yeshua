@@ -97,6 +97,9 @@ export function pauseSpeechSynthesis() {
   const synth = getSpeechSynthesis();
   if (synth && synth.speaking && !synth.paused) {
     synth.pause();
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'paused';
+    }
   }
 }
 
@@ -104,6 +107,9 @@ export function resumeSpeechSynthesis() {
   const synth = getSpeechSynthesis();
   if (synth && synth.paused) {
     synth.resume();
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
+    }
   }
 }
 
@@ -120,6 +126,33 @@ export function stopTextToSpeech() {
   const synth = getSpeechSynthesis();
   if (!synth) return;
   synth.cancel();
+}
+
+function registerMediaSession({ bookName, chapter, onPause, onResume, onStop }) {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+
+  navigator.mediaSession.metadata = new window.MediaMetadata({
+    title: bookName && chapter ? `${bookName} ${chapter}` : 'Bible Reading',
+    artist: 'Yeshua',
+    artwork: [
+      { src: '/icon-192.png',          sizes: '192x192', type: 'image/png' },
+      { src: '/icon-512.png',          sizes: '512x512', type: 'image/png' },
+      { src: '/maskable-icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+  });
+  navigator.mediaSession.playbackState = 'playing';
+
+  navigator.mediaSession.setActionHandler('play', onResume);
+  navigator.mediaSession.setActionHandler('pause', onPause);
+  navigator.mediaSession.setActionHandler('stop', onStop);
+}
+
+function clearMediaSession() {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+  navigator.mediaSession.playbackState = 'none';
+  for (const action of ['play', 'pause', 'stop']) {
+    try { navigator.mediaSession.setActionHandler(action, null); } catch { /* unsupported action */ }
+  }
 }
 
 export function speakChapter({
@@ -154,13 +187,67 @@ export function speakChapter({
   let cancelled = false;
   let activeUtterance = null;
   let requestedVolume = Math.max(0, Math.min(volume, 1));
+  let isPaused = false;
+
+  // Android Chrome silently stops speechSynthesis when backgrounded.
+  // Calling resume() periodically keeps it alive across app switches.
+  const heartbeatId = window.setInterval(() => {
+    if (!cancelled && !isPaused && synth.speaking) {
+      synth.resume();
+    }
+  }, 10000);
+
+  function handleVisibilityChange() {
+    if (cancelled) return;
+    if (document.visibilityState === 'visible' && !isPaused && synth.paused) {
+      synth.resume();
+    }
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  function teardown() {
+    window.clearInterval(heartbeatId);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    clearMediaSession();
+  }
 
   function finish() {
     if (cancelled) return;
     cancelled = true;
     activeUtterance = null;
+    teardown();
     onComplete?.();
   }
+
+  registerMediaSession({
+    bookName,
+    chapter,
+    onPause: () => {
+      if (!cancelled && !isPaused) {
+        isPaused = true;
+        synth.pause();
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+      }
+    },
+    onResume: () => {
+      if (!cancelled && isPaused) {
+        isPaused = false;
+        synth.resume();
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+      }
+    },
+    onStop: () => {
+      if (!cancelled) {
+        cancelled = true;
+        activeUtterance = null;
+        synth.cancel();
+        teardown();
+        // Treat MediaSession stop as a normal completion, not an error
+        onComplete?.();
+      }
+    },
+  });
 
   function speakAt(index) {
     if (cancelled) return;
@@ -201,8 +288,11 @@ export function speakChapter({
 
     utterance.onerror = (event) => {
       if (cancelled || activeUtterance !== utterance) return;
+      // 'interrupted' fires when synth.cancel() is called — treat as normal stop, not error
+      if (event.error === 'interrupted') return;
       cancelled = true;
       activeUtterance = null;
+      teardown();
       onError?.(event.error || 'Speech playback failed.');
     };
 
@@ -216,6 +306,7 @@ export function speakChapter({
     cancelled = true;
     activeUtterance = null;
     synth.cancel();
+    teardown();
   };
 
   cleanup.setVolume = (nextVolume) => {

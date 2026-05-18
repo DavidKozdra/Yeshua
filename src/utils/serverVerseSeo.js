@@ -9,6 +9,15 @@ const bundleCache = new Map();
 const chapterCache = new Map();
 const resolvedBookPathCache = new Map();
 
+const CHAPTER_CACHE_MAX = 200;
+
+function setCachedChapter(key, value) {
+  if (chapterCache.size >= CHAPTER_CACHE_MAX) {
+    chapterCache.delete(chapterCache.keys().next().value);
+  }
+  chapterCache.set(key, value);
+}
+
 function extractChapterVerses(data) {
   if (Array.isArray(data)) {
     return data;
@@ -119,7 +128,7 @@ async function fetchRemoteChapter(translationId, bookId, chapter) {
 async function getServerChapter(translationId, bookId, chapter) {
   const cacheKey = `${translationId}:${bookId}:${chapter}`;
   if (!chapterCache.has(cacheKey)) {
-    chapterCache.set(
+    setCachedChapter(
       cacheKey,
       (async () => {
         const bundledChapter = await getBundledChapter(translationId, bookId, chapter);

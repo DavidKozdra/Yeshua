@@ -102,6 +102,7 @@
     --words-of-christ-color,
     color-mix(in srgb, var(--danger) 78%, var(--text-primary) 22%)
   );
+  font-style: italic;
 }
 
 *,
@@ -283,6 +284,11 @@ select:focus-visible {
   border-color: var(--accent);
   outline: 2px solid color-mix(in srgb, var(--accent) 78%, white 22%);
   outline-offset: 2px;
+}
+
+[data-accessibility-focus='on'] :focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
 }
 
 textarea {
@@ -556,7 +562,3 @@ textarea {
   }
 }
 
-/* Words of Christ visual marker for non-color distinction */
-.verse-christ-words {
-  font-style: italic;
-}

@@ -81,7 +81,7 @@ export default function Search() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function runSearch() {
       if (!query) {
@@ -115,21 +115,22 @@ export default function Search() {
       setSearchError('');
 
       try {
-        const searchResult = await searchTranslationText(activeTranslationId, query);
-        if (cancelled) return;
+        const searchResult = await searchTranslationText(activeTranslationId, query, {
+          signal: controller.signal,
+        });
 
         setResults(searchResult.results);
         setTotalMatches(searchResult.totalMatches);
         setTruncated(searchResult.truncated);
       } catch (error) {
-        if (cancelled) return;
+        if (error.name === 'AbortError') return;
 
         setResults([]);
         setTotalMatches(0);
         setTruncated(false);
         setSearchError(error.message || 'Search failed.');
       } finally {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
@@ -138,7 +139,7 @@ export default function Search() {
     runSearch();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [activeTranslationId, query]);
 

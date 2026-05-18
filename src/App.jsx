@@ -80,6 +80,7 @@ export default function App() {
             <Route path="/translations" element={<Translations />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </Suspense>
@@ -91,6 +92,15 @@ function RouteLoadingFallback() {
   return (
     <div className="page" role="status" aria-live="polite">
       Loading…
+    </div>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="page" role="main">
+      <h1 className="page-title">Page not found</h1>
+      <p>This page doesn&rsquo;t exist. <a href="/">Go home</a></p>
     </div>
   );
 }

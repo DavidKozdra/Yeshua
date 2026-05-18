@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StickyNote, Trash2, Edit3, BookOpen, Search, NotebookPen, Filter } from 'lucide-react';
 import { getAllNotes, deleteNote, saveNote } from '../utils/db';
@@ -72,8 +72,10 @@ export default function Notes() {
   const navigate = useNavigate();
   const settings = getSettings();
   const [notes, setNotes] = useState([]);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const searchDebounceRef = useRef(null);
   const [editingNote, setEditingNote] = useState(null);
   const [editDraft, setEditDraft] = useState({ title: '', text: '' });
   const [newNote, setNewNote] = useState({ title: '', text: '' });
@@ -123,6 +125,12 @@ export default function Notes() {
     await loadNotes();
   }
 
+  function handleSearchChange(value) {
+    setSearchInput(value);
+    clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setSearch(value), 250);
+  }
+
   function goToVerse(note) {
     if (!note.bookId || !note.chapter) return;
     navigate(
@@ -145,7 +153,7 @@ export default function Notes() {
     };
   }, [notes]);
 
-  const filtered = notes.filter((n) => {
+  const filtered = useMemo(() => notes.filter((n) => {
     const isLinked = Boolean(n.bookId && n.chapter);
     if (filter === 'linked' && !isLinked) return false;
     if (filter === 'general' && isLinked) return false;
@@ -165,7 +173,7 @@ export default function Notes() {
       reference.includes(q) ||
       translationName.includes(q)
     );
-  });
+  }), [notes, search, filter]);
 
   return (
     <div className="page notes-page">
@@ -235,8 +243,8 @@ export default function Notes() {
             <input
               type="text"
               placeholder="Search notes, references, or translations..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => handleSearchChange(e.target.value)}
               aria-label="Search notes"
             />
           </div>

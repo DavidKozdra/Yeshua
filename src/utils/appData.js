@@ -16,7 +16,7 @@ export async function exportAppDataSnapshot() {
 }
 
 export async function clearAllAppData() {
-  clearAppStorageData();
+  await clearAppStorageData();
   await clearAllAppDbData();
 }
 

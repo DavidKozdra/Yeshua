@@ -54,7 +54,7 @@ async function getTranslationChapterEntriesForSearch(translationId) {
 export async function searchTranslationText(
   translationId,
   query,
-  { maxResults = 250 } = {}
+  { maxResults = 250, signal } = {}
 ) {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -71,6 +71,7 @@ export async function searchTranslationText(
   let totalMatches = 0;
 
   for (const entry of chapterEntries) {
+    if (signal?.aborted) throw new DOMException('Search aborted', 'AbortError');
     for (const verse of entry.verses) {
       if (!verse?.text?.toLowerCase().includes(normalizedQuery)) continue;
 

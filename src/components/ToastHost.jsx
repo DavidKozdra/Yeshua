@@ -183,11 +183,12 @@ export default function ToastHost() {
       const toastId = toastIdRef.current;
       setToasts((current) => [...current, { ...toast, id: toastId }].slice(-4));
 
-      const timeoutId = window.setTimeout(() => {
-        dismissToast(toastId);
-      }, TOAST_DURATION_MS);
-
-      timeoutMapRef.current.set(toastId, timeoutId);
+      if (toast.tone !== 'danger') {
+        const timeoutId = window.setTimeout(() => {
+          dismissToast(toastId);
+        }, TOAST_DURATION_MS);
+        timeoutMapRef.current.set(toastId, timeoutId);
+      }
     }
 
     const unsubscribe = subscribeToTranslationInstallEvents((event) => {

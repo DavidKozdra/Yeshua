@@ -744,7 +744,9 @@ export default function Read() {
     }
 
     setSpeechError('');
-    if (!autoAdvanceBible) {
+    if (autoAdvanceBible) {
+      setIsAutoReadingBible(true);
+    } else {
       setIsAutoReadingBible(false);
       setPendingAutoStartKey(null);
       persistAutoReadState({ isActive: false, pendingKey: null });
@@ -1328,7 +1330,7 @@ export default function Read() {
             {settings.showTextToSpeechTool && textToSpeechSupported && (
               <button
                 className="fab-action"
-                onClick={isSpeakingChapter ? handleStopTextToSpeech : handleStartTextToSpeech}
+                onClick={isSpeakingChapter ? handleStopTextToSpeech : () => handleStartTextToSpeech({ autoAdvanceBible: true })}
               >
                 {isSpeakingChapter ? <Square size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />}
                 <span>{isSpeakingChapter ? 'Stop reading' : 'Read chapter aloud'}</span>
