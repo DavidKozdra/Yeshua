@@ -14,16 +14,16 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function highlightText(text, query) {
-  if (!query) return text;
-
+function makeHighlighter(query) {
+  if (!query) return null;
   const matcher = new RegExp(`(${escapeRegExp(query)})`, 'ig');
-  const parts = text.split(matcher);
   const normalizedQuery = query.toLowerCase();
-
-  return parts.map((part, index) =>
-    part.toLowerCase() === normalizedQuery ? <mark key={`${part}-${index}`}>{part}</mark> : part
-  );
+  return function highlightText(text) {
+    const parts = text.split(matcher);
+    return parts.map((part, index) =>
+      part.toLowerCase() === normalizedQuery ? <mark key={`${part}-${index}`}>{part}</mark> : part
+    );
+  };
 }
 
 export default function Search() {
@@ -160,6 +160,8 @@ export default function Search() {
     );
   }
 
+  const highlightText = useMemo(() => makeHighlighter(query), [query]);
+
   const fallbackNotice =
     requestedTranslationId && activeTranslationId && requestedTranslationId !== activeTranslationId
       ? `${getTranslationById(requestedTranslationId)?.abbreviation || requestedTranslationId.toUpperCase()} is not ready for full-text search yet, so results are showing in ${activeTranslation?.abbreviation}.`
@@ -251,7 +253,7 @@ export default function Search() {
                       <ArrowRight size={14} aria-hidden="true" />
                     </span>
                   </div>
-                  <p className="search-result-text">{highlightText(result.text, query)}</p>
+                  <p className="search-result-text">{highlightText ? highlightText(result.text) : result.text}</p>
                 </button>
               ))}
             </div>

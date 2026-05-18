@@ -143,11 +143,15 @@ function buildBooksToast(event) {
   return null;
 }
 
+const TOAST_ICONS = {
+  success: CheckCircle2,
+  warning: AlertTriangle,
+  danger: XCircle,
+  info: Clock3,
+};
+
 function getToastIcon(tone) {
-  if (tone === 'success') return CheckCircle2;
-  if (tone === 'warning') return AlertTriangle;
-  if (tone === 'danger') return XCircle;
-  return Clock3;
+  return TOAST_ICONS[tone] ?? Clock3;
 }
 
 function normalizeAppToast(toast) {

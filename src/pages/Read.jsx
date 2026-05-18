@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -483,7 +483,7 @@ export default function Read() {
     };
   }, [location.hash, location.search, verses, loading, error, offlineState.ready]);
 
-  function goTo(newBook, newChapter, newTranslation = translationId, options = {}) {
+  const goTo = useCallback(function goTo(newBook, newChapter, newTranslation = translationId, options = {}) {
     const destination =
       options.verse == null
         ? {
@@ -500,7 +500,7 @@ export default function Read() {
       replace: options.replace ?? true,
       state: options.state,
     });
-  }
+  }, [navigate, translationId]);
 
   function handleTranslationNavigation(event) {
     const nextTranslationId = event.target.value;
@@ -555,7 +555,7 @@ export default function Read() {
     return null;
   }
 
-  function navigateWithTransition(direction, navigateFn) {
+  const navigateWithTransition = useCallback(function navigateWithTransition(direction, navigateFn) {
     if (transitionTimerRef.current) {
       window.clearTimeout(transitionTimerRef.current);
     }
@@ -568,23 +568,23 @@ export default function Read() {
         setChapterTransition({ direction: null, animating: false });
       }
     }, 220);
-  }
+  }, []);
 
-  function prevChapter() {
+  const prevChapter = useCallback(function prevChapter() {
     const target = getPrevChapterTarget(bookId, chapter);
     if (target) {
       navigateWithTransition('prev', () => goTo(target.bookId, target.chapter));
     }
-  }
+  }, [bookId, chapter, navigateWithTransition, goTo]);
 
-  function nextChapter() {
+  const nextChapter = useCallback(function nextChapter() {
     const target = getNextChapterTarget(bookId, chapter);
     if (target) {
       navigateWithTransition('next', () => goTo(target.bookId, target.chapter));
     }
-  }
+  }, [bookId, chapter, navigateWithTransition, goTo]);
 
-  function handleContentTouchStart(event) {
+  const handleContentTouchStart = useCallback(function handleContentTouchStart(event) {
     if (
       showBookSelector ||
       showChapterSelector ||
@@ -605,9 +605,9 @@ export default function Read() {
       y: touch.clientY,
       startedAt: Date.now(),
     };
-  }
+  }, [showBookSelector, showChapterSelector, showNoteModal, showReaderActions, loading, error, offlineState.ready]);
 
-  function handleContentTouchEnd(event) {
+  const handleContentTouchEnd = useCallback(function handleContentTouchEnd(event) {
     if (!touchGestureRef.current || event.changedTouches.length !== 1) {
       touchGestureRef.current = null;
       return;
@@ -628,7 +628,7 @@ export default function Read() {
     } else {
       prevChapter();
     }
-  }
+  }, [nextChapter, prevChapter]);
 
   function versesWithNotes() {
     const noteMap = new Set();
@@ -678,7 +678,7 @@ export default function Read() {
     }
   }
 
-  function handleStopTextToSpeech() {
+  const handleStopTextToSpeech = useCallback(function handleStopTextToSpeech() {
     if (speechCleanupRef.current) {
       speechCleanupRef.current();
       speechCleanupRef.current = null;
@@ -694,7 +694,7 @@ export default function Read() {
     persistAutoReadState({ isActive: false, pendingKey: null });
     setShowReaderActions(false);
     setIsSpeechPaused(false);
-  }
+  }, []);
 
   function handleToggleSpeechPause() {
     if (!isSpeakingChapter) {
@@ -721,7 +721,7 @@ export default function Read() {
     speechCleanupRef.current?.setVolume?.(normalized);
   }
 
-  function handleStartTextToSpeech({ autoAdvanceBible = false } = {}) {
+  const handleStartTextToSpeech = useCallback(function handleStartTextToSpeech({ autoAdvanceBible = false } = {}) {
     setShowReaderActions(false);
 
     if (!textToSpeechSupported) {
@@ -808,7 +808,22 @@ export default function Read() {
       setSpeakingVerse(null);
       setSpeechError(err.message || 'Text to speech could not start.');
     }
-  }
+  }, [
+    textToSpeechSupported,
+    offlineState.ready,
+    loading,
+    error,
+    verses,
+    book.name,
+    chapter,
+    bookId,
+    settings.textToSpeechRate,
+    settings.announceChapterNumbers,
+    settings.announceVerseNumbers,
+    settings.textToSpeechVoice,
+    speechVolume,
+    goTo,
+  ]);
 
   function handleToggleBibleReading() {
     if (isAutoReadingBible) {
@@ -877,8 +892,35 @@ export default function Read() {
     }
   }
 
-  const noteVerses = versesWithNotes();
-  const selectedVerseData = verses.find((item) => item.verse === selectedVerse) || null;
+  const verseSegmentsCache = useMemo(() => {
+    const cache = new Map();
+    if (!settings.showWordsOfChristInRed) return cache;
+    for (const v of verses) {
+      cache.set(
+        v.verse,
+        getWordsOfChristSegments({
+          translationId,
+          bookId,
+          chapter,
+          verse: v.verse,
+          text: v.text,
+          allowVerseFallback: settings.useVerseRedLetterFallback,
+        })
+      );
+    }
+    return cache;
+  }, [verses, translationId, bookId, chapter, settings.showWordsOfChristInRed, settings.useVerseRedLetterFallback]);
+
+  const otherTranslations = useMemo(
+    () => availableTranslations.filter((t) => t.id !== translationId),
+    [availableTranslations, translationId]
+  );
+
+  const noteVerses = useMemo(() => versesWithNotes(), [chapterNotes]);
+  const selectedVerseData = useMemo(
+    () => verses.find((item) => item.verse === selectedVerse) || null,
+    [verses, selectedVerse]
+  );
   const canShareSelectedVerse = noteModalContext === 'verse' && Boolean(selectedVerseData?.text);
 
   async function handleShareVerse() {
@@ -997,9 +1039,7 @@ export default function Read() {
             {translation && (
               <option value={translationId}>{translation.abbreviation}</option>
             )}
-            {availableTranslations
-              .filter((t) => t.id !== translationId)
-              .map((t) => (
+            {otherTranslations.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.abbreviation}
                 </option>
@@ -1210,16 +1250,7 @@ export default function Read() {
             }}
           >
             {verses.map((v) => {
-              const verseSegments = settings.showWordsOfChristInRed
-                ? getWordsOfChristSegments({
-                    translationId,
-                    bookId,
-                    chapter,
-                    verse: v.verse,
-                    text: v.text,
-                    allowVerseFallback: settings.useVerseRedLetterFallback,
-                  })
-                : null;
+              const verseSegments = verseSegmentsCache.get(v.verse) ?? null;
 
               return (
                 <span
