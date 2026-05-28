@@ -19,7 +19,7 @@ test.describe('Navigation', () => {
   test('navigates to Books page', async ({ page }) => {
     await page.goto('/');
     await page.goto('/books');
-    await expect(page.locator('body')).toContainText(/Genesis|Matthew|Testament/i);
+    await expect(page.locator('body')).toContainText(/Library|Translations|Scripture/i);
   });
 
   test('navigates to Search page', async ({ page }) => {
