@@ -21,12 +21,15 @@ export function parseReferenceInput(input) {
   if (!match) return null;
 
   const [, rawBook, rawChapter, rawVerse] = match;
-  const normalizedBook = BOOK_ALIASES[normalizeBookToken(rawBook)] || normalizeBookToken(rawBook);
-  const book = BIBLE_BOOKS.find((item) => {
-    const normalizedName = normalizeBookToken(item.name);
-    const normalizedId = normalizeBookToken(item.id);
-    return normalizedBook === normalizedName || normalizedBook === normalizedId;
-  });
+  const tokenized = normalizeBookToken(rawBook);
+  const aliasedId = BOOK_ALIASES[tokenized];
+  const book = aliasedId
+    ? BIBLE_BOOKS.find((item) => item.id === aliasedId)
+    : BIBLE_BOOKS.find((item) => {
+        const normalizedName = normalizeBookToken(item.name);
+        const normalizedId = normalizeBookToken(item.id);
+        return tokenized === normalizedName || tokenized === normalizedId;
+      });
 
   if (!book) return null;
 
