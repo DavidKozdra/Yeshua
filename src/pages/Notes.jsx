@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StickyNote, Trash2, Edit3, BookOpen, Search, NotebookPen, Filter } from 'lucide-react';
-import { getAllNotes, deleteNote, saveNote } from '../utils/db';
+import { StickyNote, Trash2, Edit3, BookOpen, Search, NotebookPen, Filter, Bookmark } from 'lucide-react';
+import {
+  getAllNotes,
+  deleteNote,
+  deleteHighlightsForTarget,
+  saveNote,
+  getBookmarks,
+  deleteBookmark,
+} from '../utils/db';
 import { getBookById, getTranslationById } from '../utils/bibleData';
 import { getSettings } from '../utils/storage';
 import '../styles/notes.css';
@@ -72,28 +79,42 @@ export default function Notes() {
   const navigate = useNavigate();
   const settings = getSettings();
   const [notes, setNotes] = useState([]);
+  const [bookmarks, setBookmarks] = useState([]);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState('');
   const searchDebounceRef = useRef(null);
   const [editingNote, setEditingNote] = useState(null);
-  const [editDraft, setEditDraft] = useState({ title: '', text: '' });
-  const [newNote, setNewNote] = useState({ title: '', text: '' });
+  const [editDraft, setEditDraft] = useState({ title: '', text: '', tags: '' });
+  const [newNote, setNewNote] = useState({ title: '', text: '', tags: '' });
 
   useEffect(() => {
     loadNotes();
   }, []);
 
   async function loadNotes() {
-    const all = await getAllNotes();
+    const [all, savedBookmarks] = await Promise.all([getAllNotes(), getBookmarks()]);
     // Sort newest first
     all.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     setNotes(all);
+    setBookmarks(savedBookmarks);
   }
 
   async function handleDelete(id) {
+    const note = notes.find((entry) => entry.id === id);
     if (!confirm('Delete this note?')) return;
     await deleteNote(id);
+    if (note?.bookId && note?.chapter && (note?.verseStart || note?.verse)) {
+      await deleteHighlightsForTarget({
+        sourceType: note.sourceType || 'bible',
+        translationId: note.translationId || settings.defaultTranslation,
+        bookId: note.bookId,
+        chapter: note.chapter,
+        verseStart: note.verseStart || note.verse,
+        verseEnd: note.verseEnd || note.verse,
+      });
+    }
     await loadNotes();
   }
 
@@ -103,10 +124,11 @@ export default function Notes() {
       ...editingNote,
       title: editDraft.title.trim(),
       text: editDraft.text.trim(),
+      tags: editDraft.tags,
       updatedAt: new Date().toISOString(),
     });
     setEditingNote(null);
-    setEditDraft({ title: '', text: '' });
+    setEditDraft({ title: '', text: '', tags: '' });
     await loadNotes();
   }
 
@@ -114,14 +136,16 @@ export default function Notes() {
     if (!newNote.title.trim() && !newNote.text.trim()) return;
 
     const now = new Date().toISOString();
-    await saveNote({
+    const noteToSave = {
       title: newNote.title.trim(),
       text: newNote.text.trim(),
+      tags: newNote.tags,
       createdAt: now,
       updatedAt: now,
-    });
+    };
 
-    setNewNote({ title: '', text: '' });
+    setNewNote({ title: '', text: '', tags: '' });
+    await saveNote(noteToSave);
     await loadNotes();
   }
 
@@ -144,6 +168,19 @@ export default function Notes() {
     return `${book?.name || note.bookId} ${note.chapter}${note.verse ? `:${note.verse}` : ''}`;
   }
 
+  function getBookmarkReference(bookmark) {
+    if (bookmark.sourceType === 'library') {
+      return bookmark.label || `${bookmark.collectionId} ${bookmark.chapter}`;
+    }
+    const book = getBookById(bookmark.bookId);
+    return bookmark.label || `${book?.name || bookmark.bookId} ${bookmark.chapter}:${bookmark.verseStart}`;
+  }
+
+  async function handleDeleteBookmark(id) {
+    await deleteBookmark(id);
+    await loadNotes();
+  }
+
   const noteStats = useMemo(() => {
     const linkedCount = notes.filter((note) => note.bookId && note.chapter).length;
     return {
@@ -152,6 +189,14 @@ export default function Notes() {
       general: notes.length - linkedCount,
     };
   }, [notes]);
+
+  const allTags = useMemo(
+    () =>
+      [...new Set(notes.flatMap((note) => note.tags || []))]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [notes]
+  );
 
   const filtered = useMemo(() => notes.filter((n) => {
     const isLinked = Boolean(n.bookId && n.chapter);
@@ -171,9 +216,10 @@ export default function Notes() {
       (n.text || '').toLowerCase().includes(q) ||
       bookName.includes(q) ||
       reference.includes(q) ||
-      translationName.includes(q)
+      translationName.includes(q) ||
+      (n.tags || []).some((tag) => tag.toLowerCase().includes(q))
     );
-  }), [notes, search, filter]);
+  }).filter((note) => !tagFilter || (note.tags || []).includes(tagFilter)), [notes, search, filter, tagFilter]);
 
   return (
     <div className="page notes-page">
@@ -224,6 +270,13 @@ export default function Notes() {
           placeholder="Write a note without attaching it to a verse..."
           rows={4}
           aria-label="New note text"
+        />
+        <input
+          type="text"
+          value={newNote.tags}
+          onChange={(e) => setNewNote((current) => ({ ...current, tags: e.target.value }))}
+          placeholder="Tags, separated by commas"
+          aria-label="New note tags"
         />
         <div className="note-compose-actions">
           <button
@@ -277,8 +330,59 @@ export default function Notes() {
             >
               General
             </button>
+            {allTags.length > 0 && (
+              <select
+                value={tagFilter}
+                onChange={(event) => setTagFilter(event.target.value)}
+                aria-label="Filter notes by tag"
+                className="notes-tag-select"
+              >
+                <option value="">All tags</option>
+                {allTags.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
+      )}
+
+      {bookmarks.length > 0 && (
+        <section className="notes-bookmarks">
+          <h2 className="section-label">Bookmarks</h2>
+          <div className="notes-bookmark-list">
+            {bookmarks.slice(0, 8).map((bookmark) => (
+              <div key={bookmark.id} className="card note-bookmark-card">
+                <button
+                  type="button"
+                  className="note-ref"
+                  onClick={() => {
+                    if (bookmark.sourceType === 'library') {
+                      navigate(`/books/${bookmark.collectionId}/${bookmark.workId}/${bookmark.chapter}`);
+                    } else {
+                      navigate(
+                        `/read/${bookmark.translationId || settings.defaultTranslation}/${bookmark.bookId}/${bookmark.chapter}?verse=${bookmark.verseStart}#v${bookmark.verseStart}`
+                      );
+                    }
+                  }}
+                >
+                  <Bookmark size={14} aria-hidden="true" />
+                  <span>{getBookmarkReference(bookmark)}</span>
+                </button>
+                <button
+                  type="button"
+                  className="note-action-btn danger"
+                  onClick={() => handleDeleteBookmark(bookmark.id)}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {notes.length === 0 ? (
@@ -317,12 +421,21 @@ export default function Notes() {
                       autoFocus
                       aria-label="Edit note text"
                     />
+                    <input
+                      type="text"
+                      value={editDraft.tags}
+                      onChange={(e) =>
+                        setEditDraft((current) => ({ ...current, tags: e.target.value }))
+                      }
+                      placeholder="Tags, separated by commas"
+                      aria-label="Edit note tags"
+                    />
                     <div className="note-edit-actions">
                       <button
                         className="btn btn-outline btn-sm"
                         onClick={() => {
                           setEditingNote(null);
-                          setEditDraft({ title: '', text: '' });
+                          setEditDraft({ title: '', text: '', tags: '' });
                         }}
                       >
                         Cancel
@@ -364,12 +477,30 @@ export default function Notes() {
                       </div>
                     </div>
                     {note.text && <div className="note-text">{renderNoteText(note.text)}</div>}
+                    {note.tags?.length > 0 && (
+                      <div className="note-tags">
+                        {note.tags.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            className="chip note-chip"
+                            onClick={() => setTagFilter(tag)}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="note-actions">
                       <button
                         className="note-action-btn"
                         onClick={() => {
                           setEditingNote(note);
-                          setEditDraft({ title: note.title || '', text: note.text || '' });
+                          setEditDraft({
+                            title: note.title || '',
+                            text: note.text || '',
+                            tags: (note.tags || []).join(', '),
+                          });
                         }}
                       >
                         <Edit3 size={14} aria-hidden="true" />

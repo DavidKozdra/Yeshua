@@ -2,7 +2,7 @@ import { openDB } from 'idb';
 import { chapterVersesEqual, normalizeChapterVerses } from './chapterData';
 
 const DB_NAME = 'yeshua-bible';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise;
 
@@ -59,10 +59,119 @@ function getDB() {
         if (!db.objectStoreNames.contains('libraryCollections')) {
           db.createObjectStore('libraryCollections');
         }
+        if (!db.objectStoreNames.contains('readingProgress')) {
+          const progressStore = db.createObjectStore('readingProgress', {
+            keyPath: 'id',
+          });
+          progressStore.createIndex('sourceType', 'sourceType', { unique: false });
+          progressStore.createIndex('completedAt', 'completedAt', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('bookmarks')) {
+          const bookmarksStore = db.createObjectStore('bookmarks', {
+            keyPath: 'id',
+          });
+          bookmarksStore.createIndex('targetKey', 'targetKey', { unique: false });
+          bookmarksStore.createIndex('sourceType', 'sourceType', { unique: false });
+          bookmarksStore.createIndex('createdAt', 'createdAt', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('highlights')) {
+          const highlightsStore = db.createObjectStore('highlights', {
+            keyPath: 'id',
+          });
+          highlightsStore.createIndex('targetKey', 'targetKey', { unique: false });
+          highlightsStore.createIndex('sourceType', 'sourceType', { unique: false });
+          highlightsStore.createIndex('createdAt', 'createdAt', { unique: false });
+        }
       },
     });
   }
   return dbPromise;
+}
+
+function makeId(prefix = 'item') {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function normalizeStringList(value) {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((item) => String(item || '').trim()).filter(Boolean))];
+  }
+  if (typeof value === 'string') {
+    return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
+  }
+  return [];
+}
+
+function normalizeSourceType(value) {
+  return value === 'library' ? 'library' : 'bible';
+}
+
+function buildTargetKey(target = {}) {
+  const sourceType = normalizeSourceType(target.sourceType);
+  if (sourceType === 'library') {
+    return [
+      'library',
+      target.collectionId || '',
+      target.workId || '',
+      target.chapter || 1,
+      target.verseStart || target.verse || '',
+      target.verseEnd || target.verse || '',
+    ].join(':');
+  }
+
+  return [
+    'bible',
+    target.translationId || '',
+    target.bookId || '',
+    target.chapter || 1,
+    target.verseStart || target.verse || '',
+    target.verseEnd || target.verse || '',
+  ].join(':');
+}
+
+function normalizeNote(note = {}) {
+  const now = new Date().toISOString();
+  const sourceType = normalizeSourceType(note.sourceType);
+  const verseStart = note.verseStart ?? note.verse ?? null;
+  const verseEnd = note.verseEnd ?? note.verse ?? verseStart;
+  const bookChapter = note.bookChapter || (note.bookId && note.chapter ? `${note.bookId}:${note.chapter}` : undefined);
+  const verseKey =
+    note.verseKey ||
+    (note.bookId && note.chapter && verseStart ? `${note.bookId}:${note.chapter}:${verseStart}` : undefined);
+
+  return {
+    ...note,
+    sourceType,
+    tags: normalizeStringList(note.tags),
+    verseStart,
+    verseEnd,
+    ...(bookChapter ? { bookChapter } : {}),
+    ...(verseKey ? { verseKey } : {}),
+    createdAt: note.createdAt || now,
+    updatedAt: note.updatedAt || now,
+  };
+}
+
+function normalizeTargetRecord(record = {}, prefix) {
+  const now = new Date().toISOString();
+  const sourceType = normalizeSourceType(record.sourceType);
+  const verseStart = record.verseStart ?? record.verse ?? null;
+  const verseEnd = record.verseEnd ?? record.verse ?? verseStart;
+  const normalized = {
+    ...record,
+    id: record.id || makeId(prefix),
+    sourceType,
+    verseStart,
+    verseEnd,
+    targetKey: record.targetKey || buildTargetKey({ ...record, sourceType, verseStart, verseEnd }),
+    createdAt: record.createdAt || now,
+    updatedAt: record.updatedAt || now,
+  };
+  delete normalized.verse;
+  return normalized;
 }
 
 // --- Chapter storage ---
@@ -248,11 +357,12 @@ export async function deleteLibraryCollectionMeta(collectionId) {
 
 export async function saveNote(note) {
   const db = await getDB();
-  if (note.id) {
-    await db.put('notes', note);
-    return note.id;
+  const normalizedNote = normalizeNote(note);
+  if (normalizedNote.id) {
+    await db.put('notes', normalizedNote);
+    return normalizedNote.id;
   }
-  return db.add('notes', note);
+  return db.add('notes', normalizedNote);
 }
 
 export async function getNote(id) {
@@ -280,6 +390,160 @@ export async function getNotesForVerse(bookId, chapter, verse) {
 export async function deleteNote(id) {
   const db = await getDB();
   await db.delete('notes', id);
+}
+
+// --- Reading progress, bookmarks, and highlights ---
+
+export async function saveReadingProgress(progress) {
+  const db = await getDB();
+  const normalized = normalizeTargetRecord(
+    {
+      ...progress,
+      id: progress.id || buildTargetKey(progress),
+      completedAt: progress.completedAt || new Date().toISOString(),
+    },
+    'progress'
+  );
+  await db.put('readingProgress', normalized);
+  return normalized.id;
+}
+
+export async function getAllReadingProgress() {
+  const db = await getDB();
+  return db.getAll('readingProgress');
+}
+
+export async function getReadingProgressSummary() {
+  const entries = await getAllReadingProgress();
+  const completedChapters = new Set(entries.map((entry) => entry.targetKey)).size;
+  const recent = [...entries]
+    .sort((a, b) => new Date(b.completedAt || b.updatedAt) - new Date(a.completedAt || a.updatedAt))
+    .slice(0, 8);
+  const activeDays = new Set(
+    entries
+      .map((entry) => (entry.completedAt || entry.updatedAt || '').slice(0, 10))
+      .filter(Boolean)
+  ).size;
+
+  return {
+    completedChapters,
+    activeDays,
+    recent,
+  };
+}
+
+export async function getRecentReading(limit = 8) {
+  const summary = await getReadingProgressSummary();
+  return summary.recent.slice(0, limit);
+}
+
+export async function saveBookmark(bookmark) {
+  const db = await getDB();
+  const normalized = normalizeTargetRecord(bookmark, 'bookmark');
+  const existingBookmarks = await db.getAll('bookmarks');
+  const existingBookmark = existingBookmarks.find(
+    (entry) => entry.targetKey === normalized.targetKey && entry.sourceType === normalized.sourceType
+  );
+  if (existingBookmark) {
+    const updatedBookmark = {
+      ...existingBookmark,
+      ...normalized,
+      id: existingBookmark.id,
+      createdAt: existingBookmark.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+    await db.put('bookmarks', updatedBookmark);
+    return updatedBookmark.id;
+  }
+  await db.put('bookmarks', normalized);
+  return normalized.id;
+}
+
+export async function deleteBookmark(id) {
+  const db = await getDB();
+  await db.delete('bookmarks', id);
+}
+
+export async function getBookmarks(filter = {}) {
+  const db = await getDB();
+  const bookmarks = await db.getAll('bookmarks');
+  return bookmarks
+    .filter((bookmark) => {
+      if (filter.sourceType && bookmark.sourceType !== filter.sourceType) return false;
+      if (filter.targetKey && bookmark.targetKey !== filter.targetKey) return false;
+      if (filter.bookId && bookmark.bookId !== filter.bookId) return false;
+      if (filter.collectionId && bookmark.collectionId !== filter.collectionId) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+export async function saveHighlight(highlight) {
+  const db = await getDB();
+  const normalized = normalizeTargetRecord(
+    {
+      color: 'gold',
+      ...highlight,
+    },
+    'highlight'
+  );
+  await db.put('highlights', normalized);
+  return normalized.id;
+}
+
+export async function deleteHighlight(id) {
+  const db = await getDB();
+  await db.delete('highlights', id);
+}
+
+export async function deleteHighlightsForTarget(target = {}) {
+  const db = await getDB();
+  const highlights = await db.getAll('highlights');
+  const sourceType = normalizeSourceType(target.sourceType);
+  const verseStart = target.verseStart ?? target.verse ?? null;
+  const verseEnd = target.verseEnd ?? target.verse ?? verseStart;
+  const matchingHighlights = highlights.filter((highlight) => {
+    if (highlight.sourceType !== sourceType) return false;
+    if (Number(highlight.chapter) !== Number(target.chapter)) return false;
+    if (Number(highlight.verseStart) !== Number(verseStart)) return false;
+    if (Number(highlight.verseEnd) !== Number(verseEnd)) return false;
+
+    if (sourceType === 'library') {
+      return (
+        highlight.collectionId === target.collectionId &&
+        highlight.workId === target.workId
+      );
+    }
+
+    return (
+      highlight.translationId === target.translationId &&
+      highlight.bookId === target.bookId
+    );
+  });
+
+  await Promise.all(matchingHighlights.map((highlight) => db.delete('highlights', highlight.id)));
+  return matchingHighlights.length;
+}
+
+export async function getHighlightsForChapter(target = {}) {
+  const db = await getDB();
+  const highlights = await db.getAll('highlights');
+  const sourceType = normalizeSourceType(target.sourceType);
+  return highlights.filter((highlight) => {
+    if (highlight.sourceType !== sourceType) return false;
+    if (sourceType === 'library') {
+      return (
+        highlight.collectionId === target.collectionId &&
+        highlight.workId === target.workId &&
+        Number(highlight.chapter) === Number(target.chapter)
+      );
+    }
+    return (
+      highlight.translationId === target.translationId &&
+      highlight.bookId === target.bookId &&
+      Number(highlight.chapter) === Number(target.chapter)
+    );
+  });
 }
 
 export async function getAllLibraryChapterEntries() {
@@ -349,11 +613,23 @@ export async function clearAllAppDbData() {
     db.clear('notes'),
     db.clear('libraryChapters'),
     db.clear('libraryCollections'),
+    db.clear('readingProgress'),
+    db.clear('bookmarks'),
+    db.clear('highlights'),
   ]);
 }
 
 export async function exportAppDbData() {
-  const [translationMetas, translationChapters, libraryMetas, libraryChapters, notes] =
+  const [
+    translationMetas,
+    translationChapters,
+    libraryMetas,
+    libraryChapters,
+    notes,
+    readingProgress,
+    bookmarks,
+    highlights,
+  ] =
     await Promise.all([
       getAllTranslationMetaEntries(),
       (async () => {
@@ -369,6 +645,12 @@ export async function exportAppDbData() {
       getAllLibraryCollectionMetaEntries(),
       getAllLibraryChapterEntries(),
       getAllNotes(),
+      getAllReadingProgress(),
+      getBookmarks(),
+      (async () => {
+        const db = await getDB();
+        return db.getAll('highlights');
+      })(),
     ]);
 
   return {
@@ -377,11 +659,17 @@ export async function exportAppDbData() {
     libraryMetas,
     libraryChapters,
     notes,
+    readingProgress,
+    bookmarks,
+    highlights,
   };
 }
 
-export async function importAppDbData(snapshot = {}) {
-  await clearAllAppDbData();
+export async function importAppDbData(snapshot = {}, options = {}) {
+  const { mode = 'replace' } = options;
+  if (mode !== 'merge') {
+    await clearAllAppDbData();
+  }
 
   for (const entry of snapshot.translationMetas || []) {
     if (entry?.id && entry?.meta) {
@@ -413,6 +701,24 @@ export async function importAppDbData(snapshot = {}) {
   for (const note of snapshot.notes || []) {
     if (note && typeof note === 'object') {
       await saveNote(note);
+    }
+  }
+
+  for (const progress of snapshot.readingProgress || []) {
+    if (progress && typeof progress === 'object') {
+      await saveReadingProgress(progress);
+    }
+  }
+
+  for (const bookmark of snapshot.bookmarks || []) {
+    if (bookmark && typeof bookmark === 'object') {
+      await saveBookmark(bookmark);
+    }
+  }
+
+  for (const highlight of snapshot.highlights || []) {
+    if (highlight && typeof highlight === 'object') {
+      await saveHighlight(highlight);
     }
   }
 }

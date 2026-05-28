@@ -1,5 +1,10 @@
 import { BIBLE_BOOKS, getBookById } from './bibleData';
-import { getTranslationChapterEntries } from './db';
+import {
+  getAllLibraryChapterEntries,
+  getAllNotes,
+  getTranslationChapterEntries,
+} from './db';
+import { getBooksCollectionById, getBooksWorkById } from './booksData';
 
 const bundleLoaders = import.meta.glob('../data/*-bundle.json');
 const bundleCache = new Map();
@@ -90,6 +95,221 @@ export async function searchTranslationText(
 
   return {
     query: query.trim(),
+    results,
+    totalMatches,
+    truncated: totalMatches > maxResults,
+  };
+}
+
+function normalizeSearchQuery(query) {
+  return String(query || '').trim();
+}
+
+function textMatches(text, query, options = {}) {
+  const normalizedText = String(text || '');
+  const normalizedQuery = normalizeSearchQuery(query);
+  if (!normalizedQuery) return false;
+
+  const flags = options.caseSensitive ? 'g' : 'gi';
+  const escaped = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = options.wholeWord ? `\\b${escaped}\\b` : escaped;
+
+  if (options.exactPhrase || options.wholeWord) {
+    return new RegExp(pattern, flags).test(normalizedText);
+  }
+
+  return normalizedText.toLowerCase().includes(normalizedQuery.toLowerCase());
+}
+
+function isBookAllowed(bookId, filters = {}) {
+  if (Array.isArray(filters.books) && filters.books.length && !filters.books.includes(bookId)) {
+    return false;
+  }
+
+  if (filters.testament) {
+    const book = getBookById(bookId);
+    if (book?.testament !== filters.testament) return false;
+  }
+
+  return true;
+}
+
+async function searchBibleContent({
+  query,
+  translationId,
+  maxResults,
+  signal,
+  books,
+  testament,
+  exactPhrase,
+  wholeWord,
+}) {
+  const chapterEntries = await getTranslationChapterEntriesForSearch(translationId);
+  const results = [];
+  let totalMatches = 0;
+
+  for (const entry of chapterEntries) {
+    if (signal?.aborted) throw new DOMException('Search aborted', 'AbortError');
+    if (!isBookAllowed(entry.bookId, { books, testament })) continue;
+
+    for (const verse of entry.verses) {
+      if (!textMatches(verse?.text, query, { exactPhrase, wholeWord })) continue;
+      totalMatches += 1;
+      if (results.length < maxResults) {
+        results.push({
+          sourceType: 'bible',
+          type: 'Scripture',
+          bookId: entry.bookId,
+          bookName: getBookById(entry.bookId)?.name || entry.bookId,
+          chapter: entry.chapter,
+          verse: verse.verse,
+          text: verse.text,
+        });
+      }
+    }
+  }
+
+  return { results, totalMatches };
+}
+
+async function searchLibraryContent({ query, maxResults, signal, exactPhrase, wholeWord }) {
+  const chapterEntries = await getAllLibraryChapterEntries();
+  const results = [];
+  let totalMatches = 0;
+
+  for (const entry of chapterEntries) {
+    if (signal?.aborted) throw new DOMException('Search aborted', 'AbortError');
+    const collection = getBooksCollectionById(entry.collectionId);
+    const work = getBooksWorkById(entry.collectionId, entry.workId);
+
+    for (const verse of entry.verses) {
+      if (!textMatches(verse?.text, query, { exactPhrase, wholeWord })) continue;
+      totalMatches += 1;
+      if (results.length < maxResults) {
+        results.push({
+          sourceType: 'library',
+          type: collection?.name || 'Library',
+          collectionId: entry.collectionId,
+          workId: entry.workId,
+          workTitle: work?.title || entry.workId,
+          chapter: entry.chapter,
+          verse: verse.verse,
+          text: verse.text,
+        });
+      }
+    }
+  }
+
+  return { results, totalMatches };
+}
+
+async function searchNotesContent({ query, maxResults, signal, exactPhrase, wholeWord }) {
+  const notes = await getAllNotes();
+  const results = [];
+  let totalMatches = 0;
+
+  for (const note of notes) {
+    if (signal?.aborted) throw new DOMException('Search aborted', 'AbortError');
+    const searchable = [note.title, note.text, ...(note.tags || [])].filter(Boolean).join(' ');
+    if (!textMatches(searchable, query, { exactPhrase, wholeWord })) continue;
+    totalMatches += 1;
+    if (results.length < maxResults) {
+      results.push({
+        sourceType: 'note',
+        type: 'Note',
+        noteId: note.id,
+        title: note.title || 'Untitled note',
+        bookId: note.bookId,
+        collectionId: note.collectionId,
+        workId: note.workId,
+        chapter: note.chapter,
+        verse: note.verseStart || note.verse,
+        tags: note.tags || [],
+        text: note.text || '',
+      });
+    }
+  }
+
+  return { results, totalMatches };
+}
+
+export async function searchContent({
+  query,
+  translationId,
+  sourceTypes = ['bible'],
+  books = [],
+  testament = '',
+  exactPhrase = false,
+  wholeWord = false,
+  includeNotes = false,
+  maxResults = 250,
+  signal,
+} = {}) {
+  const normalizedQuery = normalizeSearchQuery(query);
+  if (!normalizedQuery) {
+    return {
+      query: '',
+      results: [],
+      totalMatches: 0,
+      truncated: false,
+    };
+  }
+
+  const requestedSources = new Set(sourceTypes);
+  if (includeNotes) requestedSources.add('note');
+  const results = [];
+  let totalMatches = 0;
+
+  async function appendSearch(searchPromise) {
+    const result = await searchPromise;
+    totalMatches += result.totalMatches;
+    const remaining = Math.max(0, maxResults - results.length);
+    if (remaining > 0) {
+      results.push(...result.results.slice(0, remaining));
+    }
+  }
+
+  if (requestedSources.has('bible') && translationId) {
+    await appendSearch(
+      searchBibleContent({
+        query: normalizedQuery,
+        translationId,
+        maxResults,
+        signal,
+        books,
+        testament,
+        exactPhrase,
+        wholeWord,
+      })
+    );
+  }
+
+  if (requestedSources.has('library')) {
+    await appendSearch(
+      searchLibraryContent({
+        query: normalizedQuery,
+        maxResults,
+        signal,
+        exactPhrase,
+        wholeWord,
+      })
+    );
+  }
+
+  if (requestedSources.has('note')) {
+    await appendSearch(
+      searchNotesContent({
+        query: normalizedQuery,
+        maxResults,
+        signal,
+        exactPhrase,
+        wholeWord,
+      })
+    );
+  }
+
+  return {
+    query: normalizedQuery,
     results,
     totalMatches,
     truncated: totalMatches > maxResults,

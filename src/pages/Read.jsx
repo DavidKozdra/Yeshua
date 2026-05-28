@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -13,6 +13,8 @@ import {
   Search,
   Volume2,
   Square,
+  Bookmark,
+  Highlighter,
 } from 'lucide-react';
 import { BIBLE_BOOKS, getBookById, getTranslationById } from '../utils/bibleData';
 import { fetchChapter, resolveInstallableTranslationId, getTranslationInstallSource } from '../utils/api';
@@ -23,6 +25,14 @@ import {
   getAllDownloadedTranslations,
   getChapter,
   getTranslationMeta,
+  saveReadingProgress,
+  saveBookmark,
+  deleteBookmark,
+  getBookmarks,
+  saveHighlight,
+  deleteHighlight,
+  deleteHighlightsForTarget,
+  getHighlightsForChapter,
 } from '../utils/db';
 import { saveLastRead, getLastRead, saveSettings } from '../utils/storage';
 import { DEFAULT_TRANSLATION_ID, FALLBACK_TRANSLATION_ID } from '../utils/translationConfig';
@@ -124,7 +134,12 @@ export default function Read() {
   const [selectedVerse, setSelectedVerse] = useState(null);
   const [noteModalContext, setNoteModalContext] = useState('verse');
   const [noteText, setNoteText] = useState('');
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteTags, setNoteTags] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
+  const [isSavingVerseMarker, setIsSavingVerseMarker] = useState(false);
+  const [bookmarks, setBookmarks] = useState([]);
+  const [highlights, setHighlights] = useState([]);
   const [availableTranslations, setAvailableTranslations] = useState([]);
   const [highlightedVerse, setHighlightedVerse] = useState(null);
   const [isSpeakingChapter, setIsSpeakingChapter] = useState(false);
@@ -167,6 +182,10 @@ export default function Read() {
   const textToSpeechSpeedLabel =
     TTS_RATE_OPTIONS.find((option) => option.value === settings.textToSpeechRate)?.label ||
     'Normal';
+
+  useLayoutEffect(() => {
+    saveLastRead({ translationId, bookId, chapter });
+  }, [translationId, bookId, chapter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -381,8 +400,24 @@ export default function Read() {
       const data = await fetchChapter(translationId, bookId, chapter, { offlineOnly: true });
       setVerses(data);
       saveLastRead({ translationId, bookId, chapter });
+      await saveReadingProgress({
+        sourceType: 'bible',
+        translationId,
+        bookId,
+        chapter,
+        completedAt: new Date().toISOString(),
+      });
       const notes = await getNotesForChapter(bookId, chapter);
+      const chapterBookmarks = await getBookmarks({ sourceType: 'bible', bookId });
+      const chapterHighlights = await getHighlightsForChapter({
+        sourceType: 'bible',
+        translationId,
+        bookId,
+        chapter,
+      });
       setChapterNotes(notes);
+      setBookmarks(chapterBookmarks);
+      setHighlights(chapterHighlights);
     } catch (err) {
       setVerses([]);
       setChapterNotes([]);
@@ -641,10 +676,14 @@ export default function Read() {
     setNoteModalContext('verse');
     const existing = chapterNotes.find((n) => n.verse === verse);
     if (existing) {
+      setNoteTitle(existing.title || '');
       setNoteText(existing.text);
+      setNoteTags((existing.tags || []).join(', '));
       setEditingNoteId(existing.id);
     } else {
+      setNoteTitle('');
       setNoteText('');
+      setNoteTags('');
       setEditingNoteId(null);
     }
     setSelectedVerse(verse);
@@ -654,7 +693,9 @@ export default function Read() {
   function openQuickNoteModal() {
     setNoteModalContext('quick');
     setSelectedVerse(1);
+    setNoteTitle('');
     setNoteText('');
+    setNoteTags('');
     setEditingNoteId(null);
     setShowReaderActions(false);
     setShowNoteModal(true);
@@ -862,16 +903,27 @@ export default function Read() {
   }
 
   async function handleSaveNote() {
-    if (!noteText.trim()) return;
+    if (!noteText.trim() && !noteTitle.trim()) {
+      dispatchAppToast({
+        tone: 'info',
+        title: 'Note is empty',
+        message: 'Add a title or note text before saving a note.',
+      });
+      return;
+    }
     const note = {
       ...(editingNoteId ? { id: editingNoteId } : {}),
+      title: noteTitle.trim(),
       translationId,
       bookId,
       chapter,
       verse: selectedVerse,
+      verseStart: selectedVerse,
+      verseEnd: selectedVerse,
       verseKey: `${bookId}:${chapter}:${selectedVerse}`,
       bookChapter: `${bookId}:${chapter}`,
       text: noteText.trim(),
+      tags: noteTags,
       createdAt: editingNoteId
         ? chapterNotes.find((n) => n.id === editingNoteId)?.createdAt
         : new Date().toISOString(),
@@ -885,10 +937,29 @@ export default function Read() {
 
   async function handleDeleteNote() {
     if (editingNoteId) {
+      const noteToDelete = chapterNotes.find((n) => n.id === editingNoteId);
       await deleteNote(editingNoteId);
+      const removedHighlights = noteToDelete
+        ? await deleteHighlightsForTarget({
+            sourceType: 'bible',
+            translationId: noteToDelete.translationId || translationId,
+            bookId: noteToDelete.bookId || bookId,
+            chapter: noteToDelete.chapter || chapter,
+            verseStart: noteToDelete.verseStart || noteToDelete.verse,
+            verseEnd: noteToDelete.verseEnd || noteToDelete.verse,
+          })
+        : 0;
       setShowNoteModal(false);
       const notes = await getNotesForChapter(bookId, chapter);
       setChapterNotes(notes);
+      await refreshVerseMarkers();
+      dispatchAppToast({
+        tone: 'info',
+        title: 'Note deleted',
+        message: removedHighlights
+          ? 'The verse note and highlight were removed.'
+          : 'The verse note was removed.',
+      });
     }
   }
 
@@ -922,6 +993,163 @@ export default function Read() {
     [verses, selectedVerse]
   );
   const canShareSelectedVerse = noteModalContext === 'verse' && Boolean(selectedVerseData?.text);
+  const selectedBookmark = useMemo(
+    () =>
+      bookmarks.find(
+        (bookmark) =>
+          bookmark.translationId === translationId &&
+          bookmark.bookId === bookId &&
+          Number(bookmark.chapter) === Number(chapter) &&
+          Number(bookmark.verseStart) === Number(selectedVerse)
+      ) || null,
+    [bookmarks, translationId, bookId, chapter, selectedVerse]
+  );
+  const selectedHighlight = useMemo(
+    () =>
+      highlights.find(
+        (highlight) =>
+          highlight.translationId === translationId &&
+          highlight.bookId === bookId &&
+          Number(highlight.chapter) === Number(chapter) &&
+          Number(highlight.verseStart) === Number(selectedVerse)
+      ) || null,
+    [highlights, translationId, bookId, chapter, selectedVerse]
+  );
+  const canSaveNote = Boolean(noteTitle.trim() || noteText.trim());
+
+  async function refreshVerseMarkers() {
+    const [chapterBookmarks, chapterHighlights] = await Promise.all([
+      getBookmarks({ sourceType: 'bible', bookId }),
+      getHighlightsForChapter({
+        sourceType: 'bible',
+        translationId,
+        bookId,
+        chapter,
+      }),
+    ]);
+    setBookmarks(chapterBookmarks);
+    setHighlights(chapterHighlights);
+  }
+
+  async function handleToggleBookmark() {
+    if (!selectedVerseData) return;
+    setIsSavingVerseMarker(true);
+
+    try {
+      if (selectedBookmark) {
+        await deleteBookmark(selectedBookmark.id);
+        dispatchAppToast({
+          tone: 'info',
+          title: 'Bookmark removed',
+          message: `${book.name} ${chapter}:${selectedVerseData.verse} is no longer bookmarked.`,
+        });
+      } else {
+        await saveBookmark({
+          sourceType: 'bible',
+          translationId,
+          bookId,
+          chapter,
+          verse: selectedVerseData.verse,
+          label: `${book.name} ${chapter}:${selectedVerseData.verse}`,
+        });
+        dispatchAppToast({
+          tone: 'success',
+          title: 'Bookmark saved',
+          message: `${book.name} ${chapter}:${selectedVerseData.verse} is bookmarked.`,
+        });
+      }
+      await refreshVerseMarkers();
+    } catch (markerError) {
+      dispatchAppToast({
+        tone: 'danger',
+        title: 'Bookmark failed',
+        message: markerError.message || 'The bookmark could not be saved.',
+      });
+    } finally {
+      setIsSavingVerseMarker(false);
+    }
+  }
+
+  async function handleToggleHighlight() {
+    if (!selectedVerseData) return;
+    setIsSavingVerseMarker(true);
+
+    try {
+      if (selectedHighlight) {
+        await deleteHighlight(selectedHighlight.id);
+        dispatchAppToast({
+          tone: 'info',
+          title: 'Highlight removed',
+          message: `${book.name} ${chapter}:${selectedVerseData.verse} is no longer highlighted.`,
+        });
+      } else {
+        await saveHighlight({
+          sourceType: 'bible',
+          translationId,
+          bookId,
+          chapter,
+          verse: selectedVerseData.verse,
+          color: 'gold',
+          label: `${book.name} ${chapter}:${selectedVerseData.verse}`,
+        });
+        dispatchAppToast({
+          tone: 'success',
+          title: 'Highlight saved',
+          message: `${book.name} ${chapter}:${selectedVerseData.verse} is highlighted.`,
+        });
+      }
+      await refreshVerseMarkers();
+    } catch (markerError) {
+      dispatchAppToast({
+        tone: 'danger',
+        title: 'Highlight failed',
+        message: markerError.message || 'The highlight could not be saved.',
+      });
+    } finally {
+      setIsSavingVerseMarker(false);
+    }
+  }
+
+  const bookmarkedVerses = useMemo(
+    () =>
+      new Set(
+        bookmarks
+          .filter(
+            (bookmark) =>
+              bookmark.translationId === translationId &&
+              bookmark.bookId === bookId &&
+              Number(bookmark.chapter) === Number(chapter)
+          )
+          .map((bookmark) => Number(bookmark.verseStart))
+      ),
+    [bookmarks, translationId, bookId, chapter]
+  );
+  const currentChapterBookmarks = useMemo(
+    () =>
+      bookmarks
+        .filter(
+          (bookmark) =>
+            bookmark.translationId === translationId &&
+            bookmark.bookId === bookId &&
+            Number(bookmark.chapter) === Number(chapter)
+        )
+        .sort((left, right) => Number(left.verseStart) - Number(right.verseStart)),
+    [bookmarks, translationId, bookId, chapter]
+  );
+  const highlightedVerses = useMemo(
+    () => new Set(highlights.map((highlight) => Number(highlight.verseStart))),
+    [highlights]
+  );
+
+  function jumpToBookmarkedVerse(verse) {
+    const verseNumber = Number(verse);
+    const targetElement = contentRef.current?.querySelector(`[data-verse="${verseNumber}"]`);
+    targetElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedVerse(verseNumber);
+    window.setTimeout(() => {
+      setHighlightedVerse((current) => (current === verseNumber ? null : current));
+    }, 1800);
+  }
 
   async function handleShareVerse() {
     if (!selectedVerseData) {
@@ -1242,43 +1470,67 @@ export default function Read() {
         )}
 
         {!loading && !error && offlineState.ready && (
-          <div
-            className={`verses ${settings.oneVersePerLine ? 'verses-stacked' : ''}`}
-            style={{
-              fontSize: `${settings.fontSize}px`,
-              lineHeight: settings.lineHeight,
-            }}
-          >
-            {verses.map((v) => {
-              const verseSegments = verseSegmentsCache.get(v.verse) ?? null;
+          <>
+            {currentChapterBookmarks.length > 0 && (
+              <section className="chapter-bookmarks" aria-label="Bookmarked verses in this chapter">
+                <div className="chapter-bookmarks-header">
+                  <Bookmark size={15} aria-hidden="true" />
+                  <span>Bookmarked verses</span>
+                </div>
+                <div className="chapter-bookmarks-list">
+                  {currentChapterBookmarks.map((bookmark) => (
+                    <button
+                      key={bookmark.id}
+                      type="button"
+                      className="chapter-bookmark-chip"
+                      onClick={() => jumpToBookmarkedVerse(bookmark.verseStart)}
+                    >
+                      {book.name} {chapter}:{bookmark.verseStart}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+            <div
+              className={`verses ${settings.oneVersePerLine ? 'verses-stacked' : ''}`}
+              style={{
+                fontSize: `${settings.fontSize}px`,
+                lineHeight: settings.lineHeight,
+              }}
+            >
+              {verses.map((v) => {
+                const verseSegments = verseSegmentsCache.get(v.verse) ?? null;
 
-              return (
-                <span
-                  key={v.verse}
-                  className={`verse ${noteVerses.has(v.verse) ? 'has-note' : ''} ${
-                    highlightedVerse === v.verse ? 'verse-targeted' : ''
-                  } ${speakingVerse === v.verse ? 'verse-speaking' : ''}`}
-                  data-verse={v.verse}
-                  onClick={() => openNoteForVerse(v.verse)}
-                >
-                  {settings.showVerseNumbers && (
-                    <sup className="verse-num">{v.verse}</sup>
-                  )}
-                  {verseSegments
-                    ? verseSegments.map((segment, index) => (
-                        <span
-                          key={`${v.verse}-${index}`}
-                          className={segment.isRed ? 'verse-christ-words' : undefined}
-                        >
-                          {segment.text}
-                        </span>
-                      ))
-                    : v.text}
-                  {!settings.oneVersePerLine && ' '}
-                </span>
-              );
-            })}
-          </div>
+                return (
+                  <span
+                    key={v.verse}
+                    className={`verse ${noteVerses.has(v.verse) ? 'has-note' : ''} ${
+                      highlightedVerse === v.verse ? 'verse-targeted' : ''
+                    } ${speakingVerse === v.verse ? 'verse-speaking' : ''} ${
+                      highlightedVerses.has(v.verse) ? 'verse-highlighted' : ''
+                    } ${bookmarkedVerses.has(v.verse) ? 'verse-bookmarked' : ''}`}
+                    data-verse={v.verse}
+                    onClick={() => openNoteForVerse(v.verse)}
+                  >
+                    {settings.showVerseNumbers && (
+                      <sup className="verse-num">{v.verse}</sup>
+                    )}
+                    {verseSegments
+                      ? verseSegments.map((segment, index) => (
+                          <span
+                            key={`${v.verse}-${index}`}
+                            className={segment.isRed ? 'verse-christ-words' : undefined}
+                          >
+                            {segment.text}
+                          </span>
+                        ))
+                      : v.text}
+                    {!settings.oneVersePerLine && ' '}
+                  </span>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* Chapter navigation */}
@@ -1322,6 +1574,15 @@ export default function Read() {
               </div>
             )}
             <label htmlFor="note-text" className="sr-only">Note text</label>
+            <label htmlFor="note-title" className="sr-only">Note title</label>
+            <input
+              id="note-title"
+              type="text"
+              value={noteTitle}
+              onChange={(e) => setNoteTitle(e.target.value)}
+              placeholder="Title (optional)"
+              aria-label="Note title"
+            />
             <textarea
               id="note-text"
               value={noteText}
@@ -1331,23 +1592,61 @@ export default function Read() {
               autoFocus
               style={{ width: '100%' }}
             />
+            <label htmlFor="note-tags" className="sr-only">Note tags</label>
+            <input
+              id="note-tags"
+              type="text"
+              value={noteTags}
+              onChange={(e) => setNoteTags(e.target.value)}
+              placeholder="Tags, separated by commas"
+              aria-label="Note tags"
+            />
             <div className="modal-actions">
+              {noteModalContext === 'verse' && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={handleToggleBookmark}
+                    disabled={isSavingVerseMarker}
+                    aria-pressed={Boolean(selectedBookmark)}
+                  >
+                    <Bookmark size={14} aria-hidden="true" />
+                    {selectedBookmark ? 'Remove bookmark' : 'Bookmark'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={handleToggleHighlight}
+                    disabled={isSavingVerseMarker}
+                    aria-pressed={Boolean(selectedHighlight)}
+                  >
+                    <Highlighter size={14} aria-hidden="true" />
+                    {selectedHighlight ? 'Remove highlight' : 'Highlight'}
+                  </button>
+                </>
+              )}
               {canShareSelectedVerse && (
-                <button className="btn btn-outline btn-sm" onClick={handleShareVerse}>
+                <button type="button" className="btn btn-outline btn-sm" onClick={handleShareVerse}>
                   <Share2 size={14} aria-hidden="true" />
                   Share verse
                 </button>
               )}
               {editingNoteId && (
-                <button className="btn btn-danger btn-sm" onClick={handleDeleteNote}>
+                <button type="button" className="btn btn-danger btn-sm" onClick={handleDeleteNote}>
                   Delete
                 </button>
               )}
-              <button className="btn btn-outline btn-sm" onClick={() => setShowNoteModal(false)}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowNoteModal(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary btn-sm" onClick={handleSaveNote}>
-                {editingNoteId ? 'Update' : 'Save'}
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={handleSaveNote}
+                disabled={!canSaveNote}
+              >
+                {editingNoteId ? 'Update note' : 'Save note'}
               </button>
             </div>
           </div>

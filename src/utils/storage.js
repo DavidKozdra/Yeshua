@@ -319,32 +319,38 @@ export function exportAppStorageData() {
   };
 }
 
-export function importAppStorageData(snapshot = {}) {
-  saveSettings(snapshot.settings || getSettings());
+export function importAppStorageData(snapshot = {}, options = {}) {
+  const { mode = 'replace' } = options;
+  const currentSettings = getSettings();
+  saveSettings(mode === 'merge' ? { ...currentSettings, ...(snapshot.settings || {}) } : snapshot.settings || currentSettings);
 
   if (snapshot.lastRead) {
     localStorage.setItem(LAST_READ_KEY, JSON.stringify(snapshot.lastRead));
-  } else {
+  } else if (mode !== 'merge') {
     localStorage.removeItem(LAST_READ_KEY);
   }
 
   if (snapshot.lastBooksRead) {
     localStorage.setItem(LAST_BOOKS_READ_KEY, JSON.stringify(snapshot.lastBooksRead));
-  } else {
+  } else if (mode !== 'merge') {
     localStorage.removeItem(LAST_BOOKS_READ_KEY);
   }
 
   if (snapshot.lastAppOpenedAt) {
     localStorage.setItem(LAST_APP_OPENED_AT_KEY, snapshot.lastAppOpenedAt);
-  } else {
+  } else if (mode !== 'merge') {
     localStorage.removeItem(LAST_APP_OPENED_AT_KEY);
   }
 
-  saveProfile(snapshot.profile || { name: '' });
+  saveProfile(mode === 'merge' ? { ...getProfile(), ...(snapshot.profile || {}) } : snapshot.profile || { name: '' });
 
   if (snapshot.holyDayReminders && typeof snapshot.holyDayReminders === 'object') {
-    localStorage.setItem(HOLY_DAY_REMINDER_KEY, JSON.stringify(snapshot.holyDayReminders));
-  } else {
+    const reminders =
+      mode === 'merge'
+        ? { ...getHolyDayReminderStore(), ...snapshot.holyDayReminders }
+        : snapshot.holyDayReminders;
+    localStorage.setItem(HOLY_DAY_REMINDER_KEY, JSON.stringify(reminders));
+  } else if (mode !== 'merge') {
     localStorage.removeItem(HOLY_DAY_REMINDER_KEY);
   }
 }

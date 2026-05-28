@@ -16,6 +16,7 @@ test.describe('Notes – empty state', () => {
     await page.goto('/notes');
     await expect(page.getByLabel('New note title')).toBeVisible();
     await expect(page.getByLabel('New note text')).toBeVisible();
+    await expect(page.getByLabel('New note tags')).toBeVisible();
     await expect(page.getByRole('button', { name: /save note/i })).toBeVisible();
   });
 
@@ -30,9 +31,11 @@ test.describe('Notes – create, display, edit, delete', () => {
     await page.goto('/notes');
     await page.getByLabel('New note title').fill('Test Note Title');
     await page.getByLabel('New note text').fill('Some reflection text.');
+    await page.getByLabel('New note tags').fill('prayer, study');
     await page.getByRole('button', { name: /save note/i }).click();
     await expect(page.locator('.notes-list')).toContainText('Test Note Title');
     await expect(page.locator('.notes-list')).toContainText('Some reflection text.');
+    await expect(page.locator('.notes-list')).toContainText('prayer');
   });
 
   test('note stats counter increments after creating a note', async ({ page }) => {
@@ -41,6 +44,7 @@ test.describe('Notes – create, display, edit, delete', () => {
     await page.getByLabel('New note title').fill('Stats Test');
     await page.getByLabel('New note text').fill('Checking stats.');
     await page.getByRole('button', { name: /save note/i }).click();
+    await expect(page.locator('.notes-list')).toContainText('Stats Test');
     const totalAfter = await page.locator('.notes-stat').first().locator('strong').textContent();
     expect(Number(totalAfter)).toBeGreaterThan(Number(totalBefore));
   });
@@ -87,10 +91,12 @@ test.describe('Notes – create, display, edit, delete', () => {
     await page.getByLabel('New note title').fill('Delete Me');
     await page.getByLabel('New note text').fill('This note will be deleted.');
     await page.getByRole('button', { name: /save note/i }).click();
+    const noteCard = page.locator('.note-card').filter({ hasText: 'Delete Me' });
+    await expect(noteCard).toBeVisible();
     // Auto-accept the confirm dialog
     page.on('dialog', (dialog) => dialog.accept());
-    await page.locator('.note-card').first().getByRole('button', { name: /delete/i }).click();
-    await expect(page.locator('.notes-list')).not.toContainText('Delete Me');
+    await noteCard.getByRole('button', { name: /delete/i }).click();
+    await expect(noteCard).toHaveCount(0);
   });
 });
 

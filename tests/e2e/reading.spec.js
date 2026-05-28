@@ -70,6 +70,59 @@ test.describe('Reader – verse numbers and display settings', () => {
   });
 });
 
+test.describe('Reader – v2 study tools', () => {
+  test('verse modal exposes bookmark, highlight, share, and note controls', async ({ page }) => {
+    await page.goto('/read/kjv/JHN/3');
+    await page.locator('.verse').first().click();
+    await expect(page.getByRole('button', { name: /^bookmark$/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^highlight$/i })).toBeVisible();
+    await expect(page.getByLabel('Note tags')).toBeVisible();
+  });
+
+  test('highlight saves without requiring a note', async ({ page }) => {
+    await page.goto('/read/kjv/JHN/3');
+    const firstVerse = page.locator('.verse').first();
+    await firstVerse.click();
+    await expect(page.getByRole('button', { name: /save note/i })).toBeDisabled();
+    await page.getByRole('button', { name: /^highlight$/i }).click();
+    await expect(page.getByText('Highlight saved')).toBeVisible();
+    await expect(firstVerse).toHaveClass(/verse-highlighted/);
+  });
+
+  test('bookmarks show in the chapter view and jump back to the verse', async ({ page }) => {
+    await page.goto('/read/kjv/JHN/3');
+    const firstVerse = page.locator('.verse').first();
+
+    await firstVerse.click();
+    await page.getByRole('button', { name: /^bookmark$/i }).click();
+    await page.getByRole('button', { name: /^cancel$/i }).click();
+
+    await expect(page.getByLabel('Bookmarked verses in this chapter')).toBeVisible();
+    await expect(page.getByRole('button', { name: /john 3:1/i })).toBeVisible();
+
+    await page.getByRole('button', { name: /john 3:1/i }).click();
+    await expect(firstVerse).toHaveClass(/verse-targeted/);
+  });
+
+  test('deleting a verse note also removes the same-verse highlight', async ({ page }) => {
+    await page.goto('/read/kjv/JHN/3');
+    const firstVerse = page.locator('.verse').first();
+
+    await firstVerse.click();
+    await page.getByRole('button', { name: /^highlight$/i }).click();
+    await page.getByLabel('Note title').fill('Highlighted note');
+    await page.getByRole('button', { name: /save note/i }).click();
+    await expect(firstVerse).toHaveClass(/verse-highlighted/);
+
+    await firstVerse.click();
+    page.on('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: /^delete$/i }).click();
+
+    await expect(page.getByText('The verse note and highlight were removed.')).toBeVisible();
+    await expect(firstVerse).not.toHaveClass(/verse-highlighted/);
+  });
+});
+
 test.describe('Reader – unknown route fallback', () => {
   test('navigating to /read without params falls back gracefully', async ({ page }) => {
     await page.goto('/read');

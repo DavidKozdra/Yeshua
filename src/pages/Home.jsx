@@ -7,6 +7,7 @@ import HolyDayManager from '../components/HolyDayManager';
 import HolyDayReminderManager from '../components/HolyDayReminderManager';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { getLastBooksRead, getLastRead, getProfile } from '../utils/storage';
+import { getAllNotes, getBookmarks, getReadingProgressSummary } from '../utils/db';
 import { getExternalNavigationProps } from '../utils/externalLinks';
 import '../styles/home.css';
 
@@ -16,6 +17,12 @@ export default function Home() {
   const [lastRead, setLastRead] = useState(null);
   const [lastBooksRead, setLastBooksRead] = useState(null);
   const [profile, setProfile] = useState(getProfile);
+  const [studySummary, setStudySummary] = useState({
+    completedChapters: 0,
+    activeDays: 0,
+    notes: 0,
+    bookmarks: 0,
+  });
   const settings = useAppSettings();
   const externalNavigationProps = getExternalNavigationProps();
 
@@ -23,6 +30,26 @@ export default function Home() {
     setLastRead(getLastRead());
     setLastBooksRead(getLastBooksRead());
     setProfile(getProfile());
+    let cancelled = false;
+    async function loadStudySummary() {
+      const [progress, notes, bookmarks] = await Promise.all([
+        getReadingProgressSummary(),
+        getAllNotes(),
+        getBookmarks(),
+      ]);
+      if (!cancelled) {
+        setStudySummary({
+          completedChapters: progress.completedChapters,
+          activeDays: progress.activeDays,
+          notes: notes.length,
+          bookmarks: bookmarks.length,
+        });
+      }
+    }
+    loadStudySummary();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function goToReading(bookId, chapter, translationId = settings.defaultTranslation) {
@@ -48,6 +75,28 @@ export default function Home() {
       </header>
 
       <HolyDayBanner />
+
+      <section className="home-section">
+        <h2 className="section-label">Study Dashboard</h2>
+        <div className="study-dashboard card">
+          <button type="button" className="study-stat" onClick={() => navigate('/read')}>
+            <strong>{studySummary.completedChapters}</strong>
+            <span>Chapters read</span>
+          </button>
+          <button type="button" className="study-stat" onClick={() => navigate('/read')}>
+            <strong>{studySummary.activeDays}</strong>
+            <span>Active days</span>
+          </button>
+          <button type="button" className="study-stat" onClick={() => navigate('/notes')}>
+            <strong>{studySummary.notes}</strong>
+            <span>Notes</span>
+          </button>
+          <button type="button" className="study-stat" onClick={() => navigate('/notes')}>
+            <strong>{studySummary.bookmarks}</strong>
+            <span>Bookmarks</span>
+          </button>
+        </div>
+      </section>
 
       {/* Continue Reading */}
       {lastRead && (

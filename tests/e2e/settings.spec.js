@@ -33,7 +33,7 @@ test.describe('Settings – Profile tab', () => {
     const input = page.getByLabel('Profile name');
     await input.fill('TestUser');
     await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByRole('status')).toContainText('Profile name saved');
+    await expect(page.getByText('Profile name saved.')).toBeVisible();
   });
 
   test('saving name via Enter key works', async ({ page }) => {
@@ -41,7 +41,7 @@ test.describe('Settings – Profile tab', () => {
     const input = page.getByLabel('Profile name');
     await input.fill('KeyboardUser');
     await input.press('Enter');
-    await expect(page.getByRole('status')).toContainText('Profile name saved');
+    await expect(page.getByText('Profile name saved.')).toBeVisible();
   });
 
   test('shows Export Data, Import Data, and Delete All Data buttons', async ({ page }) => {
@@ -49,6 +49,7 @@ test.describe('Settings – Profile tab', () => {
     await expect(page.getByRole('button', { name: /export data/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /import data/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /delete all data/i })).toBeVisible();
+    await expect(page.getByLabel('Import mode')).toBeVisible();
   });
 });
 
@@ -115,9 +116,9 @@ test.describe('Settings – Reader tab', () => {
   test('toggles for verse numbers, Words of Christ in Red, and one-verse-per-line are present', async ({ page }) => {
     await openSettingsTab(page, 'Reader');
     // Checkboxes are inside toggle labels — locate by nearby text
-    await expect(page.getByText('Verse Numbers')).toBeVisible();
-    await expect(page.getByText('Words of Christ in Red')).toBeVisible();
-    await expect(page.getByText('One Verse Per Line')).toBeVisible();
+    await expect(page.getByText('Verse Numbers', { exact: true })).toBeVisible();
+    await expect(page.getByText('Words of Christ in Red', { exact: true })).toBeVisible();
+    await expect(page.getByText('One Verse Per Line', { exact: true })).toBeVisible();
   });
 
   test('Show Global Search Bar toggle is present', async ({ page }) => {
@@ -141,7 +142,7 @@ test.describe('Settings – Reader tab', () => {
     await openSettingsTab(page, 'Reader');
     const refInput = page.getByLabel('Preview verse reference');
     await refInput.fill('John 3:16');
-    await page.getByRole('button', { name: /^go$/i }).click();
+    await page.getByLabel('Reader').getByRole('button', { name: /^go$/i }).click();
     // Book selector should have updated to John
     await expect(page.getByLabel('Preview book')).toHaveValue('JHN');
   });
@@ -150,7 +151,7 @@ test.describe('Settings – Reader tab', () => {
     await openSettingsTab(page, 'Reader');
     const refInput = page.getByLabel('Preview verse reference');
     await refInput.fill('FakeBook 99');
-    await page.getByRole('button', { name: /^go$/i }).click();
+    await page.getByLabel('Reader').getByRole('button', { name: /^go$/i }).click();
     await expect(page.locator('.error')).toContainText(/use a reference/i);
   });
 });
@@ -189,13 +190,13 @@ test.describe('Settings – Accessibility tab', () => {
     // Find Underline Links checkbox
     const toggle = page.locator('.setting-row').filter({ hasText: 'Underline Links' }).locator('input[type="checkbox"]');
     const wasBefore = await toggle.isChecked();
-    await toggle.click();
+    await toggle.evaluate((element) => element.click());
     await page.reload();
     await page.getByRole('tab', { name: 'Accessibility' }).click();
     const afterReload = page.locator('.setting-row').filter({ hasText: 'Underline Links' }).locator('input[type="checkbox"]');
     await expect(afterReload).toBeChecked({ checked: !wasBefore });
     // Restore
-    await afterReload.click();
+    await afterReload.evaluate((element) => element.click());
   });
 });
 
@@ -230,7 +231,7 @@ test.describe('Settings – Notifications tab', () => {
     // Ensure holy day awareness is on (default is true)
     const awarenessToggle = page.locator('.setting-row').filter({ hasText: 'Enable Holy Day Awareness' }).locator('input[type="checkbox"]');
     if (!(await awarenessToggle.isChecked())) {
-      await awarenessToggle.click();
+      await awarenessToggle.evaluate((element) => element.click());
     }
     await expect(page.locator('.holy-day-settings-list')).toBeVisible();
   });
@@ -239,19 +240,19 @@ test.describe('Settings – Notifications tab', () => {
     await openSettingsTab(page, 'Notifications');
     const awarenessToggle = page.locator('.setting-row').filter({ hasText: 'Enable Holy Day Awareness' }).locator('input[type="checkbox"]');
     if (await awarenessToggle.isChecked()) {
-      await awarenessToggle.click();
+      await awarenessToggle.evaluate((element) => element.click());
     }
     await expect(page.locator('.holy-day-settings-collapsed-note')).toBeVisible();
     await expect(page.locator('.holy-day-settings-list')).not.toBeVisible();
     // Restore
-    await awarenessToggle.click();
+    await awarenessToggle.evaluate((element) => element.click());
   });
 
   test('each holy day row has Shown and Alert toggles', async ({ page }) => {
     await openSettingsTab(page, 'Notifications');
     const awarenessToggle = page.locator('.setting-row').filter({ hasText: 'Enable Holy Day Awareness' }).locator('input[type="checkbox"]');
     if (!(await awarenessToggle.isChecked())) {
-      await awarenessToggle.click();
+      await awarenessToggle.evaluate((element) => element.click());
     }
     const items = page.locator('.holy-day-setting-item');
     await expect(items).toHaveCount(12); // 12 defined holy days

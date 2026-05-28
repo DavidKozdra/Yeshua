@@ -56,15 +56,17 @@ test.describe('Home page', () => {
   test('shows Continue Reading section after visiting the reader', async ({ page }) => {
     // Visit a chapter first to set lastRead
     await page.goto('/read/kjv/GEN/1');
+    await expect(page.locator('.verse').first()).toBeVisible({ timeout: 8000 });
     await page.goto('/');
     await expect(page.getByRole('heading', { name: /continue reading/i })).toBeVisible();
-    await expect(page.locator('.continue-card')).toBeVisible();
+    await expect(page.getByRole('button', { name: /continue reading/i })).toBeVisible();
   });
 
   test('Continue Reading card navigates back to the reader', async ({ page }) => {
     await page.goto('/read/kjv/GEN/1');
+    await expect(page.locator('.verse').first()).toBeVisible({ timeout: 8000 });
     await page.goto('/');
-    await page.locator('.continue-card').first().click();
+    await page.getByRole('button', { name: /continue reading/i }).click();
     await expect(page).toHaveURL(/\/read\//);
   });
 });

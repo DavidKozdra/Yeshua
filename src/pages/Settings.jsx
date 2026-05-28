@@ -165,6 +165,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('profile');
   const [dataMessage, setDataMessage] = useState('');
   const [dataError, setDataError] = useState('');
+  const [importMode, setImportMode] = useState('replace');
   const [isImportingData, setIsImportingData] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
   const [downloadedTranslations, setDownloadedTranslations] = useState([]);
@@ -626,7 +627,7 @@ export default function Settings() {
       if (typeof snapshot !== 'object' || snapshot === null || Array.isArray(snapshot)) {
         throw new Error('The selected file does not contain a Yeshua backup.');
       }
-      await importAppDataSnapshot(snapshot);
+      await importAppDataSnapshot(snapshot, { mode: importMode });
       setDataMessage('Data import complete. Reloading the app.');
       window.setTimeout(() => window.location.reload(), 300);
     } catch (error) {
@@ -741,6 +742,17 @@ export default function Settings() {
                 app data.
               </p>
               <div className="settings-data-actions">
+                <label className="settings-import-mode">
+                  <span>Import mode</span>
+                  <select
+                    value={importMode}
+                    onChange={(event) => setImportMode(event.target.value)}
+                    aria-label="Import mode"
+                  >
+                    <option value="replace">Replace local data</option>
+                    <option value="merge">Merge with local data</option>
+                  </select>
+                </label>
                 <button className="btn btn-outline btn-sm" onClick={handleExportData}>
                   <FolderDown size={14} />
                   Export Data

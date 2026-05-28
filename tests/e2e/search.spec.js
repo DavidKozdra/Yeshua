@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Search page – structure', () => {
   test('shows the Search heading and intro', async ({ page }) => {
     await page.goto('/search');
-    await expect(page.getByRole('heading', { name: /search/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Search', exact: true })).toBeVisible();
     await expect(page.locator('.search-page-intro')).toBeVisible();
   });
 
@@ -16,6 +16,14 @@ test.describe('Search page – structure', () => {
     if (count) {
       await expect(picker).toBeVisible();
     }
+  });
+
+  test('shows v2 search filters', async ({ page }) => {
+    await page.goto('/search');
+    await expect(page.getByLabel('Search filters')).toBeVisible();
+    await expect(page.getByText('Exact phrase')).toBeVisible();
+    await expect(page.getByText('Whole word')).toBeVisible();
+    await expect(page.getByText('Include notes')).toBeVisible();
   });
 });
 
@@ -41,10 +49,10 @@ test.describe('Search page – full-text search', () => {
 
   test('shows no-matches empty state for gibberish', async ({ page }) => {
     await page.goto('/search?q=xyzzy99notaword');
-    await expect(page.locator('.empty-state, .search-summary')).toBeVisible({ timeout: 8000 });
-    // Either "no matches found" or 0 matches in summary
-    const body = await page.locator('body').textContent();
-    expect(body).toMatch(/no matches|0 match/i);
+    await expect(page.locator('.search-summary')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('.empty-state')).toContainText(/no matches|0 match/i, {
+      timeout: 8000,
+    });
   });
 
   test('result cards show book, chapter, and verse', async ({ page }) => {

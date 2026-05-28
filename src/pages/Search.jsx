@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Search as SearchIcon } from 'lucide-react';
-import { AVAILABLE_TRANSLATIONS, getTranslationById } from '../utils/bibleData';
+import { AVAILABLE_TRANSLATIONS, BIBLE_BOOKS, getTranslationById } from '../utils/bibleData';
 import { getAllDownloadedTranslations } from '../utils/db';
 import { subscribeToTranslationInstallEvents } from '../utils/api';
 import { getTranslationStatus } from '../utils/translationStatus';
-import { searchTranslationText } from '../utils/search';
+import { searchContent } from '../utils/search';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { buildVerseLocation } from '../utils/verseSharing';
 import '../styles/search.css';
@@ -38,6 +38,12 @@ export default function Search() {
   const settings = useAppSettings();
   const query = searchParams.get('q')?.trim() || '';
   const requestedTranslationId = searchParams.get('translation') || settings.defaultTranslation;
+  const sourceFilter = searchParams.get('sources') || 'bible';
+  const testamentFilter = searchParams.get('testament') || '';
+  const exactPhrase = searchParams.get('exact') === '1';
+  const wholeWord = searchParams.get('whole') === '1';
+  const includeNotes = searchParams.get('notes') === '1';
+  const selectedBookId = searchParams.get('book') || '';
 
   const translationMetaMap = useMemo(
     () => new Map(downloadedTranslations.map((item) => [item.id, item])),
@@ -115,8 +121,16 @@ export default function Search() {
       setSearchError('');
 
       try {
-        const searchResult = await searchTranslationText(activeTranslationId, query, {
+        const searchResult = await searchContent({
+          translationId: activeTranslationId,
+          query,
           signal: controller.signal,
+          sourceTypes: sourceFilter.split(',').filter(Boolean),
+          testament: testamentFilter,
+          exactPhrase,
+          wholeWord,
+          includeNotes,
+          books: selectedBookId ? [selectedBookId] : [],
         });
 
         setResults(searchResult.results);
@@ -141,7 +155,16 @@ export default function Search() {
     return () => {
       controller.abort();
     };
-  }, [activeTranslationId, query]);
+  }, [
+    activeTranslationId,
+    query,
+    sourceFilter,
+    testamentFilter,
+    exactPhrase,
+    wholeWord,
+    includeNotes,
+    selectedBookId,
+  ]);
 
   function updateTranslation(translationId) {
     const nextParams = new URLSearchParams(searchParams);
@@ -149,7 +172,31 @@ export default function Search() {
     setSearchParams(nextParams);
   }
 
+  function updateSearchParam(key, value) {
+    const nextParams = new URLSearchParams(searchParams);
+    if (value) {
+      nextParams.set(key, value);
+    } else {
+      nextParams.delete(key);
+    }
+    setSearchParams(nextParams);
+  }
+
+  function updateBooleanParam(key, checked) {
+    updateSearchParam(key, checked ? '1' : '');
+  }
+
   function openResult(result) {
+    if (result.sourceType === 'library') {
+      navigate(`/books/${result.collectionId}/${result.workId}/${result.chapter}`);
+      return;
+    }
+
+    if (result.sourceType === 'note') {
+      navigate('/notes');
+      return;
+    }
+
     navigate(
       buildVerseLocation({
         translationId: activeTranslationId,
@@ -194,6 +241,71 @@ export default function Search() {
         )}
       </div>
 
+      <div className="search-filters card" aria-label="Search filters">
+        <label>
+          <span>Sources</span>
+          <select
+            value={sourceFilter}
+            onChange={(event) => updateSearchParam('sources', event.target.value)}
+          >
+            <option value="bible">Bible</option>
+            <option value="bible,library">Bible + Library</option>
+            <option value="library">Library</option>
+          </select>
+        </label>
+        <label>
+          <span>Book</span>
+          <select
+            value={selectedBookId}
+            onChange={(event) => updateSearchParam('book', event.target.value)}
+            disabled={!sourceFilter.includes('bible')}
+          >
+            <option value="">All books</option>
+            {BIBLE_BOOKS.map((book) => (
+              <option key={book.id} value={book.id}>
+                {book.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Testament</span>
+          <select
+            value={testamentFilter}
+            onChange={(event) => updateSearchParam('testament', event.target.value)}
+            disabled={!sourceFilter.includes('bible') || Boolean(selectedBookId)}
+          >
+            <option value="">Both</option>
+            <option value="OT">Old Testament</option>
+            <option value="NT">New Testament</option>
+          </select>
+        </label>
+        <label className="search-filter-check">
+          <input
+            type="checkbox"
+            checked={exactPhrase}
+            onChange={(event) => updateBooleanParam('exact', event.target.checked)}
+          />
+          <span>Exact phrase</span>
+        </label>
+        <label className="search-filter-check">
+          <input
+            type="checkbox"
+            checked={wholeWord}
+            onChange={(event) => updateBooleanParam('whole', event.target.checked)}
+          />
+          <span>Whole word</span>
+        </label>
+        <label className="search-filter-check">
+          <input
+            type="checkbox"
+            checked={includeNotes}
+            onChange={(event) => updateBooleanParam('notes', event.target.checked)}
+          />
+          <span>Include notes</span>
+        </label>
+      </div>
+
       {fallbackNotice && <p className="search-note" role="status">{fallbackNotice}</p>}
 
       {!query ? (
@@ -236,23 +348,33 @@ export default function Search() {
             </div>
           ) : (
             <div className="search-results" aria-busy={loading}>
-              {results.map((result) => (
+              {results.map((result, index) => (
                 <button
-                  key={`${result.bookId}:${result.chapter}:${result.verse}`}
+                  key={`${result.sourceType}:${result.bookId || result.collectionId || result.noteId}:${result.workId || ''}:${result.chapter || ''}:${result.verse || ''}:${index}`}
                   type="button"
                   className="card card-clickable search-result-card"
-                  aria-label={`Open ${result.bookName} ${result.chapter}:${result.verse}`}
+                  aria-label={`Open ${
+                    result.bookName || result.workTitle || result.title || result.type
+                  }`}
                   onClick={() => openResult(result)}
                 >
                   <div className="search-result-header">
                     <strong>
-                      {result.bookName} {result.chapter}:{result.verse}
+                      {result.sourceType === 'library'
+                        ? `${result.workTitle} ${result.chapter}${result.verse ? `:${result.verse}` : ''}`
+                        : result.sourceType === 'note'
+                          ? result.title
+                          : `${result.bookName} ${result.chapter}:${result.verse}`}
                     </strong>
                     <span className="search-result-link">
                       Open
                       <ArrowRight size={14} aria-hidden="true" />
                     </span>
                   </div>
+                  <span className="chip search-result-source">{result.type}</span>
+                  {result.tags?.length > 0 && (
+                    <span className="search-result-tags">{result.tags.join(', ')}</span>
+                  )}
                   <p className="search-result-text">{highlightText ? highlightText(result.text) : result.text}</p>
                 </button>
               ))}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react';
+import { Bookmark, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react';
 import {
   getBooksCollectionById,
   getBooksCollectionDefaultRoute,
@@ -17,7 +17,13 @@ import {
   subscribeToBooksInstallEvents,
 } from '../utils/booksApi';
 import { getBooksCollectionStatus } from '../utils/booksStatus';
-import { getLibraryCollectionMeta } from '../utils/db';
+import {
+  deleteBookmark,
+  getBookmarks,
+  getLibraryCollectionMeta,
+  saveBookmark,
+  saveReadingProgress,
+} from '../utils/db';
 import { getSettings, saveLastBooksRead, subscribeToSettings } from '../utils/storage';
 import '../styles/books.css';
 import '../styles/read.css';
@@ -46,6 +52,7 @@ export default function BookText() {
   const [verses, setVerses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [chapterBookmark, setChapterBookmark] = useState(null);
 
   useEffect(() => subscribeToSettings(setSettings), []);
 
@@ -163,6 +170,13 @@ export default function BookText() {
           workId: work.id,
           chapter,
         });
+        await saveReadingProgress({
+          sourceType: 'library',
+          collectionId: collection.id,
+          workId: work.id,
+          chapter,
+          completedAt: new Date().toISOString(),
+        });
       } catch (loadError) {
         if (cancelled) return;
         setVerses([]);
@@ -176,6 +190,32 @@ export default function BookText() {
 
     loadChapter();
 
+    return () => {
+      cancelled = true;
+    };
+  }, [chapter, collection, work]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBookmarkState() {
+      setChapterBookmark(null);
+      if (!collection || !work) return;
+      const savedBookmarks = await getBookmarks({
+        sourceType: 'library',
+        collectionId: collection.id,
+      });
+      if (!cancelled) {
+        setChapterBookmark(
+          savedBookmarks.find(
+            (bookmark) =>
+              bookmark.workId === work.id && Number(bookmark.chapter) === Number(chapter)
+          ) || null
+        );
+      }
+    }
+
+    loadBookmarkState();
     return () => {
       cancelled = true;
     };
@@ -256,6 +296,29 @@ export default function BookText() {
     navigate(getBooksCollectionDefaultRoute(collection.id, works));
   }
 
+  async function handleBookmarkChapter() {
+    if (!collection || !work) return;
+
+    if (chapterBookmark) {
+      await deleteBookmark(chapterBookmark.id);
+      setChapterBookmark(null);
+      return;
+    }
+
+    const bookmarkId = await saveBookmark({
+      sourceType: 'library',
+      collectionId: collection.id,
+      workId: work.id,
+      chapter,
+      label: `${work.title} ${chapter}`,
+    });
+    const savedBookmarks = await getBookmarks({
+      sourceType: 'library',
+      collectionId: collection.id,
+    });
+    setChapterBookmark(savedBookmarks.find((bookmark) => bookmark.id === bookmarkId) || null);
+  }
+
   return (
     <div className="page book-reader-page">
       <div className="book-reader-toolbar">
@@ -323,6 +386,15 @@ export default function BookText() {
               >
                 Browse canon
               </button>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={handleBookmarkChapter}
+                aria-pressed={Boolean(chapterBookmark)}
+              >
+                <Bookmark size={14} aria-hidden="true" />
+                {chapterBookmark ? 'Remove bookmark' : 'Bookmark'}
+              </button>
               {queueJob?.phase === 'active' ? (
                 <button
                   type="button"
@@ -364,6 +436,27 @@ export default function BookText() {
         <p className="book-reader-description">
           {work?.description || collection.description}
         </p>
+
+        {chapterBookmark && (
+          <section className="chapter-bookmarks chapter-bookmarks-library" aria-label="Bookmarked chapter">
+            <div className="chapter-bookmarks-header">
+              <Bookmark size={15} aria-hidden="true" />
+              <span>Bookmarked chapter</span>
+            </div>
+            <div className="chapter-bookmarks-list">
+              <span className="chapter-bookmark-chip" aria-current="true">
+                {work?.title} {chapter}
+              </span>
+              <button
+                type="button"
+                className="chapter-bookmark-remove"
+                onClick={handleBookmarkChapter}
+              >
+                Remove
+              </button>
+            </div>
+          </section>
+        )}
 
         {status && (
           <div className={`book-reader-banner book-reader-banner-${status.tone}`}>
