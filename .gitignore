@@ -10,3 +10,5 @@
 .codex
 .agents
 .do
+playwright-report/
+test-results/
