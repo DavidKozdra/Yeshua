@@ -6,6 +6,7 @@ import GlobalSearchBar from './GlobalSearchBar';
 import SeoManager from './SeoManager';
 import RouteAnnouncer from './RouteAnnouncer';
 import ErrorBoundary from './ErrorBoundary';
+import ReadAloudPlayer from './ReadAloudPlayer';
 import { getSettings, subscribeToSettings } from '../utils/storage';
 import '../styles/layout.css';
 
@@ -105,6 +106,7 @@ export default function Layout() {
 
       <ToastHost />
       <RouteAnnouncer />
+      <ReadAloudPlayer />
 
       <nav className="bottom-nav" aria-label="Mobile navigation">
         {mobileNavItems.map(({ to, icon: Icon, label }) => (

@@ -8,6 +8,7 @@ import { queueTranslationInstall, resolveInstallableTranslationId } from './util
 import { DEFAULT_TRANSLATION_ID } from './utils/translationConfig';
 import { useAppSettings } from './hooks/useAppSettings';
 import { applyDisplayPreferences } from './utils/displayPreferences';
+import { ReadAloudProvider } from './components/ReadAloudProvider';
 
 const Home = lazy(() => import('./pages/Home'));
 const Read = lazy(() => import('./pages/Read'));
@@ -65,7 +66,7 @@ export default function App() {
   }, [settings]);
 
   return (
-    <>
+    <ReadAloudProvider>
       <WeeklyReadingReminderManager />
       <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
@@ -84,7 +85,7 @@ export default function App() {
           </Route>
         </Routes>
       </Suspense>
-    </>
+    </ReadAloudProvider>
   );
 }
 

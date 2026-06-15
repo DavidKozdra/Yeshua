@@ -5,94 +5,6 @@ export const TTS_RATE_OPTIONS = [
   { value: 1.3, label: 'Faster' },
 ];
 
-const TTS_AUTOPLAY_UNLOCK_KEY = 'yeshua-tts-autoplay-unlocked';
-let speechAutoplayUnlocked = false;
-let unlockAudioContext = null;
-
-function readAutoplayUnlockFlag() {
-  if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') {
-    return false;
-  }
-
-  try {
-    return window.sessionStorage.getItem(TTS_AUTOPLAY_UNLOCK_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function persistAutoplayUnlockFlag() {
-  if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') {
-    return;
-  }
-
-  try {
-    window.sessionStorage.setItem(TTS_AUTOPLAY_UNLOCK_KEY, '1');
-  } catch {
-    // best effort only
-  }
-}
-
-function tryUnlockAudioContext() {
-  if (unlockAudioContext) {
-    return;
-  }
-
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) {
-    return;
-  }
-
-  try {
-    const context = new AudioContextClass();
-    unlockAudioContext = context;
-    context.resume().catch(() => {});
-    const zeroGain = context.createGain();
-    zeroGain.gain.value = 0;
-    zeroGain.connect(context.destination);
-    const oscillator = context.createOscillator();
-    oscillator.frequency.value = 0;
-    oscillator.connect(zeroGain);
-    oscillator.start();
-    oscillator.stop(context.currentTime);
-    oscillator.onended = () => {
-      oscillator.disconnect();
-      zeroGain.disconnect();
-    };
-  } catch {
-    // ignore errors; unlocking is best effort
-    unlockAudioContext = null;
-  }
-}
-
-export function isSpeechAutoplayUnlocked() {
-  if (speechAutoplayUnlocked) {
-    return true;
-  }
-
-  if (readAutoplayUnlockFlag()) {
-    speechAutoplayUnlocked = true;
-    return true;
-  }
-
-  return false;
-}
-
-export function unlockSpeechAutoplay() {
-  if (isSpeechAutoplayUnlocked()) {
-    return true;
-  }
-
-  speechAutoplayUnlocked = true;
-  persistAutoplayUnlockFlag();
-  tryUnlockAudioContext();
-  return true;
-}
-
 function getSpeechSynthesis() {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
   return window.speechSynthesis;
@@ -191,7 +103,16 @@ function setMediaSessionPlaybackState(state) {
   }
 }
 
-function registerMediaSession({ bookName, chapter, onPause, onResume, onStop }) {
+function registerMediaSession({
+  bookName,
+  chapter,
+  translationLabel,
+  onPause,
+  onResume,
+  onStop,
+  onPreviousTrack,
+  onNextTrack,
+}) {
   const mediaSession = getMediaSession();
   if (!mediaSession) return;
 
@@ -199,7 +120,8 @@ function registerMediaSession({ bookName, chapter, onPause, onResume, onStop }) 
     try {
       mediaSession.metadata = new window.MediaMetadata({
         title: bookName && chapter ? `${bookName} ${chapter}` : 'Bible Reading',
-        artist: 'Yeshua',
+        artist: translationLabel ? `Yeshua · ${translationLabel}` : 'Yeshua',
+        album: 'Bible Read Aloud',
         artwork: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -216,7 +138,10 @@ function registerMediaSession({ bookName, chapter, onPause, onResume, onStop }) 
     ['play', onResume],
     ['pause', onPause],
     ['stop', onStop],
+    ['previoustrack', onPreviousTrack],
+    ['nexttrack', onNextTrack],
   ]) {
+    if (typeof handler !== 'function') continue;
     try {
       mediaSession.setActionHandler(action, handler);
     } catch {
@@ -229,7 +154,12 @@ function clearMediaSession() {
   const mediaSession = getMediaSession();
   if (!mediaSession) return;
   setMediaSessionPlaybackState('none');
-  for (const action of ['play', 'pause', 'stop']) {
+  try {
+    mediaSession.metadata = null;
+  } catch {
+    // Metadata cleanup is best effort.
+  }
+  for (const action of ['play', 'pause', 'stop', 'previoustrack', 'nexttrack']) {
     try { mediaSession.setActionHandler(action, null); } catch { /* unsupported action */ }
   }
 }
@@ -237,6 +167,7 @@ function clearMediaSession() {
 export function speakChapter({
   bookName,
   chapter,
+  translationLabel = '',
   verses,
   rate = 1,
   announceChapterNumbers = true,
@@ -245,6 +176,8 @@ export function speakChapter({
   volume = 1,
   onVerseStart,
   onPlaybackStateChange,
+  onPreviousTrack,
+  onNextTrack,
   onStop,
   onComplete,
   onError,
@@ -336,8 +269,11 @@ export function speakChapter({
   registerMediaSession({
     bookName,
     chapter,
+    translationLabel,
     onPause: pausePlayback,
     onResume: resumePlayback,
+    onPreviousTrack,
+    onNextTrack,
     onStop: () => {
       if (!cancelled) {
         cancelled = true;

@@ -72,6 +72,9 @@ test.describe('Reader – verse numbers and display settings', () => {
 
 test.describe('Reader – read aloud', () => {
   test('pause and resume control the active speech session', async ({ page }) => {
+    const pageErrors = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
     await page.addInitScript(() => {
       const state = {
         paused: false,
@@ -136,8 +139,12 @@ test.describe('Reader – read aloud', () => {
     await expect(page.locator('.verse').first()).toBeVisible({ timeout: 8000 });
 
     await page.getByRole('button', { name: 'Open reader tools' }).click();
-    await page.getByRole('button', { name: 'Read chapter aloud' }).click();
+    await page.getByRole('button', { name: 'Read aloud continuously' }).click();
     await expect(page.getByRole('button', { name: 'Pause text to speech' })).toBeVisible();
+
+    const volume = page.getByRole('slider', { name: 'Text to speech volume' });
+    await volume.fill('0.4');
+    await expect(volume).toHaveValue('0.4');
 
     await page.getByRole('button', { name: 'Pause text to speech' }).click();
     await expect.poll(() => page.evaluate(() => window.__speechTestState.paused)).toBe(true);
@@ -154,6 +161,7 @@ test.describe('Reader – read aloud', () => {
     await page.getByRole('button', { name: 'Resume text to speech' }).click();
     await expect.poll(() => page.evaluate(() => window.__speechTestState.paused)).toBe(false);
     await expect(page.getByRole('button', { name: 'Pause text to speech' })).toBeVisible();
+    expect(pageErrors).toEqual([]);
   });
 });
 
