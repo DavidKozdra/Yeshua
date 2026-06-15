@@ -118,6 +118,51 @@ function getSpeechSynthesis() {
   return window.speechSynthesis;
 }
 
+function isWakeLockSupported() {
+  return typeof navigator !== 'undefined' && 'wakeLock' in navigator;
+}
+
+// Keeps the screen awake while reading aloud so the phone doesn't dim/lock and freeze
+// the speech engine. The lock is released automatically by the browser whenever the tab
+// is hidden, so the caller must re-acquire it on `visibilitychange`.
+function createScreenWakeLock() {
+  let sentinel = null;
+  let destroyed = false;
+
+  async function acquire() {
+    if (destroyed || !isWakeLockSupported()) return;
+    // Wake Lock can only be acquired while the document is visible.
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    if (sentinel) return;
+    try {
+      sentinel = await navigator.wakeLock.request('screen');
+      sentinel.addEventListener?.('release', () => {
+        sentinel = null;
+      });
+      // If we were destroyed while the async request was in flight, undo it.
+      if (destroyed) release();
+    } catch {
+      // User/OS may reject (e.g. low battery). Best effort only.
+      sentinel = null;
+    }
+  }
+
+  // Drop the current lock but allow re-acquiring later (used while paused).
+  function release() {
+    const current = sentinel;
+    sentinel = null;
+    current?.release?.().catch(() => {});
+  }
+
+  // Permanently release; further acquire() calls are no-ops (used on teardown).
+  function destroy() {
+    destroyed = true;
+    release();
+  }
+
+  return { acquire, release, destroy };
+}
+
 export function isTextToSpeechSupported() {
   return Boolean(getSpeechSynthesis() && typeof window.SpeechSynthesisUtterance !== 'undefined');
 }
@@ -189,6 +234,10 @@ export function speakChapter({
   let requestedVolume = Math.max(0, Math.min(volume, 1));
   let isPaused = false;
 
+  // Hold a screen wake lock so the phone doesn't sleep mid-chapter.
+  const wakeLock = createScreenWakeLock();
+  wakeLock.acquire();
+
   // Android Chrome silently stops speechSynthesis when backgrounded.
   // Calling resume() periodically keeps it alive across app switches.
   const heartbeatId = window.setInterval(() => {
@@ -202,8 +251,12 @@ export function speakChapter({
 
   function handleVisibilityChange() {
     if (cancelled) return;
-    if (document.visibilityState === 'visible' && !isPaused && synth.paused) {
-      synth.resume();
+    if (document.visibilityState === 'visible') {
+      // The browser drops the wake lock whenever the tab is hidden; take it back.
+      if (!isPaused) wakeLock.acquire();
+      if (!isPaused && synth.paused) {
+        synth.resume();
+      }
     }
   }
 
@@ -212,6 +265,7 @@ export function speakChapter({
   function teardown() {
     window.clearInterval(heartbeatId);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
+    wakeLock.destroy();
     clearMediaSession();
   }
 
@@ -230,6 +284,7 @@ export function speakChapter({
       if (!cancelled && !isPaused) {
         isPaused = true;
         synth.pause();
+        wakeLock.release();
         if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
       }
     },
@@ -237,6 +292,7 @@ export function speakChapter({
       if (!cancelled && isPaused) {
         isPaused = false;
         synth.resume();
+        wakeLock.acquire();
         if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       }
     },
