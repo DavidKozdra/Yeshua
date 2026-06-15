@@ -692,7 +692,7 @@ export default function Read() {
 
   function openQuickNoteModal() {
     setNoteModalContext('quick');
-    setSelectedVerse(1);
+    setSelectedVerse(null);
     setNoteTitle('');
     setNoteText('');
     setNoteTags('');
@@ -911,19 +911,24 @@ export default function Read() {
       });
       return;
     }
+    const isVerseLinked = noteModalContext === 'verse' && selectedVerse != null;
     const note = {
       ...(editingNoteId ? { id: editingNoteId } : {}),
       title: noteTitle.trim(),
-      translationId,
-      bookId,
-      chapter,
-      verse: selectedVerse,
-      verseStart: selectedVerse,
-      verseEnd: selectedVerse,
-      verseKey: `${bookId}:${chapter}:${selectedVerse}`,
-      bookChapter: `${bookId}:${chapter}`,
       text: noteText.trim(),
       tags: noteTags,
+      ...(isVerseLinked
+        ? {
+            translationId,
+            bookId,
+            chapter,
+            verse: selectedVerse,
+            verseStart: selectedVerse,
+            verseEnd: selectedVerse,
+            verseKey: `${bookId}:${chapter}:${selectedVerse}`,
+            bookChapter: `${bookId}:${chapter}`,
+          }
+        : {}),
       createdAt: editingNoteId
         ? chapterNotes.find((n) => n.id === editingNoteId)?.createdAt
         : new Date().toISOString(),
@@ -1559,13 +1564,19 @@ export default function Read() {
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-label={`Note for ${book?.name} ${chapter}:${selectedVerse}`}
+            aria-label={
+              noteModalContext === 'verse'
+                ? `Note for ${book?.name} ${chapter}:${selectedVerse}`
+                : 'New note'
+            }
             ref={noteModalRef}
             onClick={(e) => e.stopPropagation()}
           >
             <h2>
               <StickyNote size={18} style={{ verticalAlign: 'middle', marginRight: 8 }} aria-hidden="true" />
-              {book?.name} {chapter}:{selectedVerse}
+              {noteModalContext === 'verse'
+                ? `${book?.name} ${chapter}:${selectedVerse}`
+                : 'New note'}
             </h2>
             {noteModalContext === 'verse' && selectedVerseData && (
               <div className="read-note-verse-preview">

@@ -43,6 +43,7 @@ export function parseReferenceInput(input) {
     bookId: book.id,
     chapter,
     verse,
+    hasExplicitChapter: Boolean(rawChapter),
     hasExplicitVerse: Boolean(rawVerse),
   };
 }

@@ -41,7 +41,9 @@ export default function GlobalSearchBar({
 
     const trimmedQuery = searchValue.trim();
     const parsedReference = parseReferenceInput(trimmedQuery);
-    if (!parsedReference) {
+    // A bare book name (e.g. "Mark", "Acts", "Job") is ambiguous with common
+    // search terms, so only jump to a reference when a chapter or verse is given.
+    if (!parsedReference || !parsedReference.hasExplicitChapter) {
       if (trimmedQuery.length < 2) {
         setSearchError('Enter at least 2 letters to search.');
         return;

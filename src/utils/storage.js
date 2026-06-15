@@ -381,9 +381,14 @@ export function markHolyDayReminderSeen(reminderKey) {
   const reminders = getHolyDayReminderStore();
   reminders[reminderKey] = new Date().toISOString();
 
+  // Pre-compute timestamps and drop entries with unparseable dates so a single
+  // corrupted value can't scramble the sort and evict valid recent reminders.
   const trimmedEntries = Object.entries(reminders)
-    .sort((left, right) => new Date(right[1]) - new Date(left[1]))
-    .slice(0, 60);
+    .map(([key, value]) => [key, value, new Date(value).getTime()])
+    .filter(([, , time]) => Number.isFinite(time))
+    .sort((left, right) => right[2] - left[2])
+    .slice(0, 60)
+    .map(([key, value]) => [key, value]);
 
   localStorage.setItem(HOLY_DAY_REMINDER_KEY, JSON.stringify(Object.fromEntries(trimmedEntries)));
 }

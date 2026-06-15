@@ -17,6 +17,7 @@ export function normalizeChapterVerses(verses) {
     });
   }
 
+  normalized.sort((left, right) => left.verse - right.verse);
   return normalized;
 }
 

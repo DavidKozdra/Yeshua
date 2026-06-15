@@ -6,6 +6,7 @@ import { getAllDownloadedTranslations } from '../utils/db';
 import { subscribeToTranslationInstallEvents } from '../utils/api';
 import { getTranslationStatus } from '../utils/translationStatus';
 import { searchContent } from '../utils/search';
+import { searchSemantic } from '../utils/semanticSearch';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { buildVerseLocation } from '../utils/verseSharing';
 import '../styles/search.css';
@@ -35,6 +36,7 @@ export default function Search() {
   const [truncated, setTruncated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [modelLoading, setModelLoading] = useState(false);
   const settings = useAppSettings();
   const query = searchParams.get('q')?.trim() || '';
   const requestedTranslationId = searchParams.get('translation') || settings.defaultTranslation;
@@ -44,6 +46,7 @@ export default function Search() {
   const wholeWord = searchParams.get('whole') === '1';
   const includeNotes = searchParams.get('notes') === '1';
   const selectedBookId = searchParams.get('book') || '';
+  const semanticMode = searchParams.get('mode') === 'semantic';
 
   const translationMetaMap = useMemo(
     () => new Map(downloadedTranslations.map((item) => [item.id, item])),
@@ -58,9 +61,11 @@ export default function Search() {
     [translationMetaMap]
   );
 
-  const activeTranslationId = readyTranslations.some((translation) => translation.id === requestedTranslationId)
-    ? requestedTranslationId
-    : readyTranslations[0]?.id || null;
+  const activeTranslationId = semanticMode
+    ? 'kjv'
+    : readyTranslations.some((translation) => translation.id === requestedTranslationId)
+      ? requestedTranslationId
+      : readyTranslations[0]?.id || null;
   const activeTranslation = activeTranslationId ? getTranslationById(activeTranslationId) : null;
 
   useEffect(() => {
@@ -99,7 +104,7 @@ export default function Search() {
         return;
       }
 
-      if (query.length < 2) {
+      if (!semanticMode && query.length < 2) {
         setResults([]);
         setTotalMatches(0);
         setTruncated(false);
@@ -119,19 +124,26 @@ export default function Search() {
 
       setLoading(true);
       setSearchError('');
+      setModelLoading(semanticMode);
 
       try {
-        const searchResult = await searchContent({
-          translationId: activeTranslationId,
-          query,
-          signal: controller.signal,
-          sourceTypes: sourceFilter.split(',').filter(Boolean),
-          testament: testamentFilter,
-          exactPhrase,
-          wholeWord,
-          includeNotes,
-          books: selectedBookId ? [selectedBookId] : [],
-        });
+        const searchResult = semanticMode
+          ? await searchSemantic(query, {
+              signal: controller.signal,
+              books: selectedBookId ? [selectedBookId] : [],
+              testament: testamentFilter,
+            })
+          : await searchContent({
+              translationId: activeTranslationId,
+              query,
+              signal: controller.signal,
+              sourceTypes: sourceFilter.split(',').filter(Boolean),
+              testament: testamentFilter,
+              exactPhrase,
+              wholeWord,
+              includeNotes,
+              books: selectedBookId ? [selectedBookId] : [],
+            });
 
         setResults(searchResult.results);
         setTotalMatches(searchResult.totalMatches);
@@ -146,6 +158,7 @@ export default function Search() {
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
+          setModelLoading(false);
         }
       }
     }
@@ -158,6 +171,7 @@ export default function Search() {
   }, [
     activeTranslationId,
     query,
+    semanticMode,
     sourceFilter,
     testamentFilter,
     exactPhrase,
@@ -210,7 +224,10 @@ export default function Search() {
   const highlightText = useMemo(() => makeHighlighter(query), [query]);
 
   const fallbackNotice =
-    requestedTranslationId && activeTranslationId && requestedTranslationId !== activeTranslationId
+    !semanticMode &&
+    requestedTranslationId &&
+    activeTranslationId &&
+    requestedTranslationId !== activeTranslationId
       ? `${getTranslationById(requestedTranslationId)?.abbreviation || requestedTranslationId.toUpperCase()} is not ready for full-text search yet, so results are showing in ${activeTranslation?.abbreviation}.`
       : '';
 
@@ -220,10 +237,12 @@ export default function Search() {
         <div>
           <h1 className="page-title">Search</h1>
           <p className="search-page-intro">
-            Full-text search scans the selected offline translation and opens any result at the exact verse.
+            {semanticMode
+              ? 'Semantic search finds KJV verses by meaning, even when they share no words with your query.'
+              : 'Full-text search scans the selected offline translation and opens any result at the exact verse.'}
           </p>
         </div>
-        {readyTranslations.length > 0 && (
+        {!semanticMode && readyTranslations.length > 0 && (
           <div className="search-translation-picker">
             <label htmlFor="search-translation">Translation</label>
             <select
@@ -243,10 +262,23 @@ export default function Search() {
 
       <div className="search-filters card" aria-label="Search filters">
         <label>
+          <span>Mode</span>
+          <select
+            value={semanticMode ? 'semantic' : 'keyword'}
+            onChange={(event) =>
+              updateSearchParam('mode', event.target.value === 'semantic' ? 'semantic' : '')
+            }
+          >
+            <option value="keyword">Keyword</option>
+            <option value="semantic">Semantic (KJV)</option>
+          </select>
+        </label>
+        <label>
           <span>Sources</span>
           <select
-            value={sourceFilter}
+            value={semanticMode ? 'bible' : sourceFilter}
             onChange={(event) => updateSearchParam('sources', event.target.value)}
+            disabled={semanticMode}
           >
             <option value="bible">Bible</option>
             <option value="bible,library">Bible + Library</option>
@@ -258,7 +290,7 @@ export default function Search() {
           <select
             value={selectedBookId}
             onChange={(event) => updateSearchParam('book', event.target.value)}
-            disabled={!sourceFilter.includes('bible')}
+            disabled={!semanticMode && !sourceFilter.includes('bible')}
           >
             <option value="">All books</option>
             {BIBLE_BOOKS.map((book) => (
@@ -273,7 +305,7 @@ export default function Search() {
           <select
             value={testamentFilter}
             onChange={(event) => updateSearchParam('testament', event.target.value)}
-            disabled={!sourceFilter.includes('bible') || Boolean(selectedBookId)}
+            disabled={(!semanticMode && !sourceFilter.includes('bible')) || Boolean(selectedBookId)}
           >
             <option value="">Both</option>
             <option value="OT">Old Testament</option>
@@ -285,6 +317,7 @@ export default function Search() {
             type="checkbox"
             checked={exactPhrase}
             onChange={(event) => updateBooleanParam('exact', event.target.checked)}
+            disabled={semanticMode}
           />
           <span>Exact phrase</span>
         </label>
@@ -293,6 +326,7 @@ export default function Search() {
             type="checkbox"
             checked={wholeWord}
             onChange={(event) => updateBooleanParam('whole', event.target.checked)}
+            disabled={semanticMode}
           />
           <span>Whole word</span>
         </label>
@@ -301,6 +335,7 @@ export default function Search() {
             type="checkbox"
             checked={includeNotes}
             onChange={(event) => updateBooleanParam('notes', event.target.checked)}
+            disabled={semanticMode}
           />
           <span>Include notes</span>
         </label>
@@ -327,9 +362,13 @@ export default function Search() {
                 {activeTranslation?.abbreviation || 'Offline search'}
               </span>
               <p>
-                {loading
-                  ? `Searching for "${query}"...`
-                  : `${totalMatches} match${totalMatches === 1 ? '' : 'es'} for "${query}"`}
+                {modelLoading
+                  ? 'Loading semantic model (first run only)...'
+                  : loading
+                    ? `Searching for "${query}"...`
+                    : semanticMode
+                      ? `${totalMatches} related verse${totalMatches === 1 ? '' : 's'} for "${query}"`
+                      : `${totalMatches} match${totalMatches === 1 ? '' : 'es'} for "${query}"`}
               </p>
             </div>
             {truncated && (
@@ -340,7 +379,9 @@ export default function Search() {
           </div>
 
           {loading ? (
-            <div className="loading-spinner" role="status" aria-live="polite">Searching...</div>
+            <div className="loading-spinner" role="status" aria-live="polite">
+              {modelLoading ? 'Loading semantic model (first run only)...' : 'Searching...'}
+            </div>
           ) : results.length === 0 ? (
             <div className="empty-state">
               <h3>No matches found</h3>

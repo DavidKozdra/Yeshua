@@ -104,10 +104,46 @@ export default defineConfig({
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         // The generated KJV data chunk is intentionally shipped for offline use.
+        // The semantic-search embeddings (~12MB .bin) are runtime-cached instead of
+        // precached so they don't bloat every install.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: 'index.html',
         skipWaiting: true,
         runtimeCaching: [
+          {
+            // Pre-computed KJV verse embeddings for offline semantic search.
+            urlPattern: /\/assets\/.*\.bin$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'semantic-embeddings-cache',
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+              expiration: {
+                maxEntries: 4,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+            },
+          },
+          {
+            // transformers.js query-embedding model files (downloaded once, then offline).
+            // Covers the HF site, its resolve-cache API, and the xet CDN that actually
+            // serves the model/onnx blobs. Cache name is versioned (-v2) so any caches
+            // poisoned by a pre-fix build (HTML stored for model JSON) are abandoned.
+            urlPattern: /^https:\/\/(huggingface\.co|.*\.hf\.co)\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'transformers-model-cache-v2',
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+              expiration: {
+                maxEntries: 32,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              rangeRequests: true,
+            },
+          },
           {
             urlPattern: /^https:\/\/raw\.githubusercontent\.com\/wldeh\/bible-api\/.*\.json$/i,
             handler: 'StaleWhileRevalidate',

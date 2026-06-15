@@ -15,17 +15,41 @@ describe('parseReferenceInput', () => {
 
   it('parses a book name with chapter and verse', () => {
     const result = parseReferenceInput('John 3:16');
-    expect(result).toEqual({ bookId: 'JHN', chapter: 3, verse: 16, hasExplicitVerse: true });
+    expect(result).toEqual({
+      bookId: 'JHN',
+      chapter: 3,
+      verse: 16,
+      hasExplicitChapter: true,
+      hasExplicitVerse: true,
+    });
   });
 
   it('parses a book name with chapter only', () => {
     const result = parseReferenceInput('Genesis 1');
-    expect(result).toEqual({ bookId: 'GEN', chapter: 1, verse: 1, hasExplicitVerse: false });
+    expect(result).toEqual({
+      bookId: 'GEN',
+      chapter: 1,
+      verse: 1,
+      hasExplicitChapter: true,
+      hasExplicitVerse: false,
+    });
   });
 
   it('defaults to chapter 1 verse 1 when no chapter given', () => {
     const result = parseReferenceInput('Psalms');
-    expect(result).toEqual({ bookId: 'PSA', chapter: 1, verse: 1, hasExplicitVerse: false });
+    expect(result).toEqual({
+      bookId: 'PSA',
+      chapter: 1,
+      verse: 1,
+      hasExplicitChapter: false,
+      hasExplicitVerse: false,
+    });
+  });
+
+  it('flags whether a chapter was explicitly provided', () => {
+    expect(parseReferenceInput('Mark')?.hasExplicitChapter).toBe(false);
+    expect(parseReferenceInput('Mark 2')?.hasExplicitChapter).toBe(true);
+    expect(parseReferenceInput('Mark 2:5')?.hasExplicitChapter).toBe(true);
   });
 
   it('resolves book aliases (genisis typo)', () => {
@@ -51,7 +75,13 @@ describe('parseReferenceInput', () => {
 
   it('handles numbered book IDs', () => {
     const result = parseReferenceInput('1 Corinthians 13:4');
-    expect(result).toEqual({ bookId: '1CO', chapter: 13, verse: 4, hasExplicitVerse: true });
+    expect(result).toEqual({
+      bookId: '1CO',
+      chapter: 13,
+      verse: 4,
+      hasExplicitChapter: true,
+      hasExplicitVerse: true,
+    });
   });
 
   it('is case-insensitive for book names', () => {

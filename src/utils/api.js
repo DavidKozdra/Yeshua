@@ -187,9 +187,11 @@ export async function fetchChapter(translationId, bookId, chapter, options = {})
   const cached = await getChapter(translationId, bookId, chapter);
   if (hasChapterContent(cached)) return cached;
 
+  // Bundled chapters are served from the in-memory bundle cache, so there is no
+  // need to copy them into IndexedDB (doing so would duplicate the entire
+  // translation into storage just by reading it).
   const bundledChapter = await getBundledChapter(translationId, bookId, chapter);
   if (hasChapterContent(bundledChapter)) {
-    await saveChapter(translationId, bookId, chapter, bundledChapter);
     return bundledChapter;
   }
 

@@ -192,7 +192,10 @@ export function speakChapter({
   // Android Chrome silently stops speechSynthesis when backgrounded.
   // Calling resume() periodically keeps it alive across app switches.
   const heartbeatId = window.setInterval(() => {
-    if (!cancelled && !isPaused && synth.speaking) {
+    // Only nudge the engine when it self-paused while we still expect playback.
+    // Calling resume() during active speech can restart/stutter the current
+    // utterance on desktop browsers.
+    if (!cancelled && !isPaused && synth.speaking && synth.paused) {
       synth.resume();
     }
   }, 10000);

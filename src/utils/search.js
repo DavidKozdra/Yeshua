@@ -14,7 +14,7 @@ function getBundleLoaderKey(translationId) {
   return `../data/${translationId}-bundle.json`;
 }
 
-async function loadTranslationBundle(translationId) {
+export async function loadTranslationBundle(translationId) {
   const loaderKey = getBundleLoaderKey(translationId);
   const loader = bundleLoaders[loaderKey];
   if (!loader) return null;
@@ -121,7 +121,7 @@ function textMatches(text, query, options = {}) {
   return normalizedText.toLowerCase().includes(normalizedQuery.toLowerCase());
 }
 
-function isBookAllowed(bookId, filters = {}) {
+export function isBookAllowed(bookId, filters = {}) {
   if (Array.isArray(filters.books) && filters.books.length && !filters.books.includes(bookId)) {
     return false;
   }
@@ -257,20 +257,20 @@ export async function searchContent({
 
   const requestedSources = new Set(sourceTypes);
   if (includeNotes) requestedSources.add('note');
-  const results = [];
+
+  // Run each requested source, capping its own results at maxResults so no
+  // single source can starve the others when results are later combined.
+  const sourceResults = [];
   let totalMatches = 0;
 
-  async function appendSearch(searchPromise) {
+  async function runSearch(searchPromise) {
     const result = await searchPromise;
     totalMatches += result.totalMatches;
-    const remaining = Math.max(0, maxResults - results.length);
-    if (remaining > 0) {
-      results.push(...result.results.slice(0, remaining));
-    }
+    sourceResults.push(result.results);
   }
 
   if (requestedSources.has('bible') && translationId) {
-    await appendSearch(
+    await runSearch(
       searchBibleContent({
         query: normalizedQuery,
         translationId,
@@ -285,7 +285,7 @@ export async function searchContent({
   }
 
   if (requestedSources.has('library')) {
-    await appendSearch(
+    await runSearch(
       searchLibraryContent({
         query: normalizedQuery,
         maxResults,
@@ -297,7 +297,7 @@ export async function searchContent({
   }
 
   if (requestedSources.has('note')) {
-    await appendSearch(
+    await runSearch(
       searchNotesContent({
         query: normalizedQuery,
         maxResults,
@@ -308,10 +308,30 @@ export async function searchContent({
     );
   }
 
+  // Interleave across sources so every source that found matches is represented
+  // in the (possibly truncated) result set, rather than the first source filling
+  // every slot.
+  const results = [];
+  const cursors = sourceResults.map(() => 0);
+  let remaining = true;
+  while (results.length < maxResults && remaining) {
+    remaining = false;
+    for (let index = 0; index < sourceResults.length; index += 1) {
+      if (results.length >= maxResults) break;
+      const bucket = sourceResults[index];
+      const cursor = cursors[index];
+      if (cursor < bucket.length) {
+        results.push(bucket[cursor]);
+        cursors[index] += 1;
+        remaining = true;
+      }
+    }
+  }
+
   return {
     query: normalizedQuery,
     results,
     totalMatches,
-    truncated: totalMatches > maxResults,
+    truncated: totalMatches > results.length,
   };
 }

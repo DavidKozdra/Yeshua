@@ -88,6 +88,19 @@ function getDB() {
   return dbPromise;
 }
 
+// Write many key/value records into a keyPath-less store using a single
+// transaction. Avoids awaiting each put, which makes large imports tractable.
+async function bulkPut(storeName, entries) {
+  if (!entries.length) return;
+  const db = await getDB();
+  const tx = db.transaction(storeName, 'readwrite');
+  const store = tx.objectStore(storeName);
+  for (const [key, value] of entries) {
+    store.put(value, key);
+  }
+  await tx.done;
+}
+
 function makeId(prefix = 'item') {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return `${prefix}-${crypto.randomUUID()}`;
@@ -153,6 +166,17 @@ function normalizeNote(note = {}) {
     createdAt: note.createdAt || now,
     updatedAt: note.updatedAt || now,
   };
+}
+
+function buildReadingProgressKey(target = {}) {
+  const sourceType = normalizeSourceType(target.sourceType);
+  if (sourceType === 'library') {
+    return ['library', target.collectionId || '', target.workId || '', target.chapter || 1].join(':');
+  }
+
+  // Reading progress is tracked per location, independent of translation, so a
+  // chapter read in multiple translations counts once.
+  return ['bible', target.bookId || '', target.chapter || 1].join(':');
 }
 
 function normalizeTargetRecord(record = {}, prefix) {
@@ -396,10 +420,12 @@ export async function deleteNote(id) {
 
 export async function saveReadingProgress(progress) {
   const db = await getDB();
+  const locationKey = buildReadingProgressKey(progress);
   const normalized = normalizeTargetRecord(
     {
       ...progress,
-      id: progress.id || buildTargetKey(progress),
+      id: progress.id || locationKey,
+      locationKey,
       completedAt: progress.completedAt || new Date().toISOString(),
     },
     'progress'
@@ -415,7 +441,9 @@ export async function getAllReadingProgress() {
 
 export async function getReadingProgressSummary() {
   const entries = await getAllReadingProgress();
-  const completedChapters = new Set(entries.map((entry) => entry.targetKey)).size;
+  const completedChapters = new Set(
+    entries.map((entry) => entry.locationKey || buildReadingProgressKey(entry))
+  ).size;
   const recent = [...entries]
     .sort((a, b) => new Date(b.completedAt || b.updatedAt) - new Date(a.completedAt || a.updatedAt))
     .slice(0, 8);
@@ -505,8 +533,12 @@ export async function deleteHighlightsForTarget(target = {}) {
   const matchingHighlights = highlights.filter((highlight) => {
     if (highlight.sourceType !== sourceType) return false;
     if (Number(highlight.chapter) !== Number(target.chapter)) return false;
-    if (Number(highlight.verseStart) !== Number(verseStart)) return false;
-    if (Number(highlight.verseEnd) !== Number(verseEnd)) return false;
+    // Highlights may be stored with only `verse`/`verseStart`; normalize both
+    // sides so a single-verse target matches regardless of how it was saved.
+    const highlightStart = highlight.verseStart ?? highlight.verse ?? null;
+    const highlightEnd = highlight.verseEnd ?? highlight.verse ?? highlightStart;
+    if (Number(highlightStart) !== Number(verseStart)) return false;
+    if (Number(highlightEnd) !== Number(verseEnd)) return false;
 
     if (sourceType === 'library') {
       return (
@@ -677,14 +709,19 @@ export async function importAppDbData(snapshot = {}, options = {}) {
     }
   }
 
+  const chapterEntries = [];
   for (const group of snapshot.translationChapters || []) {
     if (!group?.id || !Array.isArray(group.chapters)) continue;
     for (const chapterEntry of group.chapters) {
       if (chapterEntry?.bookId && Number.isInteger(chapterEntry?.chapter)) {
-        await saveChapter(group.id, chapterEntry.bookId, chapterEntry.chapter, chapterEntry.verses || []);
+        chapterEntries.push([
+          `${group.id}:${chapterEntry.bookId}:${chapterEntry.chapter}`,
+          normalizeChapterVerses(chapterEntry.verses || []),
+        ]);
       }
     }
   }
+  await bulkPut('chapters', chapterEntries);
 
   for (const entry of snapshot.libraryMetas || []) {
     if (entry?.id && entry?.meta) {
@@ -692,11 +729,16 @@ export async function importAppDbData(snapshot = {}, options = {}) {
     }
   }
 
+  const libraryChapterEntries = [];
   for (const entry of snapshot.libraryChapters || []) {
     if (entry?.collectionId && entry?.workId && Number.isInteger(entry?.chapter)) {
-      await saveLibraryChapter(entry.collectionId, entry.workId, entry.chapter, entry.verses || []);
+      libraryChapterEntries.push([
+        `${entry.collectionId}:${entry.workId}:${entry.chapter}`,
+        normalizeChapterVerses(entry.verses || []),
+      ]);
     }
   }
+  await bulkPut('libraryChapters', libraryChapterEntries);
 
   for (const note of snapshot.notes || []) {
     if (note && typeof note === 'object') {
