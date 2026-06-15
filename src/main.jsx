@@ -15,8 +15,30 @@ applyTheme(initialSettings);
 applyDisplayPreferences(initialSettings);
 
 if (import.meta.env.PROD) {
+  // When a new service worker takes control (after skipWaiting + clientsClaim),
+  // reload once so the already-open page swaps to the new code. Without this,
+  // installed Android PWAs keep running the old JS because the process stays
+  // warm in the background and the page is never torn down. The guard prevents
+  // an infinite reload loop.
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+  }
+
   registerSW({
     immediate: true,
+    onRegisteredSW(_swUrl, registration) {
+      // Proactively poll for a new SW so backgrounded PWAs pick up updates
+      // without waiting for the browser's own (infrequent) update check.
+      if (!registration) return;
+      setInterval(() => {
+        registration.update().catch(() => {});
+      }, 60 * 60 * 1000); // hourly
+    },
     onOfflineReady() {
       console.log('[Yeshua] Offline support is ready.');
     },
