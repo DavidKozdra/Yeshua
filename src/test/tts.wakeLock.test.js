@@ -68,6 +68,10 @@ function installFakeSpeech() {
     const u = synth._utterances[synth._utterances.length - 1];
     u?.onend?.();
   };
+  synth.errorCurrent = (error) => {
+    const u = synth._utterances[synth._utterances.length - 1];
+    u?.onerror?.({ error });
+  };
   return synth;
 }
 
@@ -156,18 +160,67 @@ describe('speakChapter screen wake lock', () => {
   });
 
   it('releases on pause and re-acquires on resume via MediaSession', async () => {
-    speakChapter({ bookName: 'Genesis', chapter: 1, verses });
+    const playbackStates = [];
+    speakChapter({
+      bookName: 'Genesis',
+      chapter: 1,
+      verses,
+      onPlaybackStateChange: (state) => playbackStates.push(state),
+    });
     await vi.runAllTicks();
     expect(wake.active).toBe(1);
 
     mediaSessionHandlers.pause();
     await vi.runAllTicks();
     expect(wake.active).toBe(0);
+    expect(synth.paused).toBe(true);
+    expect(playbackStates).toEqual(['paused']);
 
     mediaSessionHandlers.play();
     await vi.runAllTicks();
     expect(wake.active).toBe(1);
     expect(wake.requests).toBe(2);
+    expect(synth.paused).toBe(false);
+    expect(playbackStates).toEqual(['paused', 'playing']);
+  });
+
+  it('keeps a user pause active when the heartbeat runs', async () => {
+    const controller = speakChapter({ bookName: 'Genesis', chapter: 1, verses });
+    await vi.runAllTicks();
+
+    expect(controller.pause()).toBe(true);
+    expect(controller.isPaused()).toBe(true);
+    expect(synth.paused).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(30000);
+
+    expect(controller.isPaused()).toBe(true);
+    expect(synth.paused).toBe(true);
+    expect(wake.active).toBe(0);
+
+    expect(controller.resume()).toBe(true);
+    await vi.runAllTicks();
+    expect(controller.isPaused()).toBe(false);
+    expect(synth.paused).toBe(false);
+    expect(wake.active).toBe(1);
+  });
+
+  it('releases a wake lock request that resolves after playback is paused', async () => {
+    let resolveRequest;
+    navigator.wakeLock.request = vi.fn(() => new Promise((resolve) => {
+      resolveRequest = resolve;
+    }));
+    const release = vi.fn(async () => {});
+    const controller = speakChapter({ bookName: 'Genesis', chapter: 1, verses });
+
+    controller.pause();
+    resolveRequest({
+      release,
+      addEventListener: vi.fn(),
+    });
+    await vi.runAllTicks();
+
+    expect(release).toHaveBeenCalledTimes(1);
   });
 
   it('does not throw when the Wake Lock API is unavailable', async () => {
@@ -176,5 +229,35 @@ describe('speakChapter screen wake lock', () => {
       const cleanup = speakChapter({ bookName: 'Genesis', chapter: 1, verses });
       cleanup();
     }).not.toThrow();
+  });
+
+  it('announces the chapter only before the first verse', () => {
+    speakChapter({ bookName: 'Genesis', chapter: 1, verses });
+
+    expect(synth._utterances[0].text).toBe('Genesis 1, verse 1. In the beginning');
+    synth.finishCurrent();
+    expect(synth._utterances[1].text).toBe('verse 2. And the earth was without form');
+  });
+
+  it('reports MediaSession stop separately from natural completion', () => {
+    const onStop = vi.fn();
+    const onComplete = vi.fn();
+    speakChapter({ bookName: 'Genesis', chapter: 1, verses, onStop, onComplete });
+
+    mediaSessionHandlers.stop();
+
+    expect(onStop).toHaveBeenCalledTimes(1);
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(synth.speaking).toBe(false);
+  });
+
+  it('reports an unexpected interrupted utterance as an error', () => {
+    const onError = vi.fn();
+    speakChapter({ bookName: 'Genesis', chapter: 1, verses, onError });
+
+    synth.errorCurrent('interrupted');
+
+    expect(onError).toHaveBeenCalledWith('interrupted');
+    expect(navigator.mediaSession.playbackState).toBe('none');
   });
 });

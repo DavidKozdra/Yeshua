@@ -43,8 +43,6 @@ import {
   TTS_RATE_OPTIONS,
   isSpeechAutoplayUnlocked,
   unlockSpeechAutoplay,
-  pauseSpeechSynthesis,
-  resumeSpeechSynthesis,
 } from '../utils/tts';
 import { createPortal } from 'react-dom';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -738,16 +736,15 @@ export default function Read() {
   }, []);
 
   function handleToggleSpeechPause() {
-    if (!isSpeakingChapter) {
+    const speechController = speechCleanupRef.current;
+    if (!isSpeakingChapter || !speechController) {
       return;
     }
 
-    if (isSpeechPaused) {
-      resumeSpeechSynthesis();
-      setIsSpeechPaused(false);
+    if (speechController.isPaused?.()) {
+      speechController.resume?.();
     } else {
-      pauseSpeechSynthesis();
-      setIsSpeechPaused(true);
+      speechController.pause?.();
     }
   }
 
@@ -807,6 +804,18 @@ export default function Read() {
           setSpeakingVerse(verseNumber);
           const targetElement = contentRef.current?.querySelector(`[data-verse="${verseNumber}"]`);
           targetElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        },
+        onPlaybackStateChange: (playbackState) => {
+          setIsSpeechPaused(playbackState === 'paused');
+        },
+        onStop: () => {
+          speechCleanupRef.current = null;
+          setIsSpeechPaused(false);
+          setIsSpeakingChapter(false);
+          setSpeakingVerse(null);
+          setIsAutoReadingBible(false);
+          setPendingAutoStartKey(null);
+          persistAutoReadState({ isActive: false, pendingKey: null });
         },
         onComplete: () => {
           speechCleanupRef.current = null;

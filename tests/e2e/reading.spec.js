@@ -70,6 +70,93 @@ test.describe('Reader – verse numbers and display settings', () => {
   });
 });
 
+test.describe('Reader – read aloud', () => {
+  test('pause and resume control the active speech session', async ({ page }) => {
+    await page.addInitScript(() => {
+      const state = {
+        paused: false,
+        speaking: false,
+        intervalCallbacks: [],
+      };
+      const nativeSetInterval = window.setInterval.bind(window);
+
+      class FakeSpeechSynthesisUtterance {
+        constructor(text) {
+          this.text = text;
+        }
+      }
+
+      const speechSynthesis = {
+        get paused() {
+          return state.paused;
+        },
+        get speaking() {
+          return state.speaking;
+        },
+        cancel() {
+          state.paused = false;
+          state.speaking = false;
+        },
+        getVoices() {
+          return [];
+        },
+        pause() {
+          state.paused = true;
+        },
+        resume() {
+          state.paused = false;
+        },
+        speak() {
+          state.paused = false;
+          state.speaking = true;
+        },
+      };
+
+      Object.defineProperty(window, 'SpeechSynthesisUtterance', {
+        configurable: true,
+        value: FakeSpeechSynthesisUtterance,
+      });
+      Object.defineProperty(window, 'speechSynthesis', {
+        configurable: true,
+        value: speechSynthesis,
+      });
+      Object.defineProperty(window, '__speechTestState', {
+        configurable: true,
+        value: state,
+      });
+      window.setInterval = (callback, delay, ...args) => {
+        if (delay === 10000) {
+          state.intervalCallbacks.push(() => callback(...args));
+        }
+        return nativeSetInterval(callback, delay, ...args);
+      };
+    });
+
+    await page.goto('/read/kjv/GEN/1');
+    await expect(page.locator('.verse').first()).toBeVisible({ timeout: 8000 });
+
+    await page.getByRole('button', { name: 'Open reader tools' }).click();
+    await page.getByRole('button', { name: 'Read chapter aloud' }).click();
+    await expect(page.getByRole('button', { name: 'Pause text to speech' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Pause text to speech' }).click();
+    await expect.poll(() => page.evaluate(() => window.__speechTestState.paused)).toBe(true);
+    await expect(page.getByRole('button', { name: 'Resume text to speech' })).toBeVisible();
+
+    await page.evaluate(() => {
+      for (const callback of window.__speechTestState.intervalCallbacks) {
+        callback();
+      }
+    });
+    await expect.poll(() => page.evaluate(() => window.__speechTestState.paused)).toBe(true);
+    await expect(page.getByRole('button', { name: 'Resume text to speech' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Resume text to speech' }).click();
+    await expect.poll(() => page.evaluate(() => window.__speechTestState.paused)).toBe(false);
+    await expect(page.getByRole('button', { name: 'Pause text to speech' })).toBeVisible();
+  });
+});
+
 test.describe('Reader – v2 study tools', () => {
   test('verse modal exposes bookmark, highlight, share, and note controls', async ({ page }) => {
     await page.goto('/read/kjv/JHN/3');

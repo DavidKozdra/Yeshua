@@ -93,26 +93,6 @@ export function unlockSpeechAutoplay() {
   return true;
 }
 
-export function pauseSpeechSynthesis() {
-  const synth = getSpeechSynthesis();
-  if (synth && synth.speaking && !synth.paused) {
-    synth.pause();
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = 'paused';
-    }
-  }
-}
-
-export function resumeSpeechSynthesis() {
-  const synth = getSpeechSynthesis();
-  if (synth && synth.paused) {
-    synth.resume();
-    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = 'playing';
-    }
-  }
-}
-
 function getSpeechSynthesis() {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
   return window.speechSynthesis;
@@ -127,28 +107,51 @@ function isWakeLockSupported() {
 // is hidden, so the caller must re-acquire it on `visibilitychange`.
 function createScreenWakeLock() {
   let sentinel = null;
+  let pendingRequest = null;
+  let shouldHoldLock = false;
   let destroyed = false;
 
   async function acquire() {
     if (destroyed || !isWakeLockSupported()) return;
+    shouldHoldLock = true;
     // Wake Lock can only be acquired while the document is visible.
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-    if (sentinel) return;
+    if (sentinel || pendingRequest) return;
+
+    let request;
     try {
-      sentinel = await navigator.wakeLock.request('screen');
-      sentinel.addEventListener?.('release', () => {
-        sentinel = null;
+      request = navigator.wakeLock.request('screen');
+      pendingRequest = request;
+      const acquiredSentinel = await request;
+      if (pendingRequest === request) {
+        pendingRequest = null;
+      }
+      acquiredSentinel.addEventListener?.('release', () => {
+        if (sentinel === acquiredSentinel) {
+          sentinel = null;
+        }
       });
-      // If we were destroyed while the async request was in flight, undo it.
-      if (destroyed) release();
+      // A pause or teardown may happen while the permission request is in flight.
+      if (
+        destroyed ||
+        !shouldHoldLock ||
+        (typeof document !== 'undefined' && document.visibilityState !== 'visible')
+      ) {
+        acquiredSentinel.release?.().catch(() => {});
+        return;
+      }
+      sentinel = acquiredSentinel;
     } catch {
       // User/OS may reject (e.g. low battery). Best effort only.
-      sentinel = null;
+      if (pendingRequest === request) {
+        pendingRequest = null;
+      }
     }
   }
 
   // Drop the current lock but allow re-acquiring later (used while paused).
   function release() {
+    shouldHoldLock = false;
     const current = sentinel;
     sentinel = null;
     current?.release?.().catch(() => {});
@@ -173,30 +176,61 @@ export function stopTextToSpeech() {
   synth.cancel();
 }
 
+function getMediaSession() {
+  if (typeof navigator === 'undefined') return null;
+  return navigator.mediaSession || null;
+}
+
+function setMediaSessionPlaybackState(state) {
+  const mediaSession = getMediaSession();
+  if (!mediaSession) return;
+  try {
+    mediaSession.playbackState = state;
+  } catch {
+    // Media Session support varies across browsers.
+  }
+}
+
 function registerMediaSession({ bookName, chapter, onPause, onResume, onStop }) {
-  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+  const mediaSession = getMediaSession();
+  if (!mediaSession) return;
 
-  navigator.mediaSession.metadata = new window.MediaMetadata({
-    title: bookName && chapter ? `${bookName} ${chapter}` : 'Bible Reading',
-    artist: 'Yeshua',
-    artwork: [
-      { src: '/icon-192.png',          sizes: '192x192', type: 'image/png' },
-      { src: '/icon-512.png',          sizes: '512x512', type: 'image/png' },
-      { src: '/maskable-icon-512.png', sizes: '512x512', type: 'image/png' },
-    ],
-  });
-  navigator.mediaSession.playbackState = 'playing';
+  if (typeof window.MediaMetadata !== 'undefined') {
+    try {
+      mediaSession.metadata = new window.MediaMetadata({
+        title: bookName && chapter ? `${bookName} ${chapter}` : 'Bible Reading',
+        artist: 'Yeshua',
+        artwork: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/maskable-icon-512.png', sizes: '512x512', type: 'image/png' },
+        ],
+      });
+    } catch {
+      // Metadata is optional; playback should still work without it.
+    }
+  }
+  setMediaSessionPlaybackState('playing');
 
-  navigator.mediaSession.setActionHandler('play', onResume);
-  navigator.mediaSession.setActionHandler('pause', onPause);
-  navigator.mediaSession.setActionHandler('stop', onStop);
+  for (const [action, handler] of [
+    ['play', onResume],
+    ['pause', onPause],
+    ['stop', onStop],
+  ]) {
+    try {
+      mediaSession.setActionHandler(action, handler);
+    } catch {
+      // Some browsers expose Media Session but not every action.
+    }
+  }
 }
 
 function clearMediaSession() {
-  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
-  navigator.mediaSession.playbackState = 'none';
+  const mediaSession = getMediaSession();
+  if (!mediaSession) return;
+  setMediaSessionPlaybackState('none');
   for (const action of ['play', 'pause', 'stop']) {
-    try { navigator.mediaSession.setActionHandler(action, null); } catch { /* unsupported action */ }
+    try { mediaSession.setActionHandler(action, null); } catch { /* unsupported action */ }
   }
 }
 
@@ -210,6 +244,8 @@ export function speakChapter({
   voiceUri = '',
   volume = 1,
   onVerseStart,
+  onPlaybackStateChange,
+  onStop,
   onComplete,
   onError,
 }) {
@@ -277,33 +313,38 @@ export function speakChapter({
     onComplete?.();
   }
 
+  function pausePlayback() {
+    if (cancelled || isPaused) return false;
+    isPaused = true;
+    synth.pause();
+    wakeLock.release();
+    setMediaSessionPlaybackState('paused');
+    onPlaybackStateChange?.('paused');
+    return true;
+  }
+
+  function resumePlayback() {
+    if (cancelled || !isPaused) return false;
+    isPaused = false;
+    synth.resume();
+    wakeLock.acquire();
+    setMediaSessionPlaybackState('playing');
+    onPlaybackStateChange?.('playing');
+    return true;
+  }
+
   registerMediaSession({
     bookName,
     chapter,
-    onPause: () => {
-      if (!cancelled && !isPaused) {
-        isPaused = true;
-        synth.pause();
-        wakeLock.release();
-        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
-      }
-    },
-    onResume: () => {
-      if (!cancelled && isPaused) {
-        isPaused = false;
-        synth.resume();
-        wakeLock.acquire();
-        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
-      }
-    },
+    onPause: pausePlayback,
+    onResume: resumePlayback,
     onStop: () => {
       if (!cancelled) {
         cancelled = true;
         activeUtterance = null;
         synth.cancel();
         teardown();
-        // Treat MediaSession stop as a normal completion, not an error
-        onComplete?.();
+        onStop?.();
       }
     },
   });
@@ -320,7 +361,7 @@ export function speakChapter({
     onVerseStart?.(verse.verse);
 
     const prefixParts = [];
-    if (announceChapterNumbers && bookName) {
+    if (index === 0 && announceChapterNumbers && bookName) {
       prefixParts.push(`${bookName} ${chapter}`);
     }
     if (announceVerseNumbers) {
@@ -347,8 +388,6 @@ export function speakChapter({
 
     utterance.onerror = (event) => {
       if (cancelled || activeUtterance !== utterance) return;
-      // 'interrupted' fires when synth.cancel() is called — treat as normal stop, not error
-      if (event.error === 'interrupted') return;
       cancelled = true;
       activeUtterance = null;
       teardown();
@@ -374,6 +413,9 @@ export function speakChapter({
       activeUtterance.volume = requestedVolume;
     }
   };
+  cleanup.pause = pausePlayback;
+  cleanup.resume = resumePlayback;
+  cleanup.isPaused = () => isPaused;
 
   return cleanup;
 }
