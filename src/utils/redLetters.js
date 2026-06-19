@@ -1,3 +1,13 @@
+/**
+ * Words-of-Christ ("red letter") segmentation utilities.
+ *
+ * Splits verse text into runs flagged as spoken by Jesus so the reader can render
+ * those portions in a distinct color. For KJV it uses a precise, per-word marker
+ * dataset (kjv-red-letters.json); for other translations it can optionally fall
+ * back to a heuristic that attributes quoted spans to Jesus based on nearby
+ * speaker phrases. Output is a list of { text, isRed } segments.
+ */
+
 import kjvRedLetters from '../data/kjv-red-letters.json';
 
 const MARKER_PATTERN = /\*([a-z]+)$/i;
@@ -154,14 +164,44 @@ function getVerseKey(bookId, chapter, verse) {
   return `${bookId}:${chapter}:${verse}`;
 }
 
+/**
+ * Reports whether the precise red-letter dataset contains an entry for a verse.
+ * @param {string} bookId The book identifier (e.g. 'MAT').
+ * @param {number} chapter The chapter number.
+ * @param {number} verse The verse number.
+ * @returns {boolean} True if marked words-of-Christ data exists for the verse.
+ */
 export function hasWordsOfChristVerse(bookId, chapter, verse) {
   return Object.hasOwn(kjvRedLetters, getVerseKey(bookId, chapter, verse));
 }
 
+/**
+ * Indicates whether a translation has precise per-word words-of-Christ markers.
+ * @param {string} translationId The translation identifier.
+ * @returns {boolean} True if precise marking is available (currently KJV only).
+ */
 export function supportsPreciseWordsOfChrist(translationId) {
   return PRECISE_TRANSLATION_IDS.has(translationId);
 }
 
+/**
+ * Builds the colored/uncolored segments for a verse's words of Christ.
+ *
+ * For translations with precise markers, aligns the marker tokens to the current
+ * display text. Otherwise, when allowVerseFallback is set, derives segments from
+ * quotation marks (attributing quotes to Jesus via speaker heuristics) or marks
+ * the whole verse red. Returns null when no red-letter data applies.
+ * @param {Object} params Lookup and rendering inputs.
+ * @param {string} params.translationId The active translation identifier.
+ * @param {string} params.bookId The book identifier.
+ * @param {number} params.chapter The chapter number.
+ * @param {number} params.verse The verse number.
+ * @param {string} params.text The verse text as displayed.
+ * @param {boolean} [params.allowVerseFallback=false] Enable the heuristic fallback
+ *   for translations without precise markers.
+ * @returns {Array<{text: string, isRed: boolean}>|null} Collapsed segments, or null
+ *   when the verse has no words of Christ to highlight.
+ */
 export function getWordsOfChristSegments({
   translationId,
   bookId,

@@ -1,3 +1,12 @@
+/**
+ * Translation install-status presentation helpers.
+ *
+ * Derives the user-facing badges, status labels, action labels, and tone for a
+ * given translation based on its install source (bundled vs. remote), saved
+ * metadata, and any pending install queue job. These descriptors drive the
+ * translation management UI and the translation select dropdown.
+ */
+
 import { canInstallTranslation, getTranslationInstallSource } from './api';
 import { formatInstallIssue } from './installErrors';
 
@@ -12,6 +21,20 @@ function getQueuedDetailLabel(queueJob, isBundled) {
     : 'This translation will start installing as soon as the current queue clears.';
 }
 
+/**
+ * Compute the full status descriptor for a translation, combining its install
+ * source, saved metadata, and any queued/active install job.
+ * @param {string} translationId The translation's identifier.
+ * @param {object|null} meta Saved install metadata (isComplete, inProgress,
+ *   completedChapters, totalChapters, sampleError, etc.), or null if none.
+ * @param {object|null} [queueJob=null] The pending install queue job
+ *   ({ phase, queuePosition }), or null when not queued.
+ * @returns {{actionLabel: string, badgeLabels: string[], canInstall: boolean,
+ *   canReadNow: boolean, detailLabel: string, installSource: string,
+ *   isBundled: boolean, isInstalling: boolean, isQueued: boolean,
+ *   isPartial: boolean, isSavedOnDevice: boolean, removeLabel: string,
+ *   statusLabel: string, tone: string}} A descriptor object for rendering status UI.
+ */
 export function getTranslationStatus(translationId, meta, queueJob = null) {
   const installSource = getTranslationInstallSource(translationId);
   const isBundled = installSource === 'bundle';
@@ -110,6 +133,14 @@ export function getTranslationStatus(translationId, meta, queueJob = null) {
   };
 }
 
+/**
+ * Build a single-line label for a translation in a select/dropdown, combining
+ * its abbreviation, name, and a short status suffix.
+ * @param {{id: string, abbreviation: string, name: string}} translation The
+ *   translation being labeled.
+ * @param {object|null} meta Saved install metadata for the translation.
+ * @returns {string} A label formatted as "ABBR - Name - Status".
+ */
 export function getTranslationSelectLabel(translation, meta) {
   const status = getTranslationStatus(translation.id, meta);
   let suffix = status.statusLabel;

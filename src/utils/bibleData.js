@@ -1,3 +1,18 @@
+/**
+ * bibleData
+ *
+ * Static reference data and lookup helpers for the Bible reader: the canonical
+ * 66-book table, the list of available translations and their remote API
+ * sources, the mapping from internal book ids to upstream API path names, and
+ * the rotating set of daily readings. This module holds no state and performs
+ * no I/O; it is the single source of truth other utilities query.
+ */
+
+/**
+ * Canonical ordered list of all 66 Bible books.
+ * Each entry: { id, name, chapters, testament } where testament is 'OT' or 'NT'.
+ * @type {Array<{ id: string, name: string, chapters: number, testament: 'OT'|'NT' }>}
+ */
 export const BIBLE_BOOKS = [
   // Old Testament
   { id: 'GEN', name: 'Genesis', chapters: 50, testament: 'OT' },
@@ -69,6 +84,12 @@ export const BIBLE_BOOKS = [
   { id: 'REV', name: 'Revelation', chapters: 22, testament: 'NT' },
 ];
 
+/**
+ * All Bible translations the app can read or install.
+ * Each entry carries display metadata plus an `apiSource` base URL used to fetch
+ * chapter JSON for remote installs.
+ * @type {Array<{ id: string, name: string, abbreviation: string, language: string, description: string, apiSource: string }>}
+ */
 export const AVAILABLE_TRANSLATIONS = [
   {
     id: 't4t',
@@ -247,18 +268,40 @@ const BOOK_API_PATH_MAP = {
   REV: ['revelation'],
 };
 
+/**
+ * List the candidate upstream API path segments for a book id.
+ * Upstream translations vary in naming (compact vs spaced, alternate book
+ * names), so callers try each candidate in order until one resolves.
+ * @param {string} bookId Canonical book id (e.g. '1SA').
+ * @returns {string[]} Ordered path-name candidates; falls back to the lowercased id.
+ */
 export function getBookApiPathCandidates(bookId) {
   return BOOK_API_PATH_MAP[bookId] || [bookId.toLowerCase()];
 }
 
+/**
+ * Look up a book definition by its canonical id.
+ * @param {string} bookId Canonical book id (e.g. 'JHN').
+ * @returns {{ id: string, name: string, chapters: number, testament: 'OT'|'NT' } | undefined} The book, or undefined if unknown.
+ */
 export function getBookById(bookId) {
   return BIBLE_BOOKS.find((b) => b.id === bookId);
 }
 
+/**
+ * Look up a translation definition by its id.
+ * @param {string} translationId Translation id (e.g. 'kjv').
+ * @returns {object | undefined} The translation entry, or undefined if unknown.
+ */
 export function getTranslationById(translationId) {
   return AVAILABLE_TRANSLATIONS.find((t) => t.id === translationId);
 }
 
+/**
+ * Curated pool of suggested daily readings.
+ * getTodaysReadings rotates through this list based on the day of year.
+ * @type {Array<{ book: string, chapter: number, title: string, description: string }>}
+ */
 export const DAILY_READINGS = [
   { book: 'PSA', chapter: 23, title: 'The Lord is My Shepherd', description: 'A psalm of comfort and trust in God\'s provision.' },
   { book: 'JHN', chapter: 3, title: 'You Must Be Born Again', description: 'Jesus teaches Nicodemus about spiritual rebirth.' },
@@ -276,6 +319,12 @@ export const DAILY_READINGS = [
   { book: 'JHN', chapter: 14, title: 'The Way, Truth, and Life', description: 'Jesus comforts His disciples and promises the Spirit.' },
 ];
 
+/**
+ * Pick three suggested readings for the current day.
+ * Deterministically selects a starting index from the day of year and returns
+ * three consecutive entries (wrapping around the end of the list).
+ * @returns {Array<{ book: string, chapter: number, title: string, description: string }>} Three reading suggestions.
+ */
 export function getTodaysReadings() {
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000

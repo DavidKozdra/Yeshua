@@ -1,3 +1,11 @@
+/**
+ * Books collection status resolver.
+ *
+ * Translates a books collection's metadata and download/queue state into a
+ * presentation-ready status object (badges, labels, tone, and available
+ * actions) for the library UI. Distinguishes Bible, external-link, reader,
+ * queued, installing, saved, partial, and remote-only collections.
+ */
 import { canInstallBooksCollection, getBooksInstallSource } from './booksApi';
 import { formatInstallIssue } from './installErrors';
 
@@ -107,6 +115,19 @@ function resolveStatusConfig({ isBible, isExternal, isQueued, isInstalling, isSa
   };
 }
 
+/**
+ * Compute the full display status for a books collection.
+ *
+ * Combines the collection's install source, its stored metadata, and any
+ * active queue job to derive badge labels, status/detail/action text, tone,
+ * and capability flags used by the library UI.
+ *
+ * @param {Object} collection The collection descriptor (expects id and kind).
+ * @param {Object} [meta] Stored download metadata (completion, progress, errors).
+ * @param {Object|null} [queueJob] Active queue job for this collection, if any.
+ * @returns {Object} Status config plus flags such as canInstall, canOpenReader,
+ *   installSource, isInstalling, isPartial, isQueued, isSavedOnDevice, and removeLabel.
+ */
 export function getBooksCollectionStatus(collection, meta, queueJob = null) {
   const installSource = getBooksInstallSource(collection.id);
   const isBible = collection.kind === 'bible';

@@ -1,3 +1,13 @@
+/**
+ * Holy day calendar engine.
+ *
+ * Defines the app's biblical/liturgical holy days and computes their
+ * occurrences relative to a reference date. Uses the Intl Hebrew calendar
+ * (with computed Easter/Ash Wednesday for movable Christian feasts) to find
+ * active, upcoming, and weekly holy days, build banner/reminder data, and
+ * format civil and Hebrew dates for display. Each holy day carries reading
+ * suggestions, priority, and reminder defaults consumed by the UI.
+ */
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HEBREW_LOCALE = 'en-u-ca-hebrew';
 const HEBREW_DATE_FORMATTER = createFormatter(HEBREW_LOCALE, {
@@ -243,6 +253,14 @@ const HOLY_DAY_DEFINITIONS = [
   },
 ];
 
+/**
+ * Lightweight list of all holy days for settings/preference UIs.
+ *
+ * Each entry exposes id, name, shortName, and isHighHolyDay derived from the
+ * internal holy day definitions.
+ *
+ * @type {Array<{id: string, name: string, shortName: string, isHighHolyDay: boolean}>}
+ */
 export const HOLY_DAY_OPTIONS = HOLY_DAY_DEFINITIONS.map((definition) => ({
   id: definition.id,
   name: definition.name,
@@ -423,6 +441,11 @@ function buildReminder(activeOccurrences, reminderCandidates, referenceDate, rem
   };
 }
 
+/**
+ * Check whether the runtime's Intl supports the Hebrew calendar.
+ *
+ * @returns {boolean} True if the Hebrew calendar is available.
+ */
 export function supportsHebrewCalendar() {
   try {
     return new Intl.DateTimeFormat(HEBREW_LOCALE).resolvedOptions().calendar === 'hebrew';
@@ -431,10 +454,26 @@ export function supportsHebrewCalendar() {
   }
 }
 
+/**
+ * Determine whether a given Hebrew year is a leap year.
+ *
+ * Uses the 19-year Metonic cycle rule; leap years contain Adar I and Adar II.
+ *
+ * @param {number} hebrewYear The Hebrew calendar year.
+ * @returns {boolean} True if the year is a leap year.
+ */
 export function isHebrewLeapYear(hebrewYear) {
   return ((7 * hebrewYear) + 1) % 19 < 7;
 }
 
+/**
+ * Extract Hebrew calendar date parts for a civil date.
+ *
+ * @param {Date} [date] Civil date to convert (defaults to now).
+ * @returns {{day: number, month: string, monthKey: string, hebrewYear: number, label: string}}
+ *   Hebrew day, localized month name, normalized month key, Hebrew year, and a
+ *   display label.
+ */
 export function getHebrewDateParts(date = new Date()) {
   const dateParts = HEBREW_DATE_FORMATTER.formatToParts(normalizeDate(date));
   const day = Number.parseInt(dateParts.find((part) => part.type === 'day')?.value || '0', 10);
@@ -450,10 +489,23 @@ export function getHebrewDateParts(date = new Date()) {
   };
 }
 
+/**
+ * Format a civil date as a long human-readable string (e.g. "June 18, 2026").
+ *
+ * @param {Date} date The date to format.
+ * @returns {string} Formatted date string.
+ */
 export function formatCivilDate(date) {
   return CIVIL_DATE_FORMATTER.format(normalizeDate(date));
 }
 
+/**
+ * Format a civil date range, collapsing to a single date for same-day ranges.
+ *
+ * @param {Date} startDate Range start.
+ * @param {Date} endDate Range end.
+ * @returns {string} A single formatted date, or "start to end" range string.
+ */
 export function formatCivilDateRange(startDate, endDate) {
   if (differenceInCalendarDays(endDate, startDate) <= 0) {
     return formatCivilDate(startDate);
@@ -462,6 +514,25 @@ export function formatCivilDateRange(startDate, endDate) {
   return `${formatShortDate(startDate)} to ${formatCivilDate(endDate)}`;
 }
 
+/**
+ * Build the holy day window around a reference date.
+ *
+ * Finds active and upcoming holy day occurrences (respecting per-holiday
+ * visibility and reminder preferences) and assembles the data the UI needs:
+ * active list, the coming week's occurrences, the next occurrence, a banner
+ * occurrence, a reminder, and date labels. Returns a disabled/unsupported
+ * shape when the Hebrew calendar is unavailable or options.enabled is false.
+ *
+ * @param {Date} [referenceDate] The date to evaluate against (defaults to now).
+ * @param {Object} [options] Configuration.
+ * @param {boolean} [options.enabled] When false, returns a disabled window.
+ * @param {Object} [options.preferences] Per-holiday visibility/reminder prefs keyed by id.
+ * @param {number} [options.bannerWindowDays=7] Days ahead considered for the weekly window.
+ * @param {number} [options.reminderLeadDays=2] Lead days for upcoming reminders.
+ * @param {number} [options.daysForward=400] How far ahead to scan for occurrences.
+ * @returns {Object} Holy day window with supported, enabled, hebrewDateLabel,
+ *   active, week, next, banner, reminder, and weekRangeLabel fields.
+ */
 export function getHolyDayWindow(referenceDate = new Date(), options = {}) {
   if (!supportsHebrewCalendar()) {
     return {

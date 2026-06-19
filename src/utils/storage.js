@@ -1,3 +1,14 @@
+/**
+ * localStorage-backed persistence for app preferences and lightweight state.
+ *
+ * Owns reading/sanitizing the user settings object (theme, accessibility,
+ * translation, holy-day, and text-to-speech preferences), last-read positions,
+ * the user profile, and the holy-day reminder log. Emits a 'yeshua-settings-changed'
+ * event on save so subscribers stay in sync, and provides import/export/clear
+ * helpers for full app data snapshots. All reads defensively normalize stored
+ * values so corrupted or outdated data falls back to sane defaults.
+ */
+
 import {
   COLOR_VISION_MODES,
   CUSTOM_THEME_DEFAULT,
@@ -194,6 +205,11 @@ function normalizeSettings(parsedSettings = {}) {
   };
 }
 
+/**
+ * Reads and normalizes the persisted settings object.
+ * @returns {Object} The fully normalized settings, with defaults applied for any
+ *   missing, invalid, or absent stored values.
+ */
 export function getSettings() {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
@@ -207,6 +223,11 @@ export function getSettings() {
   }
 }
 
+/**
+ * Sanitizes and persists settings, then broadcasts a settings-changed event.
+ * @param {Object} settings The settings object to store.
+ * @returns {void}
+ */
 export function saveSettings(settings) {
   const customThemes = normalizeCustomThemes(settings.customThemes);
   const activeCustomTheme = getCustomThemeById(customThemes, settings.theme);
@@ -244,6 +265,11 @@ export function saveSettings(settings) {
   }
 }
 
+/**
+ * Subscribes to settings changes emitted by saveSettings.
+ * @param {(settings: Object) => void} listener Called with the latest settings.
+ * @returns {() => void} An unsubscribe function (no-op outside the browser).
+ */
 export function subscribeToSettings(listener) {
   if (typeof window === 'undefined') return () => {};
 
@@ -257,6 +283,10 @@ export function subscribeToSettings(listener) {
   };
 }
 
+/**
+ * Returns the last Bible reading position, if any.
+ * @returns {Object|null} The stored location, or null when unset or unparseable.
+ */
 export function getLastRead() {
   try {
     const stored = localStorage.getItem(LAST_READ_KEY);
@@ -266,10 +296,19 @@ export function getLastRead() {
   }
 }
 
+/**
+ * Persists the last Bible reading position.
+ * @param {Object} location The reading location to store.
+ * @returns {void}
+ */
 export function saveLastRead(location) {
   localStorage.setItem(LAST_READ_KEY, JSON.stringify(location));
 }
 
+/**
+ * Returns the last library (Books tab) reading position, if any.
+ * @returns {Object|null} The stored location, or null when unset or unparseable.
+ */
 export function getLastBooksRead() {
   try {
     const stored = localStorage.getItem(LAST_BOOKS_READ_KEY);
@@ -279,10 +318,19 @@ export function getLastBooksRead() {
   }
 }
 
+/**
+ * Persists the last library (Books tab) reading position.
+ * @param {Object} location The reading location to store.
+ * @returns {void}
+ */
 export function saveLastBooksRead(location) {
   localStorage.setItem(LAST_BOOKS_READ_KEY, JSON.stringify(location));
 }
 
+/**
+ * Returns the timestamp the app was last opened.
+ * @returns {string|null} An ISO timestamp, or null when unset or unreadable.
+ */
 export function getLastAppOpenedAt() {
   try {
     return localStorage.getItem(LAST_APP_OPENED_AT_KEY) || null;
@@ -291,10 +339,20 @@ export function getLastAppOpenedAt() {
   }
 }
 
+/**
+ * Persists the app's last-opened timestamp.
+ * @param {string} [value] ISO timestamp to store; defaults to the current time.
+ * @returns {void}
+ */
 export function saveLastAppOpenedAt(value = new Date().toISOString()) {
   localStorage.setItem(LAST_APP_OPENED_AT_KEY, value);
 }
 
+/**
+ * Returns the stored user profile.
+ * @returns {{name: string}} The profile, defaulting to { name: '' } when unset
+ *   or unparseable.
+ */
 export function getProfile() {
   try {
     const stored = localStorage.getItem(PROFILE_KEY);
@@ -304,10 +362,20 @@ export function getProfile() {
   }
 }
 
+/**
+ * Persists the user profile.
+ * @param {{name: string}} profile The profile to store.
+ * @returns {void}
+ */
 export function saveProfile(profile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
+/**
+ * Collects all persisted app data into a single serializable snapshot.
+ * @returns {Object} A snapshot containing settings, last-read positions,
+ *   last-opened time, profile, and holy-day reminders.
+ */
 export function exportAppStorageData() {
   return {
     settings: getSettings(),
@@ -319,6 +387,15 @@ export function exportAppStorageData() {
   };
 }
 
+/**
+ * Restores app data from a snapshot produced by exportAppStorageData.
+ * @param {Object} [snapshot={}] The snapshot to import.
+ * @param {Object} [options={}] Import options.
+ * @param {'replace'|'merge'} [options.mode='replace'] In 'replace' mode, absent
+ *   snapshot fields clear existing data; in 'merge' mode they are left intact and
+ *   object fields are shallow-merged.
+ * @returns {void}
+ */
 export function importAppStorageData(snapshot = {}, options = {}) {
   const { mode = 'replace' } = options;
   const currentSettings = getSettings();
@@ -355,6 +432,10 @@ export function importAppStorageData(snapshot = {}, options = {}) {
   }
 }
 
+/**
+ * Removes all Yeshua app data from localStorage.
+ * @returns {void}
+ */
 export function clearAppStorageData() {
   localStorage.removeItem(SETTINGS_KEY);
   localStorage.removeItem(LAST_READ_KEY);
@@ -373,10 +454,21 @@ function getHolyDayReminderStore() {
   }
 }
 
+/**
+ * Reports whether a holy-day reminder has already been shown.
+ * @param {string} reminderKey The unique key identifying the reminder.
+ * @returns {boolean} True if the reminder has been recorded as seen.
+ */
 export function hasSeenHolyDayReminder(reminderKey) {
   return Boolean(getHolyDayReminderStore()[reminderKey]);
 }
 
+/**
+ * Records a holy-day reminder as seen, pruning the log to the 60 most recent
+ * entries and discarding any with unparseable timestamps.
+ * @param {string} reminderKey The unique key identifying the reminder.
+ * @returns {void}
+ */
 export function markHolyDayReminderSeen(reminderKey) {
   const reminders = getHolyDayReminderStore();
   reminders[reminderKey] = new Date().toISOString();

@@ -1,3 +1,13 @@
+/**
+ * IndexedDB persistence layer for the app.
+ *
+ * Wraps the "yeshua-bible" IndexedDB database (via idb) and exposes async CRUD
+ * helpers for every offline store: Bible chapters and translation metadata,
+ * non-Bible library chapters and collection metadata, user notes, reading
+ * progress, bookmarks, and highlights. Also handles schema upgrades, verse
+ * normalization on read/write, and full-database export/import/clear used for
+ * backup and restore.
+ */
 import { openDB } from 'idb';
 import { chapterVersesEqual, normalizeChapterVerses } from './chapterData';
 
@@ -200,6 +210,17 @@ function normalizeTargetRecord(record = {}, prefix) {
 
 // --- Chapter storage ---
 
+/**
+ * Save a Bible chapter's verses for a translation.
+ *
+ * Verses are normalized before storage; key is "translationId:bookId:chapter".
+ *
+ * @param {string} translationId Translation identifier.
+ * @param {string} bookId Book identifier.
+ * @param {number} chapter Chapter number.
+ * @param {Array} verses Raw verse entries to store.
+ * @returns {Promise<Array<{verse: number, text: string}>>} The normalized verses written.
+ */
 export async function saveChapter(translationId, bookId, chapter, verses) {
   const db = await getDB();
   const key = `${translationId}:${bookId}:${chapter}`;
@@ -208,6 +229,15 @@ export async function saveChapter(translationId, bookId, chapter, verses) {
   return normalizedVerses;
 }
 
+/**
+ * Read a stored Bible chapter, re-normalizing and rewriting if stale.
+ *
+ * @param {string} translationId Translation identifier.
+ * @param {string} bookId Book identifier.
+ * @param {number} chapter Chapter number.
+ * @returns {Promise<Array<{verse: number, text: string}>|undefined>} Normalized
+ *   verses, or undefined if the chapter is not stored.
+ */
 export async function getChapter(translationId, bookId, chapter) {
   const db = await getDB();
   const key = `${translationId}:${bookId}:${chapter}`;
@@ -222,6 +252,12 @@ export async function getChapter(translationId, bookId, chapter) {
   return normalizedVerses;
 }
 
+/**
+ * Delete all stored chapters belonging to a translation.
+ *
+ * @param {string} translationId Translation identifier.
+ * @returns {Promise<void>}
+ */
 export async function deleteTranslationData(translationId) {
   const db = await getDB();
   const tx = db.transaction('chapters', 'readwrite');
@@ -237,17 +273,37 @@ export async function deleteTranslationData(translationId) {
 
 // --- Translation metadata ---
 
+/**
+ * Persist metadata for a translation.
+ *
+ * @param {string} translationId Translation identifier.
+ * @param {Object} meta Translation metadata to store.
+ * @returns {Promise<void>}
+ */
 export async function saveTranslationMeta(translationId, meta) {
   const db = await getDB();
   await db.put('translations', meta, translationId);
 }
 
+/**
+ * Read a translation's metadata with a derived isComplete flag.
+ *
+ * @param {string} translationId Translation identifier.
+ * @returns {Promise<Object|null>} Metadata plus isComplete, or null if absent.
+ */
 export async function getTranslationMeta(translationId) {
   const db = await getDB();
   const meta = await db.get('translations', translationId);
   return meta ? { ...meta, isComplete: isTranslationComplete(meta) } : null;
 }
 
+/**
+ * List downloaded translations with derived completion state.
+ *
+ * @param {Object} [options] Options.
+ * @param {boolean} [options.includeIncomplete=false] Include partially downloaded translations.
+ * @returns {Promise<Array<Object>>} Translation metadata records (each with id and isComplete).
+ */
 export async function getAllDownloadedTranslations(options = {}) {
   const { includeIncomplete = false } = options;
   const db = await getDB();
@@ -264,11 +320,26 @@ export async function getAllDownloadedTranslations(options = {}) {
   return results;
 }
 
+/**
+ * Delete a translation's metadata record.
+ *
+ * @param {string} translationId Translation identifier.
+ * @returns {Promise<void>}
+ */
 export async function deleteTranslationMeta(translationId) {
   const db = await getDB();
   await db.delete('translations', translationId);
 }
 
+/**
+ * Collect every stored chapter for a translation.
+ *
+ * Cursors the chapters store, parsing keys for the given translation.
+ *
+ * @param {string} translationId Translation identifier.
+ * @returns {Promise<Array<{bookId: string, chapter: number, verses: Array}>>}
+ *   One entry per stored chapter.
+ */
 export async function getTranslationChapterEntries(translationId) {
   const db = await getDB();
   const tx = db.transaction('chapters');
@@ -298,6 +369,17 @@ export async function getTranslationChapterEntries(translationId) {
 
 // --- Library chapter storage ---
 
+/**
+ * Save a library work's chapter verses.
+ *
+ * Verses are normalized; key is "collectionId:workId:chapter".
+ *
+ * @param {string} collectionId Library collection identifier.
+ * @param {string} workId Work identifier within the collection.
+ * @param {number} chapter Chapter number.
+ * @param {Array} verses Raw verse entries to store.
+ * @returns {Promise<Array<{verse: number, text: string}>>} The normalized verses written.
+ */
 export async function saveLibraryChapter(collectionId, workId, chapter, verses) {
   const db = await getDB();
   const key = `${collectionId}:${workId}:${chapter}`;
@@ -306,6 +388,15 @@ export async function saveLibraryChapter(collectionId, workId, chapter, verses) 
   return normalizedVerses;
 }
 
+/**
+ * Read a stored library chapter, re-normalizing and rewriting if stale.
+ *
+ * @param {string} collectionId Library collection identifier.
+ * @param {string} workId Work identifier.
+ * @param {number} chapter Chapter number.
+ * @returns {Promise<Array<{verse: number, text: string}>|undefined>} Normalized
+ *   verses, or undefined if not stored.
+ */
 export async function getLibraryChapter(collectionId, workId, chapter) {
   const db = await getDB();
   const key = `${collectionId}:${workId}:${chapter}`;
@@ -320,6 +411,12 @@ export async function getLibraryChapter(collectionId, workId, chapter) {
   return normalizedVerses;
 }
 
+/**
+ * Delete all stored chapters belonging to a library collection.
+ *
+ * @param {string} collectionId Library collection identifier.
+ * @returns {Promise<void>}
+ */
 export async function deleteLibraryCollectionData(collectionId) {
   const db = await getDB();
   const tx = db.transaction('libraryChapters', 'readwrite');
@@ -337,17 +434,37 @@ export async function deleteLibraryCollectionData(collectionId) {
 
 // --- Library collection metadata ---
 
+/**
+ * Persist metadata for a library collection.
+ *
+ * @param {string} collectionId Library collection identifier.
+ * @param {Object} meta Collection metadata to store.
+ * @returns {Promise<void>}
+ */
 export async function saveLibraryCollectionMeta(collectionId, meta) {
   const db = await getDB();
   await db.put('libraryCollections', meta, collectionId);
 }
 
+/**
+ * Read a library collection's metadata with a derived isComplete flag.
+ *
+ * @param {string} collectionId Library collection identifier.
+ * @returns {Promise<Object|null>} Metadata plus isComplete, or null if absent.
+ */
 export async function getLibraryCollectionMeta(collectionId) {
   const db = await getDB();
   const meta = await db.get('libraryCollections', collectionId);
   return meta ? { ...meta, isComplete: isLibraryCollectionComplete(meta) } : null;
 }
 
+/**
+ * List downloaded library collections with derived completion state.
+ *
+ * @param {Object} [options] Options.
+ * @param {boolean} [options.includeIncomplete=false] Include partially downloaded collections.
+ * @returns {Promise<Array<Object>>} Collection metadata records (each with id and isComplete).
+ */
 export async function getAllDownloadedLibraryCollections(options = {}) {
   const { includeIncomplete = false } = options;
   const db = await getDB();
@@ -372,6 +489,12 @@ export async function getAllDownloadedLibraryCollections(options = {}) {
   return results;
 }
 
+/**
+ * Delete a library collection's metadata record.
+ *
+ * @param {string} collectionId Library collection identifier.
+ * @returns {Promise<void>}
+ */
 export async function deleteLibraryCollectionMeta(collectionId) {
   const db = await getDB();
   await db.delete('libraryCollections', collectionId);
@@ -379,6 +502,15 @@ export async function deleteLibraryCollectionMeta(collectionId) {
 
 // --- Notes ---
 
+/**
+ * Create or update a user note.
+ *
+ * Normalizes the note (source type, tags, verse keys, timestamps); updates in
+ * place when an id is present, otherwise inserts a new record.
+ *
+ * @param {Object} note The note to save.
+ * @returns {Promise<number|string>} The note's id.
+ */
 export async function saveNote(note) {
   const db = await getDB();
   const normalizedNote = normalizeNote(note);
@@ -389,28 +521,60 @@ export async function saveNote(note) {
   return db.add('notes', normalizedNote);
 }
 
+/**
+ * Fetch a single note by id.
+ *
+ * @param {number|string} id Note id.
+ * @returns {Promise<Object|undefined>} The note, or undefined if not found.
+ */
 export async function getNote(id) {
   const db = await getDB();
   return db.get('notes', id);
 }
 
+/**
+ * Fetch all stored notes.
+ *
+ * @returns {Promise<Array<Object>>} Every note record.
+ */
 export async function getAllNotes() {
   const db = await getDB();
   return db.getAll('notes');
 }
 
+/**
+ * Fetch notes attached to a specific book chapter.
+ *
+ * @param {string} bookId Book identifier.
+ * @param {number} chapter Chapter number.
+ * @returns {Promise<Array<Object>>} Matching notes.
+ */
 export async function getNotesForChapter(bookId, chapter) {
   const db = await getDB();
   const key = `${bookId}:${chapter}`;
   return db.getAllFromIndex('notes', 'bookChapter', key);
 }
 
+/**
+ * Fetch notes attached to a specific verse.
+ *
+ * @param {string} bookId Book identifier.
+ * @param {number} chapter Chapter number.
+ * @param {number} verse Verse number.
+ * @returns {Promise<Array<Object>>} Matching notes.
+ */
 export async function getNotesForVerse(bookId, chapter, verse) {
   const db = await getDB();
   const key = `${bookId}:${chapter}:${verse}`;
   return db.getAllFromIndex('notes', 'verseKey', key);
 }
 
+/**
+ * Delete a note by id.
+ *
+ * @param {number|string} id Note id.
+ * @returns {Promise<void>}
+ */
 export async function deleteNote(id) {
   const db = await getDB();
   await db.delete('notes', id);
@@ -418,6 +582,15 @@ export async function deleteNote(id) {
 
 // --- Reading progress, bookmarks, and highlights ---
 
+/**
+ * Record reading progress for a location.
+ *
+ * Builds a translation-independent location key so a chapter read in multiple
+ * translations counts once, and stamps completedAt when absent.
+ *
+ * @param {Object} progress Progress descriptor (location/source fields).
+ * @returns {Promise<string>} The progress record id.
+ */
 export async function saveReadingProgress(progress) {
   const db = await getDB();
   const locationKey = buildReadingProgressKey(progress);
@@ -434,11 +607,23 @@ export async function saveReadingProgress(progress) {
   return normalized.id;
 }
 
+/**
+ * Fetch all reading progress records.
+ *
+ * @returns {Promise<Array<Object>>} Every reading progress entry.
+ */
 export async function getAllReadingProgress() {
   const db = await getDB();
   return db.getAll('readingProgress');
 }
 
+/**
+ * Summarize reading progress across all records.
+ *
+ * @returns {Promise<{completedChapters: number, activeDays: number, recent: Array<Object>}>}
+ *   Count of distinct completed locations, distinct active days, and the 8 most
+ *   recent entries.
+ */
 export async function getReadingProgressSummary() {
   const entries = await getAllReadingProgress();
   const completedChapters = new Set(
@@ -460,11 +645,26 @@ export async function getReadingProgressSummary() {
   };
 }
 
+/**
+ * Get the most recently read locations.
+ *
+ * @param {number} [limit=8] Maximum number of entries to return.
+ * @returns {Promise<Array<Object>>} Recent reading progress entries.
+ */
 export async function getRecentReading(limit = 8) {
   const summary = await getReadingProgressSummary();
   return summary.recent.slice(0, limit);
 }
 
+/**
+ * Create or update a bookmark.
+ *
+ * Normalizes the record and deduplicates by targetKey + sourceType, updating
+ * the existing bookmark in place when a match is found.
+ *
+ * @param {Object} bookmark The bookmark to save.
+ * @returns {Promise<string>} The bookmark id.
+ */
 export async function saveBookmark(bookmark) {
   const db = await getDB();
   const normalized = normalizeTargetRecord(bookmark, 'bookmark');
@@ -487,11 +687,23 @@ export async function saveBookmark(bookmark) {
   return normalized.id;
 }
 
+/**
+ * Delete a bookmark by id.
+ *
+ * @param {string} id Bookmark id.
+ * @returns {Promise<void>}
+ */
 export async function deleteBookmark(id) {
   const db = await getDB();
   await db.delete('bookmarks', id);
 }
 
+/**
+ * Fetch bookmarks, optionally filtered, sorted newest first.
+ *
+ * @param {Object} [filter] Optional filters (sourceType, targetKey, bookId, collectionId).
+ * @returns {Promise<Array<Object>>} Matching bookmarks ordered by createdAt descending.
+ */
 export async function getBookmarks(filter = {}) {
   const db = await getDB();
   const bookmarks = await db.getAll('bookmarks');
@@ -506,6 +718,12 @@ export async function getBookmarks(filter = {}) {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
+/**
+ * Save a highlight (defaulting color to gold).
+ *
+ * @param {Object} highlight The highlight to save.
+ * @returns {Promise<string>} The highlight id.
+ */
 export async function saveHighlight(highlight) {
   const db = await getDB();
   const normalized = normalizeTargetRecord(
@@ -519,11 +737,28 @@ export async function saveHighlight(highlight) {
   return normalized.id;
 }
 
+/**
+ * Delete a highlight by id.
+ *
+ * @param {string} id Highlight id.
+ * @returns {Promise<void>}
+ */
 export async function deleteHighlight(id) {
   const db = await getDB();
   await db.delete('highlights', id);
 }
 
+/**
+ * Delete all highlights matching a target verse/range.
+ *
+ * Normalizes verse bounds on both stored and target sides so a single-verse
+ * target matches regardless of how it was saved, and matches on the
+ * appropriate library or Bible identifiers.
+ *
+ * @param {Object} [target] Target descriptor (sourceType, chapter, verse range,
+ *   plus collection/work or translation/book ids).
+ * @returns {Promise<number>} Number of highlights deleted.
+ */
 export async function deleteHighlightsForTarget(target = {}) {
   const db = await getDB();
   const highlights = await db.getAll('highlights');
@@ -557,6 +792,13 @@ export async function deleteHighlightsForTarget(target = {}) {
   return matchingHighlights.length;
 }
 
+/**
+ * Fetch all highlights for a given chapter.
+ *
+ * @param {Object} [target] Chapter descriptor (sourceType, chapter, plus
+ *   collection/work or translation/book ids).
+ * @returns {Promise<Array<Object>>} Matching highlights.
+ */
 export async function getHighlightsForChapter(target = {}) {
   const db = await getDB();
   const highlights = await db.getAll('highlights');
@@ -578,6 +820,12 @@ export async function getHighlightsForChapter(target = {}) {
   });
 }
 
+/**
+ * Collect every stored library chapter across all collections.
+ *
+ * @returns {Promise<Array<{collectionId: string, workId: string, chapter: number, verses: Array}>>}
+ *   One entry per stored library chapter.
+ */
 export async function getAllLibraryChapterEntries() {
   const db = await getDB();
   const tx = db.transaction('libraryChapters');
@@ -606,6 +854,11 @@ export async function getAllLibraryChapterEntries() {
   return entries;
 }
 
+/**
+ * Collect raw metadata entries for all library collections.
+ *
+ * @returns {Promise<Array<{id: string, meta: Object}>>} Collection id/meta pairs.
+ */
 export async function getAllLibraryCollectionMetaEntries() {
   const db = await getDB();
   const keys = await db.getAllKeys('libraryCollections');
@@ -621,6 +874,11 @@ export async function getAllLibraryCollectionMetaEntries() {
   return results;
 }
 
+/**
+ * Collect raw metadata entries for all translations.
+ *
+ * @returns {Promise<Array<{id: string, meta: Object}>>} Translation id/meta pairs.
+ */
 export async function getAllTranslationMetaEntries() {
   const db = await getDB();
   const keys = await db.getAllKeys('translations');
@@ -636,6 +894,14 @@ export async function getAllTranslationMetaEntries() {
   return results;
 }
 
+/**
+ * Clear every object store in the app database.
+ *
+ * Wipes chapters, translations, notes, library chapters/collections, reading
+ * progress, bookmarks, and highlights.
+ *
+ * @returns {Promise<void>}
+ */
 export async function clearAllAppDbData() {
   const db = await getDB();
 
@@ -651,6 +917,15 @@ export async function clearAllAppDbData() {
   ]);
 }
 
+/**
+ * Export the full app database as a serializable snapshot.
+ *
+ * Gathers translation metadata and chapters, library metadata and chapters,
+ * notes, reading progress, bookmarks, and highlights for backup.
+ *
+ * @returns {Promise<Object>} Snapshot with translationMetas, translationChapters,
+ *   libraryMetas, libraryChapters, notes, readingProgress, bookmarks, and highlights.
+ */
 export async function exportAppDbData() {
   const [
     translationMetas,
@@ -697,6 +972,18 @@ export async function exportAppDbData() {
   };
 }
 
+/**
+ * Import a previously exported snapshot into the app database.
+ *
+ * In the default 'replace' mode the database is cleared first; in 'merge' mode
+ * existing data is preserved and the snapshot is layered on top. Chapters are
+ * written in bulk and verses re-normalized.
+ *
+ * @param {Object} [snapshot] Snapshot produced by exportAppDbData.
+ * @param {Object} [options] Options.
+ * @param {'replace'|'merge'} [options.mode='replace'] Import strategy.
+ * @returns {Promise<void>}
+ */
 export async function importAppDbData(snapshot = {}, options = {}) {
   const { mode = 'replace' } = options;
   if (mode !== 'merge') {

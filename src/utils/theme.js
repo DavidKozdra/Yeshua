@@ -1,12 +1,28 @@
+/**
+ * Theming engine: applies built-in and user-defined custom themes to the
+ * document, and analyzes custom palettes for accessibility.
+ *
+ * Built-in themes are CSS-driven via a `data-theme` attribute. Custom themes are
+ * defined by a small set of seed colors (CUSTOM_THEME_DEFAULT); from those,
+ * buildCustomThemeVariables derives the full set of CSS custom properties
+ * (borders, hovers, muted text, etc.) by mixing/lightening/darkening. The
+ * analysis helpers compute WCAG contrast ratios and simulate color-vision
+ * deficiencies to warn when a palette is hard to read or relies on color alone.
+ */
 const FALLBACK_SHADOW = '0 2px 12px rgba(0, 0, 0, 0.3)';
 const FALLBACK_SHADOW_LG = '0 8px 32px rgba(0, 0, 0, 0.4)';
 import { DEFAULT_WORDS_OF_CHRIST_COLOR } from './wordsOfChrist';
 
+/** Ids of the themes shipped with the app (CSS-driven via data-theme). */
 export const BUILT_IN_THEMES = ['dark', 'light', 'sepia', 'cool', 'princess'];
+/** Prefix that marks a theme id as a saved user-defined custom theme. */
 export const CUSTOM_THEME_PREFIX = 'custom:';
+/** Default display name for a new custom theme. */
 export const DEFAULT_CUSTOM_THEME_NAME = 'Custom Theme';
+/** Supported color-vision simulation modes for accessibility analysis. */
 export const COLOR_VISION_MODES = ['default', 'deuteranopia', 'protanopia', 'tritanopia'];
 
+/** Seed colors for a custom theme; all other CSS variables are derived from these. */
 export const CUSTOM_THEME_DEFAULT = {
   bgPrimary: '#101722',
   bgSecondary: '#172232',
@@ -42,6 +58,11 @@ const CUSTOM_THEME_VARIABLES = [
   '--shadow-lg',
 ];
 
+/**
+ * Read the OS-level color scheme preference, defaulting to 'dark' when matchMedia
+ * is unavailable (e.g. SSR).
+ * @returns {'light'|'dark'}
+ */
 export function getSystemThemePreference() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return 'dark';
@@ -189,6 +210,13 @@ function simulateColorVision(color, mode) {
   return rgbToHex(applyColorBlindMatrix(color, matrix));
 }
 
+/**
+ * Evaluate a custom palette for accessibility: computes WCAG contrast ratios for
+ * key text/surface/accent pairings and checks whether semantic colors (accent /
+ * success / danger) stay distinguishable under color-vision deficiencies.
+ * @param {object} [customTheme] Raw seed colors (will be normalized).
+ * @returns {{ normalized: object, metrics: object, issues: Array<object>, hasIssues: boolean, hasHighSeverityIssues: boolean }}
+ */
 export function analyzeCustomTheme(customTheme = {}) {
   const normalized = normalizeCustomTheme(customTheme);
   const issues = [];
@@ -273,6 +301,12 @@ export function analyzeCustomTheme(customTheme = {}) {
   };
 }
 
+/**
+ * Coerce a raw custom-theme object into a complete, valid set of seed colors,
+ * sanitizing each field to a #rrggbb hex and filling missing fields from defaults.
+ * @param {object} [customTheme]
+ * @returns {object} Normalized seed colors keyed by CUSTOM_THEME_DEFAULT fields.
+ */
 export function normalizeCustomTheme(customTheme = {}) {
   const normalized = {};
   for (const key of CUSTOM_THEME_FIELDS) {
@@ -281,6 +315,13 @@ export function normalizeCustomTheme(customTheme = {}) {
   return normalized;
 }
 
+/**
+ * Generate a unique custom-theme id from a name (prefixed + slugified), adding a
+ * numeric suffix to avoid collisions with existing themes.
+ * @param {string} name
+ * @param {Array<{id?: string}>} [existingThemes]
+ * @returns {string}
+ */
 export function createCustomThemeId(name, existingThemes = []) {
   const existingIds = new Set(
     Array.isArray(existingThemes)
@@ -299,10 +340,21 @@ export function createCustomThemeId(name, existingThemes = []) {
   return nextId;
 }
 
+/**
+ * Whether a theme id refers to one of the built-in themes.
+ * @param {string} themeId
+ * @returns {boolean}
+ */
 export function isBuiltInTheme(themeId) {
   return BUILT_IN_THEMES.includes(themeId);
 }
 
+/**
+ * Normalize a saved list of custom themes: sanitizes names, assigns ids where
+ * missing, drops duplicates, and normalizes each theme's colors.
+ * @param {Array<object>} [customThemes]
+ * @returns {Array<{ id: string, name: string, colors: object }>}
+ */
 export function normalizeCustomThemes(customThemes = []) {
   if (!Array.isArray(customThemes)) return [];
 
@@ -329,11 +381,24 @@ export function normalizeCustomThemes(customThemes = []) {
   return normalizedThemes;
 }
 
+/**
+ * Find a saved custom theme by id.
+ * @param {Array<{id: string}>} [customThemes]
+ * @param {string} themeId
+ * @returns {object|null}
+ */
 export function getCustomThemeById(customThemes = [], themeId) {
   if (!Array.isArray(customThemes) || typeof themeId !== 'string') return null;
   return customThemes.find((theme) => theme.id === themeId) || null;
 }
 
+/**
+ * Resolve the custom theme currently selected in settings, if any. Handles both
+ * the legacy inline 'custom' theme and named saved themes; returns null when the
+ * active theme is a built-in.
+ * @param {object} settings
+ * @returns {{ id: string, name: string, colors: object }|null}
+ */
 export function getActiveCustomTheme(settings) {
   if (!settings) return null;
   if (settings.theme === 'custom') {
@@ -347,6 +412,13 @@ export function getActiveCustomTheme(settings) {
   return getCustomThemeById(settings.customThemes, settings.theme);
 }
 
+/**
+ * Derive the full set of CSS custom properties for a custom theme from its seed
+ * colors, computing surfaces, borders, hovers, muted text, and an accent-hover
+ * that lightens or darkens depending on the accent's luminance.
+ * @param {object} [customTheme] Seed colors (will be normalized).
+ * @returns {Object<string, string>} CSS variable name to value map.
+ */
 export function buildCustomThemeVariables(customTheme = {}) {
   const normalized = normalizeCustomTheme(customTheme);
   const accentHover =
@@ -378,12 +450,23 @@ export function buildCustomThemeVariables(customTheme = {}) {
   };
 }
 
+/**
+ * Remove all custom-theme CSS variables from an element so a built-in theme's
+ * stylesheet values take over again.
+ * @param {HTMLElement} [root=document.documentElement]
+ */
 export function clearCustomTheme(root = document.documentElement) {
   for (const variable of CUSTOM_THEME_VARIABLES) {
     root.style.removeProperty(variable);
   }
 }
 
+/**
+ * Apply the theme from settings to the document root: sets data-theme and, for
+ * custom themes, the derived CSS variables; also sets the words-of-Christ color.
+ * Falls back to the system preference / first built-in theme when unset.
+ * @param {object} settings
+ */
 export function applyTheme(settings) {
   if (typeof document === 'undefined') return;
 

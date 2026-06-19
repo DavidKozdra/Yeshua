@@ -1,3 +1,16 @@
+/**
+ * Read-aloud (text-to-speech) engine for chapters, built on the Web Speech API.
+ *
+ * speakChapter queues one SpeechSynthesisUtterance per verse and chains them via
+ * onend. It layers in mobile-robustness concerns the bare API lacks: a screen
+ * Wake Lock so the device doesn't sleep mid-chapter, a periodic resume()
+ * heartbeat (Android Chrome silently pauses speech when backgrounded), and a
+ * Media Session integration so lock-screen / headphone controls can
+ * play/pause/stop and skip tracks. It returns a cleanup function augmented with
+ * pause/resume/setVolume controls.
+ */
+
+/** Playback-speed presets offered in the read-aloud UI. */
 export const TTS_RATE_OPTIONS = [
   { value: 0.85, label: 'Slow' },
   { value: 1, label: 'Normal' },
@@ -78,10 +91,17 @@ function createScreenWakeLock() {
   return { acquire, release, destroy };
 }
 
+/**
+ * Whether the browser supports speech synthesis (and the utterance constructor).
+ * @returns {boolean}
+ */
 export function isTextToSpeechSupported() {
   return Boolean(getSpeechSynthesis() && typeof window.SpeechSynthesisUtterance !== 'undefined');
 }
 
+/**
+ * Immediately cancel any in-progress speech synthesis (global stop).
+ */
 export function stopTextToSpeech() {
   const synth = getSpeechSynthesis();
   if (!synth) return;
@@ -164,6 +184,31 @@ function clearMediaSession() {
   }
 }
 
+/**
+ * Read a chapter aloud, speaking each verse in sequence with optional spoken
+ * chapter/verse-number announcements. Manages a screen wake lock, a backgrounded
+ * resume heartbeat, and lock-screen Media Session controls for the duration.
+ *
+ * @param {object} options
+ * @param {string} options.bookName
+ * @param {number} options.chapter
+ * @param {string} [options.translationLabel='']
+ * @param {Array<{ verse: number, text: string }>} options.verses
+ * @param {number} [options.rate=1] Speech rate.
+ * @param {boolean} [options.announceChapterNumbers=true] Speak "Book Chapter" before verse 1.
+ * @param {boolean} [options.announceVerseNumbers=true] Speak "verse N" before each verse.
+ * @param {string} [options.voiceUri=''] Preferred voice URI/name; falls back to default.
+ * @param {number} [options.volume=1] Initial volume (0-1).
+ * @param {(verseNumber: number) => void} [options.onVerseStart]
+ * @param {(state: 'playing'|'paused') => void} [options.onPlaybackStateChange]
+ * @param {() => void} [options.onPreviousTrack] Media Session previous-track handler.
+ * @param {() => void} [options.onNextTrack] Media Session next-track handler.
+ * @param {() => void} [options.onStop] Called when stopped via Media Session.
+ * @param {() => void} [options.onComplete] Called when the chapter finishes.
+ * @param {(error: any) => void} [options.onError] Called on a speech error.
+ * @returns {(() => void) & { setVolume: (v: number) => void, pause: () => boolean, resume: () => boolean, isPaused: () => boolean }}
+ *   A cleanup/stop function with attached playback controls.
+ */
 export function speakChapter({
   bookName,
   chapter,

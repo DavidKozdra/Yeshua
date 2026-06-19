@@ -1,3 +1,15 @@
+/**
+ * Library (non-Bible) collection data layer: fetching chapters and installing
+ * whole collections (Qur'an, Apocrypha, etc.) for offline use.
+ *
+ * This mirrors api.js but for the Books/Library tab. Works (the books/surahs in
+ * a collection) may be static (defined in booksData) or resolved dynamically
+ * from a remote catalog (e.g. the Qur'an API); resolveBooksCollectionWorks
+ * caches either. Chapter reads check IndexedDB first, then fetch from the
+ * collection's remote provider (with retry/backoff via fetchJson) and cache the
+ * result. Whole-collection installs run through a single serial queue with a
+ * lifecycle EventTarget, the same pattern used for Bible translations.
+ */
 import {
   deleteLibraryCollectionData,
   deleteLibraryCollectionMeta,
@@ -216,6 +228,14 @@ async function fetchRemoteBooksChapter(collection, work, chapter, signal) {
   throw new Error(`${collection.name} does not have a downloadable reader source.`);
 }
 
+/**
+ * Resolve and cache the list of works in a collection. Tries, in order: the
+ * module cache, the collection's static works, persisted works from the saved
+ * collection meta, then (unless cacheOnly) a remote catalog fetch.
+ * @param {string} collectionId
+ * @param {{ signal?: AbortSignal, cacheOnly?: boolean }} [options]
+ * @returns {Promise<Array<object>>} The collection's works (possibly empty).
+ */
 export async function resolveBooksCollectionWorks(collectionId, options = {}) {
   const { signal, cacheOnly = false } = options;
   const collection = getBooksCollectionById(collectionId);
@@ -256,11 +276,27 @@ export async function resolveBooksCollectionWorks(collectionId, options = {}) {
   return works;
 }
 
+/**
+ * Resolve a single work (book/surah) within a collection by id.
+ * @param {string} collectionId
+ * @param {string} workId
+ * @param {{ signal?: AbortSignal, cacheOnly?: boolean }} [options]
+ * @returns {Promise<object|null>}
+ */
 export async function getBooksWork(collectionId, workId, options = {}) {
   const works = await resolveBooksCollectionWorks(collectionId, options);
   return getBooksWorkById(collectionId, workId, works);
 }
 
+/**
+ * Resolve a chapter's verses for a library work: IndexedDB cache first, then the
+ * collection's remote provider (caching the result). Reader collections only.
+ * @param {string} collectionId
+ * @param {string} workId
+ * @param {number} chapter
+ * @param {{ signal?: AbortSignal, offlineOnly?: boolean, resolvedWorks?: Array<object>|null }} [options]
+ * @returns {Promise<Array<{ verse: number, text: string }>>}
+ */
 export async function fetchBooksChapter(collectionId, workId, chapter, options = {}) {
   const { signal, offlineOnly = false, resolvedWorks = null } = options;
   const cached = await getLibraryChapter(collectionId, workId, chapter);
@@ -335,6 +371,11 @@ function getInstallRecordSnapshot(record) {
   };
 }
 
+/**
+ * Snapshot the current books install queue: the active collection, queued ids,
+ * and a per-job record (phase, progress, queue position, reason).
+ * @returns {{ activeCollectionId: string|null, queuedIds: string[], jobs: Object }}
+ */
 export function getBooksInstallQueueSnapshot() {
   return {
     activeCollectionId: activeInstallId,
@@ -360,6 +401,12 @@ function emitInstallEvent(type, detail = {}) {
   );
 }
 
+/**
+ * Subscribe to books install lifecycle events (queued, started, progress,
+ * completed, cancelled, failed). Each event carries the queue snapshot.
+ * @param {(detail: object) => void} listener
+ * @returns {() => void} Unsubscribe function.
+ */
 export function subscribeToBooksInstallEvents(listener) {
   function handleEvent(event) {
     listener(event.detail);
@@ -371,11 +418,22 @@ export function subscribeToBooksInstallEvents(listener) {
   };
 }
 
+/**
+ * Where a collection can be installed from: 'remote' for reader collections,
+ * null otherwise (external/link-only collections aren't installable).
+ * @param {string} collectionId
+ * @returns {'remote'|null}
+ */
 export function getBooksInstallSource(collectionId) {
   const collection = getBooksCollectionById(collectionId);
   return collection?.kind === 'reader' ? 'remote' : null;
 }
 
+/**
+ * Whether a collection can be downloaded for offline use.
+ * @param {string} collectionId
+ * @returns {boolean}
+ */
 export function canInstallBooksCollection(collectionId) {
   return getBooksInstallSource(collectionId) === 'remote';
 }
@@ -594,6 +652,13 @@ async function processInstallQueue() {
   return queueProcessorPromise;
 }
 
+/**
+ * Enqueue a full-collection install (idempotent per collection). The queue
+ * processes one collection at a time; resolves with the download result.
+ * @param {string} collectionId
+ * @param {{ onProgress?: (done: number, total: number) => void, signal?: AbortSignal, reason?: string }} [options]
+ * @returns {Promise<object>} Download summary (counts, errors, completeness, works).
+ */
 export function queueBooksCollectionInstall(
   collectionId,
   { onProgress, signal, reason = 'user' } = {}
@@ -640,6 +705,12 @@ export function queueBooksCollectionInstall(
   return record.promise.finally(unsubscribe);
 }
 
+/**
+ * Cancel a queued or active collection install. Removes a queued job outright,
+ * or aborts the in-flight download for an active one.
+ * @param {string} collectionId
+ * @returns {boolean} True if a job was found and cancellation was initiated.
+ */
 export function cancelBooksCollectionInstall(collectionId) {
   const record = queuedInstallRecords.get(collectionId);
   if (!record) return false;
@@ -667,6 +738,12 @@ export function cancelBooksCollectionInstall(collectionId) {
   return false;
 }
 
+/**
+ * Remove a downloaded collection: cancels any in-flight install, drops the works
+ * cache, and deletes its cached chapter data and metadata from IndexedDB.
+ * @param {string} collectionId
+ * @returns {Promise<void>}
+ */
 export async function removeBooksCollection(collectionId) {
   const record = queuedInstallRecords.get(collectionId);
   cancelBooksCollectionInstall(collectionId);

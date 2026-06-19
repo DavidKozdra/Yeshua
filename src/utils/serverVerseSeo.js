@@ -1,3 +1,13 @@
+/**
+ * Server-side per-verse SEO override resolution.
+ *
+ * Runs in the Node SSR/prerender layer to enrich /read deep links that target a
+ * specific verse with the actual verse text. It reads chapter data from local
+ * translation bundles first and falls back to the translation's remote API,
+ * caching bundles, resolved book paths, and chapters in memory. Produces an SEO
+ * override (title, description, breadcrumbs) when a valid verse is found.
+ */
+
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { normalizeChapterVerses } from './chapterData.js';
@@ -144,6 +154,18 @@ async function getServerChapter(translationId, bookId, chapter) {
   return chapterCache.get(cacheKey);
 }
 
+/**
+ * Resolves a verse-specific SEO override for a /read deep link, when applicable.
+ *
+ * Returns null unless the path is a reader route targeting a specific verse and
+ * the referenced translation, book, chapter, and verse all resolve to real text.
+ * @param {Object} location The request location.
+ * @param {string} location.pathname The URL path (expected /read/<tr>/<book>/<ch>).
+ * @param {URLSearchParams} location.searchParams Query params (provides the verse).
+ * @returns {Promise<{title: string, description: string, imageAlt: string,
+ *   breadcrumbs: Array<{name: string, path: string}>}|null>} The SEO override, or
+ *   null when no verse override applies.
+ */
 export async function getServerVerseSeoOverride({ pathname, searchParams }) {
   const segments = pathname.split('/').filter(Boolean);
   if (segments[0] !== 'read' || segments.length < 4) {

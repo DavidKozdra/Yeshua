@@ -1,3 +1,13 @@
+/**
+ * Full-text search across Scripture, the study library, and notes.
+ *
+ * Loads chapter text either from precompiled translation bundles or from IndexedDB,
+ * then scans verses, library works, and notes for matches. Supports book/testament
+ * filtering, exact-phrase and whole-word matching, abortable searches via an
+ * AbortSignal, and interleaves results across sources so each contributing source
+ * is represented in a truncated result set.
+ */
+
 import { BIBLE_BOOKS, getBookById } from './bibleData';
 import {
   getAllLibraryChapterEntries,
@@ -14,6 +24,12 @@ function getBundleLoaderKey(translationId) {
   return `../data/${translationId}-bundle.json`;
 }
 
+/**
+ * Lazily loads and caches a precompiled translation bundle, if one exists.
+ * @param {string} translationId The translation identifier.
+ * @returns {Promise<Object|null>} The bundle keyed by "bookId:chapter", or null
+ *   when no bundle is shipped for the translation.
+ */
 export async function loadTranslationBundle(translationId) {
   const loaderKey = getBundleLoaderKey(translationId);
   const loader = bundleLoaders[loaderKey];
@@ -56,6 +72,17 @@ async function getTranslationChapterEntriesForSearch(translationId) {
   return sortChapterEntries(await getTranslationChapterEntries(translationId));
 }
 
+/**
+ * Performs a simple case-insensitive substring search over a single translation.
+ * @param {string} translationId The translation to search.
+ * @param {string} query The search text.
+ * @param {Object} [options] Search options.
+ * @param {number} [options.maxResults=250] Maximum results to collect.
+ * @param {AbortSignal} [options.signal] Signal to abort the search early.
+ * @returns {Promise<{query: string, results: Array, totalMatches: number,
+ *   truncated: boolean}>} The match results and counts.
+ * @throws {DOMException} AbortError if the signal is aborted mid-search.
+ */
 export async function searchTranslationText(
   translationId,
   query,
@@ -121,6 +148,14 @@ function textMatches(text, query, options = {}) {
   return normalizedText.toLowerCase().includes(normalizedQuery.toLowerCase());
 }
 
+/**
+ * Determines whether a book passes the active book/testament filters.
+ * @param {string} bookId The book identifier to test.
+ * @param {Object} [filters] Filter criteria.
+ * @param {string[]} [filters.books] Allowed book ids; empty/absent means all.
+ * @param {string} [filters.testament] Required testament, if any.
+ * @returns {boolean} True when the book should be included in results.
+ */
 export function isBookAllowed(bookId, filters = {}) {
   if (Array.isArray(filters.books) && filters.books.length && !filters.books.includes(bookId)) {
     return false;
@@ -233,6 +268,25 @@ async function searchNotesContent({ query, maxResults, signal, exactPhrase, whol
   return { results, totalMatches };
 }
 
+/**
+ * Searches across the requested content sources (Bible, library, notes) and
+ * returns a combined, interleaved result set.
+ * @param {Object} [params] Search configuration.
+ * @param {string} params.query The search text.
+ * @param {string} [params.translationId] Translation to search for Bible content.
+ * @param {string[]} [params.sourceTypes=['bible']] Sources to include
+ *   ('bible', 'library', 'note').
+ * @param {string[]} [params.books=[]] Restrict Bible results to these book ids.
+ * @param {string} [params.testament=''] Restrict Bible results to a testament.
+ * @param {boolean} [params.exactPhrase=false] Match the query as an exact phrase.
+ * @param {boolean} [params.wholeWord=false] Match on whole-word boundaries.
+ * @param {boolean} [params.includeNotes=false] Also search saved notes.
+ * @param {number} [params.maxResults=250] Maximum combined results to return.
+ * @param {AbortSignal} [params.signal] Signal to abort the search early.
+ * @returns {Promise<{query: string, results: Array, totalMatches: number,
+ *   truncated: boolean}>} The interleaved results and total match count.
+ * @throws {DOMException} AbortError if the signal is aborted mid-search.
+ */
 export async function searchContent({
   query,
   translationId,

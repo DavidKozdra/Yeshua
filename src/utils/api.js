@@ -1,3 +1,16 @@
+/**
+ * Bible translation data layer: fetching chapters and installing whole
+ * translations for offline use.
+ *
+ * Chapter reads (fetchChapter) resolve in priority order — IndexedDB cache,
+ * then the in-memory bundle (translations shipped with the build), then the
+ * remote API (cached to IndexedDB on success). Whole-translation installs run
+ * through a single serial queue: callers enqueue via queueTranslationInstall /
+ * downloadTranslation, a background processor downloads one translation at a
+ * time with bounded per-translation concurrency, and progress/lifecycle is
+ * broadcast through the install EventTarget (subscribe with
+ * subscribeToTranslationInstallEvents).
+ */
 import { getTranslationById, getBookApiPathCandidates, BIBLE_BOOKS } from './bibleData';
 import { saveChapter, getChapter, saveTranslationMeta, deleteTranslationData, deleteTranslationMeta } from './db';
 import { normalizeChapterVerses } from './chapterData';
@@ -120,6 +133,11 @@ function getInstallRecordSnapshot(record) {
   };
 }
 
+/**
+ * Snapshot the current install queue: the active translation, the queued ids,
+ * and a per-job record (phase, progress, queue position, reason).
+ * @returns {{ activeTranslationId: string|null, queuedIds: string[], jobs: Object }}
+ */
 export function getTranslationInstallQueueSnapshot() {
   return {
     activeTranslationId: activeInstallId,
@@ -145,6 +163,12 @@ function emitInstallEvent(type, detail = {}) {
   );
 }
 
+/**
+ * Subscribe to translation install lifecycle events (queued, started, progress,
+ * completed, cancelled, failed, removed). Each event carries the queue snapshot.
+ * @param {(detail: object) => void} listener
+ * @returns {() => void} Unsubscribe function.
+ */
 export function subscribeToTranslationInstallEvents(listener) {
   function handleEvent(event) {
     listener(event.detail);
@@ -156,10 +180,21 @@ export function subscribeToTranslationInstallEvents(listener) {
   };
 }
 
+/**
+ * Whether this translation ships as an in-build bundle (vs. remote-only).
+ * @param {string} translationId
+ * @returns {boolean}
+ */
 export function hasBundledTranslation(translationId) {
   return Boolean(bundleLoaders[getBundleLoaderKey(translationId)]);
 }
 
+/**
+ * Where a translation can be installed from: 'bundle', 'remote', or null if it
+ * is not installable in this build.
+ * @param {string} translationId
+ * @returns {'bundle'|'remote'|null}
+ */
 export function getTranslationInstallSource(translationId) {
   const translation = getTranslationById(translationId);
   if (hasBundledTranslation(translationId)) return 'bundle';
@@ -167,10 +202,21 @@ export function getTranslationInstallSource(translationId) {
   return null;
 }
 
+/**
+ * Whether this translation can be installed (bundled or remote) in this build.
+ * @param {string} translationId
+ * @returns {boolean}
+ */
 export function canInstallTranslation(translationId) {
   return Boolean(getTranslationInstallSource(translationId));
 }
 
+/**
+ * Walk the preference chain for the given translation and return the first id
+ * that is actually installable, or null if none are.
+ * @param {string} [preferredTranslationId=DEFAULT_TRANSLATION_ID]
+ * @returns {string|null}
+ */
 export function resolveInstallableTranslationId(
   preferredTranslationId = DEFAULT_TRANSLATION_ID
 ) {
@@ -178,7 +224,14 @@ export function resolveInstallableTranslationId(
 }
 
 /**
- * Fetch a single chapter from the API or IndexedDB cache
+ * Resolve a single chapter's verses, trying the IndexedDB cache, then the
+ * in-build bundle, then the remote API (caching the API result on success).
+ * @param {string} translationId
+ * @param {string} bookId
+ * @param {number} chapter
+ * @param {{ signal?: AbortSignal, offlineOnly?: boolean }} [options]
+ *   offlineOnly skips the network and throws if the chapter is not local.
+ * @returns {Promise<Array<{ verse: number, text: string }>>}
  */
 export async function fetchChapter(translationId, bookId, chapter, options = {}) {
   const { signal, offlineOnly = false } = options;
@@ -459,6 +512,15 @@ async function processInstallQueue() {
   return queueProcessorPromise;
 }
 
+/**
+ * Enqueue a full-translation install (idempotent per translation: re-queuing one
+ * already in the queue reuses the existing job). The queue processes one
+ * translation at a time. Resolves with the download result when complete.
+ * @param {string} translationId
+ * @param {{ onProgress?: (done: number, total: number) => void, signal?: AbortSignal, reason?: string }} [options]
+ *   reason ('user' | other) lets a passive prefetch be promoted to a user request.
+ * @returns {Promise<object>} Download summary (counts, errors, completeness).
+ */
 export function queueTranslationInstall(
   translationId,
   { onProgress, signal, reason = 'user' } = {}
@@ -507,10 +569,23 @@ export function queueTranslationInstall(
   return record.promise.finally(unsubscribe);
 }
 
+/**
+ * Convenience wrapper over queueTranslationInstall with positional arguments.
+ * @param {string} translationId
+ * @param {(done: number, total: number) => void} [onProgress]
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<object>}
+ */
 export function downloadTranslation(translationId, onProgress, signal) {
   return queueTranslationInstall(translationId, { onProgress, signal });
 }
 
+/**
+ * Cancel a queued or active translation install. Removes a queued job outright,
+ * or aborts the in-flight download for an active one.
+ * @param {string} translationId
+ * @returns {boolean} True if a job was found and cancellation was initiated.
+ */
 export function cancelTranslationInstall(translationId) {
   const record = queuedInstallRecords.get(translationId);
   if (!record) return false;
@@ -540,7 +615,10 @@ export function cancelTranslationInstall(translationId) {
 }
 
 /**
- * Remove a downloaded translation
+ * Remove a downloaded translation: cancels any in-flight install, deletes its
+ * cached chapter data and metadata from IndexedDB, and emits a 'removed' event.
+ * @param {string} translationId
+ * @returns {Promise<void>}
  */
 export async function removeTranslation(translationId) {
   const queuedRecord = queuedInstallRecords.get(translationId);

@@ -1,3 +1,13 @@
+/**
+ * SEO metadata and structured-data utilities.
+ *
+ * Centralizes the site's static route metadata, JSON-LD schema builders
+ * (WebSite, Organization, BreadcrumbList), per-route SEO state derivation for
+ * dynamic reader/library/search paths, sitemap entry generation, and HTML
+ * template rewriting that injects titles, meta tags, canonical links, and
+ * structured data for server-side rendering and prerendering.
+ */
+
 import { getBookById, getTranslationById } from './bibleData.js';
 import { BOOKS_TAB_COLLECTIONS, getBooksCollectionById, getBooksWorkById } from './booksData.js';
 import {
@@ -6,13 +16,22 @@ import {
   getVerseTargetFromSearchParams,
 } from './verseSharing.js';
 
+/** Display name of the site, used in titles and structured data. */
 export const SITE_NAME = 'Yeshua';
+/** Canonical production origin used to build absolute URLs. */
 export const SITE_URL = 'https://readyeshua.com';
+/** Default Open Graph / Twitter share image URL. */
 export const DEFAULT_IMAGE = `${SITE_URL}/icon-512.png`;
+/** Fallback document title used when a route has no specific title. */
 export const DEFAULT_TITLE = 'Yeshua | Offline Bible, Scripture Reader, and Study Library';
+/** Fallback meta description used when a route has no specific description. */
 export const DEFAULT_DESCRIPTION =
   'Yeshua is an offline-first Bible and Scripture reading app with multiple translations, study notes, search, holy day awareness, and a growing spiritual library.';
 
+/**
+ * Static route SEO metadata (title, description, breadcrumbs, sitemap hints) for
+ * the app's fixed pages. Used by getSeoState and getStaticSitemapEntries.
+ */
 export const STATIC_SEO_ROUTES = [
   {
     path: '/',
@@ -97,10 +116,20 @@ export const STATIC_SEO_ROUTES = [
   },
 ];
 
+/**
+ * Formats a page-specific title by appending the site name.
+ * @param {string} title The page title segment.
+ * @returns {string} "<title> | Yeshua", or the default title when title is empty.
+ */
 export function formatTitle(title) {
   return title ? `${title} | ${SITE_NAME}` : DEFAULT_TITLE;
 }
 
+/**
+ * Builds a schema.org BreadcrumbList JSON-LD object from breadcrumb items.
+ * @param {Array<{name: string, path: string}>} items Ordered breadcrumb entries.
+ * @returns {Object} A BreadcrumbList structured-data object with absolute URLs.
+ */
 export function buildBreadcrumbList(items) {
   return {
     '@context': 'https://schema.org',
@@ -114,6 +143,10 @@ export function buildBreadcrumbList(items) {
   };
 }
 
+/**
+ * Builds the schema.org WebSite JSON-LD object, including the search action.
+ * @returns {Object} A WebSite structured-data object.
+ */
 export function buildWebsiteSchema() {
   return {
     '@context': 'https://schema.org',
@@ -128,6 +161,10 @@ export function buildWebsiteSchema() {
   };
 }
 
+/**
+ * Builds the schema.org Organization JSON-LD object for the site.
+ * @returns {Object} An Organization structured-data object.
+ */
 export function buildOrganizationSchema() {
   return {
     '@context': 'https://schema.org',
@@ -154,6 +191,20 @@ function renderJsonLdScript(id, payload) {
   return `<script id="${id}" type="application/ld+json">${JSON.stringify(payload).replaceAll('<', '\\u003c')}</script>`;
 }
 
+/**
+ * Injects SEO metadata into an HTML template by rewriting title, meta, canonical,
+ * Open Graph/Twitter tags, and JSON-LD script blocks. Tags absent from the
+ * template are left untouched.
+ * @param {string} template The HTML document template.
+ * @param {Object} seo Resolved SEO state.
+ * @param {string} seo.title The page title.
+ * @param {string} seo.description The meta description.
+ * @param {string} seo.canonicalUrl The canonical URL.
+ * @param {string} [seo.imageUrl] Share image URL; defaults to DEFAULT_IMAGE.
+ * @param {string} [seo.imageAlt] Share image alt text.
+ * @param {Array<{name: string, path: string}>} seo.breadcrumbs Breadcrumb trail.
+ * @returns {string} The HTML with SEO tags applied.
+ */
 export function renderSeoHtml(template, seo) {
   const title = escapeHtmlAttribute(seo.title);
   const description = escapeHtmlAttribute(seo.description);
@@ -234,6 +285,12 @@ export function renderSeoHtml(template, seo) {
   return html;
 }
 
+/**
+ * Builds sitemap entries for static routes plus library collection/work pages.
+ * @param {string|null} [lastmod=null] Optional last-modified value applied to all entries.
+ * @returns {Array<{path: string, changefreq: string, priority: string,
+ *   lastmod: string|null}>} The sitemap entry list.
+ */
 export function getStaticSitemapEntries(lastmod = null) {
   const entries = STATIC_SEO_ROUTES.map((route) => ({
     path: route.path,
@@ -270,6 +327,17 @@ export function getStaticSitemapEntries(lastmod = null) {
   return [...entries, ...collectionEntries];
 }
 
+/**
+ * Derives the SEO state (title, description, canonical URL, breadcrumbs) for a
+ * given location. Returns static-route metadata directly, otherwise computes
+ * metadata for dynamic reader, library, and search routes.
+ * @param {Object} location The location to resolve.
+ * @param {string} location.pathname The URL path.
+ * @param {string} [location.search=''] The URL query string.
+ * @returns {{title: string, description: string, canonicalUrl: string,
+ *   breadcrumbs: Array<{name: string, path: string}>, imageAlt?: string}} The
+ *   resolved SEO state.
+ */
 export function getSeoState({ pathname, search = '' }) {
   const searchParams = new URLSearchParams(search);
   const segments = pathname.split('/').filter(Boolean);

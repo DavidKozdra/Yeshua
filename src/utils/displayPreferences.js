@@ -1,3 +1,25 @@
+/**
+ * Display and accessibility preference applier.
+ *
+ * Maps the user's display settings onto data-* attributes of the document
+ * root element, which CSS uses to toggle animations and accessibility
+ * affordances (focus indicators, link underlines, touch target sizing,
+ * contrast, spacing, and color-vision modes).
+ */
+
+/**
+ * Apply display/accessibility preferences to the document root.
+ *
+ * Sets data-* attributes on document.documentElement so styles can react to
+ * the user's settings. Animations are forced off when the OS prefers reduced
+ * motion. No-op outside a DOM environment.
+ *
+ * @param {Object} [settings] User display settings (e.g. enableAnimations,
+ *   enhancedFocusIndicators, underlineLinks, largeTouchTargets,
+ *   highContrastText, increasedLetterSpacing, increasedWordSpacing,
+ *   colorVisionMode).
+ * @returns {void}
+ */
 export function applyDisplayPreferences(settings = {}) {
   if (typeof document === 'undefined') return;
 

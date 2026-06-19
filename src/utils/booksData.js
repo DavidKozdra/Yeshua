@@ -1,3 +1,14 @@
+/**
+ * Static catalog for the Books/Library tab: the non-Bible collections the app
+ * surfaces and their works.
+ *
+ * Each collection has a `kind`: 'bible' (handed off to the existing Bible
+ * reader), 'reader' (downloadable/streamable in-app via booksApi), or 'external'
+ * (link-out only, e.g. Bahá'í and Zoroastrian texts whose sources aren't
+ * mirrored locally). Reader works carry a `source` describing their remote
+ * provider so booksApi knows how to fetch chapters. This module is pure data +
+ * lookup helpers; all fetching/installing lives in booksApi.js.
+ */
 const BIBLE_API_ROOT = 'https://raw.githubusercontent.com/wldeh/bible-api/main/bibles';
 
 const APOCRYPHA_WORKS = [
@@ -195,6 +206,11 @@ function getTotalChapters(works = []) {
   return works.reduce((total, work) => total + (work.chapters || 0), 0);
 }
 
+/**
+ * All Books-tab collections, in display order. Each entry's `kind` determines
+ * how the app handles it (bible / reader / external). See module header.
+ * @type {Array<object>}
+ */
 export const BOOK_COLLECTIONS = [
   {
     id: 'bible',
@@ -341,16 +357,31 @@ export const BOOK_COLLECTIONS = [
 
 const COLLECTION_MAP = new Map(BOOK_COLLECTIONS.map((collection) => [collection.id, collection]));
 
+/** All collections shown on the Books tab (alias of BOOK_COLLECTIONS). */
 export const BOOKS_TAB_COLLECTIONS = BOOK_COLLECTIONS;
+/** Collections that support in-app reading (kind === 'reader'). */
 export const READER_COLLECTIONS = BOOK_COLLECTIONS.filter((collection) => collection.kind === 'reader');
+/** Collections that can be downloaded for offline use (currently same as readers). */
 export const DOWNLOADABLE_BOOK_COLLECTIONS = BOOK_COLLECTIONS.filter(
   (collection) => collection.kind === 'reader'
 );
 
+/**
+ * Look up a collection by id.
+ * @param {string} collectionId
+ * @returns {object|null}
+ */
 export function getBooksCollectionById(collectionId) {
   return COLLECTION_MAP.get(collectionId) || null;
 }
 
+/**
+ * Get a collection's works, preferring a caller-supplied resolved list (used for
+ * dynamically catalogued collections) and falling back to the static works.
+ * @param {string} collectionId
+ * @param {Array<object>|null} [resolvedWorks]
+ * @returns {Array<object>}
+ */
 export function getBooksCollectionWorks(collectionId, resolvedWorks = null) {
   const collection = getBooksCollectionById(collectionId);
   if (!collection) return [];
@@ -358,11 +389,25 @@ export function getBooksCollectionWorks(collectionId, resolvedWorks = null) {
   return Array.isArray(collection.works) ? collection.works : [];
 }
 
+/**
+ * Find a single work within a collection by id.
+ * @param {string} collectionId
+ * @param {string} workId
+ * @param {Array<object>|null} [resolvedWorks]
+ * @returns {object|null}
+ */
 export function getBooksWorkById(collectionId, workId, resolvedWorks = null) {
   const works = getBooksCollectionWorks(collectionId, resolvedWorks);
   return works.find((work) => work.id === workId) || null;
 }
 
+/**
+ * Build the default reading route for a collection (its default work, chapter 1),
+ * falling back to '/books' when the collection or a default work can't be found.
+ * @param {string} collectionId
+ * @param {Array<object>|null} [resolvedWorks]
+ * @returns {string}
+ */
 export function getBooksCollectionDefaultRoute(collectionId, resolvedWorks = null) {
   const collection = getBooksCollectionById(collectionId);
   if (!collection) return '/books';
@@ -374,6 +419,13 @@ export function getBooksCollectionDefaultRoute(collectionId, resolvedWorks = nul
   return `/books/${collection.id}/${defaultWorkId}/1`;
 }
 
+/**
+ * Compute a collection's work and chapter totals, preferring values declared on
+ * the collection and otherwise deriving them from its works.
+ * @param {string} collectionId
+ * @param {Array<object>|null} [resolvedWorks]
+ * @returns {{ workCount: number, totalChapters: number }}
+ */
 export function getBooksCollectionStats(collectionId, resolvedWorks = null) {
   const collection = getBooksCollectionById(collectionId);
   if (!collection) return { workCount: 0, totalChapters: 0 };

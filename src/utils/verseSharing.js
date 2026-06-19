@@ -1,3 +1,12 @@
+/**
+ * Verse sharing and deep-link utilities.
+ *
+ * Parses verse targets and shared-verse metadata out of URLs (query params and
+ * hash), builds canonical in-app locations and shareable URLs for a verse, and
+ * assembles share payloads. Also implements the share/copy action, using the
+ * Web Share API when available and falling back to clipboard copy.
+ */
+
 function normalizeVerseNumber(value) {
   const parsed =
     typeof value === 'number'
@@ -31,6 +40,11 @@ function normalizeShareValue(value, maxLength) {
   return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
+/**
+ * Read the target verse number from a URLSearchParams "verse" parameter.
+ * @param {URLSearchParams} searchParams Parsed query parameters.
+ * @returns {number|null} A positive integer verse number, or null if absent/invalid.
+ */
 export function getVerseTargetFromSearchParams(searchParams) {
   if (!(searchParams instanceof URLSearchParams)) {
     return null;
@@ -39,10 +53,21 @@ export function getVerseTargetFromSearchParams(searchParams) {
   return normalizeVerseNumber(searchParams.get('verse'));
 }
 
+/**
+ * Read the target verse number from a raw query string.
+ * @param {string} [search=''] A query string (e.g. "?verse=3").
+ * @returns {number|null} The verse number, or null if absent/invalid.
+ */
 export function getVerseTargetFromSearch(search = '') {
   return getVerseTargetFromSearchParams(new URLSearchParams(search));
 }
 
+/**
+ * Extract sanitized shared-verse metadata (reference and text) from query params.
+ * @param {URLSearchParams} searchParams Parsed query parameters.
+ * @returns {{reference: string, text: string}} Normalized, length-capped values
+ *   (empty strings when absent or invalid).
+ */
 export function getSharedVerseMetadataFromSearchParams(searchParams) {
   if (!(searchParams instanceof URLSearchParams)) {
     return { reference: '', text: '' };
@@ -57,10 +82,20 @@ export function getSharedVerseMetadataFromSearchParams(searchParams) {
   };
 }
 
+/**
+ * Extract sanitized shared-verse metadata from a raw query string.
+ * @param {string} [search=''] A query string.
+ * @returns {{reference: string, text: string}} Normalized shared-verse metadata.
+ */
 export function getSharedVerseMetadataFromSearch(search = '') {
   return getSharedVerseMetadataFromSearchParams(new URLSearchParams(search));
 }
 
+/**
+ * Read the target verse number from a location hash of the form "#v<number>".
+ * @param {string} [hash=''] The location hash.
+ * @returns {number|null} The verse number, or null if the hash does not match.
+ */
 export function getVerseTargetFromHash(hash = '') {
   if (typeof hash !== 'string') {
     return null;
@@ -70,10 +105,24 @@ export function getVerseTargetFromHash(hash = '') {
   return match ? normalizeVerseNumber(match[1]) : null;
 }
 
+/**
+ * Resolve the target verse number from a location-like object, preferring the
+ * query string and falling back to the hash.
+ * @param {{search?: string, hash?: string}} [locationLike={}] A location-like
+ *   object (e.g. window.location or a router location).
+ * @returns {number|null} The verse number, or null if none is present.
+ */
 export function getVerseTargetFromLocation(locationLike = {}) {
   return getVerseTargetFromSearch(locationLike.search) || getVerseTargetFromHash(locationLike.hash);
 }
 
+/**
+ * Build an in-app router location object pointing at a chapter, optionally
+ * targeting a specific verse via query param and hash.
+ * @param {{translationId: string, bookId: string, chapter: (string|number),
+ *   verse?: (string|number)}} params Verse coordinates.
+ * @returns {{pathname: string, search?: string, hash?: string}} A location object.
+ */
 export function buildVerseLocation({ translationId, bookId, chapter, verse }) {
   const location = {
     pathname: `/read/${translationId}/${bookId}/${chapter}`,
@@ -88,6 +137,13 @@ export function buildVerseLocation({ translationId, bookId, chapter, verse }) {
   return location;
 }
 
+/**
+ * Build a fully-qualified, shareable URL for a verse, resolving the origin from
+ * the argument or window when omitted.
+ * @param {{origin?: string, translationId: string, bookId: string,
+ *   chapter: (string|number), verse?: (string|number)}} params URL coordinates.
+ * @returns {string} An absolute verse URL.
+ */
 export function buildVerseUrl({
   origin,
   translationId,
@@ -112,6 +168,13 @@ export function buildVerseUrl({
   return url.toString();
 }
 
+/**
+ * Format a human-readable verse reference such as "John 3:16 (KJV)".
+ * @param {{bookName: string, chapter: (string|number), verse: (string|number),
+ *   translationLabel?: string}} params Reference parts.
+ * @returns {string} The formatted reference, with the translation label appended
+ *   in parentheses when provided.
+ */
 export function buildVerseReference({ bookName, chapter, verse, translationLabel }) {
   const reference = `${bookName} ${chapter}:${verse}`;
   return translationLabel ? `${reference} (${translationLabel})` : reference;
@@ -121,6 +184,13 @@ function normalizeVerseText(text) {
   return typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
 }
 
+/**
+ * Compose shareable text from the verse text, reference, and URL, omitting any
+ * empty parts and separating present parts with blank lines.
+ * @param {{verseText?: string, reference?: string, url?: string}} params Share
+ *   text components.
+ * @returns {string} The assembled share text.
+ */
 export function buildVerseShareText({ verseText, reference, url }) {
   const lines = [];
   const normalizedVerseText = normalizeVerseText(verseText);
@@ -140,6 +210,15 @@ export function buildVerseShareText({ verseText, reference, url }) {
   return lines.join('\n\n');
 }
 
+/**
+ * Build the complete share payload for a verse, including reference, title,
+ * share text, URL, and a clipboard-friendly copy text (which includes the URL).
+ * @param {{origin?: string, translationId: string, bookId: string,
+ *   chapter: (string|number), verse: (string|number), verseText?: string,
+ *   bookName: string, translationLabel?: string}} params Verse data.
+ * @returns {{reference: string, title: string, text: string, url: string,
+ *   copyText: string}} A share payload consumable by {@link shareVersePayload}.
+ */
 export function createVerseSharePayload({
   origin,
   translationId,
@@ -212,6 +291,14 @@ async function copyTextToClipboard(text) {
   }
 }
 
+/**
+ * Share a verse payload via the Web Share API when available, falling back to
+ * copying the payload's copy text to the clipboard.
+ * @param {{title: string, text: string, url: string, copyText: string}} payload
+ *   A payload produced by {@link createVerseSharePayload}.
+ * @returns {Promise<{outcome: 'shared'|'cancelled'|'copied'}>} The result of the
+ *   share/copy attempt.
+ */
 export async function shareVersePayload(payload) {
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
