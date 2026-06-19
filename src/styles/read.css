@@ -6,7 +6,10 @@
   width: 100%;
   min-width: 0;
   overflow-x: clip;
-  perspective: 1200px;
+  /* NOTE: `perspective` (or any transform) here would make this element the
+     containing block for position:fixed descendants, which would un-pin the
+     floating reader-tools FAB from the viewport. The page-turn perspective
+     lives on .read-content (the actual 3D-animated element) instead. */
 }
 
 /* Top bar */
@@ -213,6 +216,11 @@
   position: relative;
   will-change: transform, opacity;
   transform-style: preserve-3d;
+  /* Depth for the page-turn corner-highlight pseudo-elements (children).
+     Safe to set here because .read-content is a SIBLING of the fixed FAB, not
+     an ancestor, so it doesn't capture the FAB's position:fixed. The element's
+     own page-turn rotateY uses an inline perspective() in its keyframes. */
+  perspective: 1200px;
 }
 
 .read-content::before {
@@ -292,22 +300,22 @@
 
 @keyframes page-turn-next {
   0% {
-    transform: rotateY(0deg) translateX(0) scale3d(1, 1, 1);
+    transform: perspective(1200px) rotateY(0deg) translateX(0) scale3d(1, 1, 1);
     opacity: 1;
     box-shadow: none;
   }
   35% {
-    transform: rotateY(-20deg) translateX(-16px) scale3d(0.98, 1, 1);
+    transform: perspective(1200px) rotateY(-20deg) translateX(-16px) scale3d(0.98, 1, 1);
     opacity: 0.85;
     box-shadow: -12px 0 25px rgba(0, 0, 0, 0.25);
   }
   70% {
-    transform: rotateY(-32deg) translateX(-26px) scale3d(0.96, 1, 1);
+    transform: perspective(1200px) rotateY(-32deg) translateX(-26px) scale3d(0.96, 1, 1);
     opacity: 0.6;
     box-shadow: -18px 0 45px rgba(0, 0, 0, 0.35);
   }
   100% {
-    transform: rotateY(0deg) translateX(0) scale3d(1, 1, 1);
+    transform: perspective(1200px) rotateY(0deg) translateX(0) scale3d(1, 1, 1);
     opacity: 1;
     box-shadow: none;
   }
@@ -315,22 +323,22 @@
 
 @keyframes page-turn-prev {
   0% {
-    transform: rotateY(0deg) translateX(0) scale3d(1, 1, 1);
+    transform: perspective(1200px) rotateY(0deg) translateX(0) scale3d(1, 1, 1);
     opacity: 1;
     box-shadow: none;
   }
   35% {
-    transform: rotateY(20deg) translateX(16px) scale3d(0.98, 1, 1);
+    transform: perspective(1200px) rotateY(20deg) translateX(16px) scale3d(0.98, 1, 1);
     opacity: 0.85;
     box-shadow: 12px 0 25px rgba(0, 0, 0, 0.25);
   }
   70% {
-    transform: rotateY(32deg) translateX(26px) scale3d(0.96, 1, 1);
+    transform: perspective(1200px) rotateY(32deg) translateX(26px) scale3d(0.96, 1, 1);
     opacity: 0.6;
     box-shadow: 18px 0 45px rgba(0, 0, 0, 0.35);
   }
   100% {
-    transform: rotateY(0deg) translateX(0) scale3d(1, 1, 1);
+    transform: perspective(1200px) rotateY(0deg) translateX(0) scale3d(1, 1, 1);
     opacity: 1;
     box-shadow: none;
   }
